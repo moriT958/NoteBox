@@ -20,3 +20,7 @@
 - `bx rm <id>`: メモを削除
 - `bx prev <id>`: メモをプレビュー
 - `bx config`: NoteBoxアプリの設定を編集。
+
+## 追加で欲しい機能
+
+- MarkdownからPukiWikiへの変換
