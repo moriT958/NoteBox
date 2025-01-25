@@ -14,7 +14,7 @@
 
 ## コマンド
 
-- `bx new <title>`: メモを新規作成
+- `bx create <title>`: メモを新規作成
 - `bx ls`: メモ一覧を表示
 - `bx edit <id>`: メモを編集
 - `bx rm <id>`: メモを削除
