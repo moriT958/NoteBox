@@ -14,12 +14,12 @@
 
 ## コマンド
 
-- `bx create <title>`: メモを新規作成
-- `bx ls`: メモ一覧を表示
-- `bx edit <id>`: メモを編集
-- `bx rm <id>`: メモを削除
-- `bx prev <id>`: メモをプレビュー
-- `bx config`: NoteBoxアプリの設定を編集。
+- [✅] `bx create <title>`: メモを新規作成
+- [] `bx ls`: メモ一覧を表示
+- [] `bx edit <id>`: メモを編集
+- [] `bx rm <id>`: メモを削除
+- [] `bx prev <id>`: メモをプレビュー
+- [] `bx config`: NoteBoxアプリの設定を編集。
 
 ## 追加で欲しい機能
 

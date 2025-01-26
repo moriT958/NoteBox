@@ -3,8 +3,10 @@ package box
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -62,7 +64,27 @@ func (b *NoteBox) FindByTitle(title string) (Note, error) {
 }
 
 func (b *NoteBox) FindAll() ([]Note, error) {
-	return nil, nil
+	notes := make([]Note, 0, b.NoteNum)
+	filepath.Walk(b.storagePath, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if path == b.storagePath {
+			return nil
+		}
+
+		n := Note{
+			Title:     strings.TrimSuffix(info.Name(), filepath.Ext(path)),
+			Size:      info.Size(),
+			CreatedAt: info.ModTime(),
+		}
+		notes = append(notes, n)
+
+		return nil
+	})
+
+	return notes, nil
 }
 
 func (b *NoteBox) DeleteByTitle(title string) error {
