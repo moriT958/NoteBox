@@ -65,3 +65,34 @@ func TestSave_異常系(t *testing.T) {
 		})
 	}
 }
+
+func TestFindAll_正常系(t *testing.T) {
+	wantTitle := "test-1"
+	tf, err := os.Stat(filepath.Join(testDir, "test-1.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantSize := tf.Size()
+	wantCreatedAt := tf.ModTime()
+
+	box := NewNoteBox(testDir)
+
+	t.Run("correctly get list of note data", func(t *testing.T) {
+		got, err := box.FindAll()
+		if err != nil {
+			t.Fatalf("FildAll func failed: %v", err)
+		}
+
+		if got[0].Title != wantTitle {
+			t.Errorf("want title %v, got %v", wantTitle, got[0].Title)
+		}
+
+		if got[0].Size != wantSize {
+			t.Errorf("want size %v, got %v", wantSize, got[0].Size)
+		}
+
+		if got[0].CreatedAt != wantCreatedAt {
+			t.Errorf("want time %v, got %v", wantCreatedAt, got[0].CreatedAt)
+		}
+	})
+}

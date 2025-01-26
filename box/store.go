@@ -3,8 +3,10 @@ package box
 import (
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -24,18 +26,17 @@ type IBox interface {
 var _ IBox = (*NoteBox)(nil)
 
 type NoteBox struct {
-	NoteNum     int
 	storagePath string
 }
 
 func NewNoteBox(sp string) *NoteBox {
 	nb := new(NoteBox)
-	nb.NoteNum = 0
 	nb.storagePath = sp
 	return nb
 }
 
 func (b *NoteBox) Save(note Note) error {
+
 	path := filepath.Join(b.storagePath, note.Title+".md")
 	if note.Title == "" {
 		return errors.New("failed to create note: title required")
@@ -62,7 +63,30 @@ func (b *NoteBox) FindByTitle(title string) (Note, error) {
 }
 
 func (b *NoteBox) FindAll() ([]Note, error) {
-	return nil, nil
+
+	notes := make([]Note, 0)
+	if err := filepath.Walk(b.storagePath, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if path == b.storagePath {
+			return nil
+		}
+
+		n := Note{
+			Title:     strings.TrimSuffix(info.Name(), filepath.Ext(path)),
+			Size:      info.Size(),
+			CreatedAt: info.ModTime(),
+		}
+		notes = append(notes, n)
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return notes, nil
 }
 
 func (b *NoteBox) DeleteByTitle(title string) error {

@@ -4,5 +4,5 @@ import "notebox/box"
 
 var (
 	storagePath = "./storage"
-	NoteBox     = box.NewNoteBox(storagePath)
+	nb          = box.NewNoteBox(storagePath)
 )
