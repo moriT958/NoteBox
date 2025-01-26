@@ -20,7 +20,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := NoteBox.Save(box.Note{Title: args[0]}); err != nil {
+		if err := nb.Save(box.Note{Title: args[0]}); err != nil {
 			return err
 		}
 		return nil
