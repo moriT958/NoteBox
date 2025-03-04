@@ -26,7 +26,7 @@ func NewConfig(filename string) (*config, error) {
 		// デフォルト設定
 		cfg := &config{
 			Volume:       "./data",
-			MetaDataPath: "./.data.json",
+			MetaDataPath: "./.metadata.json",
 			Editor:       "vim",
 			GrepCmd:      "grep",
 		}
