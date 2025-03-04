@@ -1,5 +1,6 @@
 notebox: main.go
-	go build -o notebox main.go
+	go build -o note .
 
 clean: notebox
-	rm ./notebox
+	rm -rf ./data/*
+	rm ./note
