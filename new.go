@@ -59,18 +59,14 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 	topHeader := "# " + c.title + "\n\n"
 	noteFile := filepath.Join(c.cfg.Volume, uuid.NewString()+".md")
 
-	// TODO: すでに同じタイトルのノートが存在する場合はエラー
-
 	fp, err := os.Create(noteFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create file: %v\n", err)
 		return subcommands.ExitFailure
 	}
 	defer fp.Close()
-
 	fmt.Fprint(fp, topHeader)
 
-	// TODO: lipglossでUI強化
 	fmt.Printf("✅ Note Created!\nID: %d\tTitle: %s\n", 0, c.title)
 
 	return subcommands.ExitSuccess

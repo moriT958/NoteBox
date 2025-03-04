@@ -1,7 +1,7 @@
 package main
 
 type note struct {
-	id    string
-	title string
-	path  string
+	ID    int    `json:"id"`
+	Title string `json:"title"`
+	Path  string `json:"path"`
 }

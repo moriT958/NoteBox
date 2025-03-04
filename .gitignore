@@ -1,6 +1,9 @@
 note
+
 data/
+.metadata.json
 
 .DS_Store
+MEMO.md
 
 memo/

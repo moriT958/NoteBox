@@ -3,4 +3,5 @@ notebox: main.go
 
 clean: notebox
 	rm -rf ./data/*
+	rm .metadata.json
 	rm ./note

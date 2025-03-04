@@ -19,8 +19,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO:
-	// ここでdata.jsonをロードし、リストを作成
+	// .metadata.jsonの存在確認
+	if _, err := os.Stat(cfg.MetaDataPath); err != nil {
+		fp, err := os.Create(cfg.MetaDataPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to create data file: %v\n", err)
+			os.Exit(1)
+		}
+		defer fp.Close()
+	}
 
 	// サブコマンドを登録
 	subcommands.Register(&newCmd{cfg: cfg}, "")
