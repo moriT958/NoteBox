@@ -87,12 +87,3 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 
 	return subcommands.ExitSuccess
 }
-
-func validateArgs(args []string) bool {
-	l := len(args)
-	if l <= 1 {
-		return true
-	} else {
-		return false
-	}
-}

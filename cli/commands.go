@@ -19,7 +19,7 @@ func (s *storeMock) FindByID(id int) (store.Note, error) {
 	n := store.Note{
 		ID:    0,
 		Title: "Sample Note",
-		Path:  "data/test.md",
+		Path:  "data/4e42b52a-f2a6-487e-b224-795d71c1b288.md",
 	}
 	return n, nil
 }
@@ -30,7 +30,7 @@ func (s *storeMock) FindAll() ([]store.Note, error) {
 		nl[i] = store.Note{
 			ID:    0,
 			Title: "Sample Note",
-			Path:  "data/test.md",
+			Path:  "data/4e42b52a-f2a6-487e-b224-795d71c1b288.md",
 		}
 	}
 	return nl, nil
@@ -46,6 +46,7 @@ func InitCommands(ctx context.Context, cfg *config.Config) int {
 
 	subcommands.Register(&newCmd{cfg: cfg, store: store}, "")
 	subcommands.Register(&lsCmd{cfg: cfg, store: store}, "")
+	subcommands.Register(&editCmd{cfg: cfg, store: store}, "")
 
 	flag.Parse()
 
