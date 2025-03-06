@@ -2,18 +2,17 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
+	"notebox/cli"
+	"notebox/config"
 	"os"
-
-	"github.com/google/subcommands"
 )
 
 const configFile = "./config.json"
 
 func main() {
 	// configファイルをロードする
-	cfg, err := NewConfig(configFile)
+	cfg, err := config.NewConfig(configFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load config file: %v\n", err)
 		os.Exit(1)
@@ -30,10 +29,6 @@ func main() {
 	}
 
 	// サブコマンドを登録
-	subcommands.Register(&newCmd{cfg: cfg}, "")
-	subcommands.Register(&lsCmd{cfg: cfg}, "")
-
-	flag.Parse()
 	ctx := context.Background()
-	os.Exit(int(subcommands.Execute(ctx)))
+	os.Exit(cli.InitCommands(ctx, cfg))
 }
