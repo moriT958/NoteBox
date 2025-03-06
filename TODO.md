@@ -1,7 +1,7 @@
 # TODO
 
 - [x] `note new [title]`: ノートを新規作成
-- [ ] `note ls`: メモ一覧を表示
+- [x] `note ls`: メモ一覧を表示
 - [ ] `note edit [id]`: メモを編集
 - [ ] `note view <id>`: メモをプレビュー
 - [ ] `note rm [id]`: メモを削除

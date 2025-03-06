@@ -1,10 +1,12 @@
-package main
+package cli
 
 import (
 	"bufio"
 	"context"
 	"flag"
 	"fmt"
+	"notebox/config"
+	"notebox/store"
 	"os"
 	"path/filepath"
 
@@ -15,8 +17,8 @@ import (
 var _ subcommands.Command = (*newCmd)(nil)
 
 type newCmd struct {
-	cfg   *config
-	title string
+	store store.Store
+	cfg   *config.Config
 }
 
 // Name returns the name of the command.
@@ -36,6 +38,8 @@ func (*newCmd) SetFlags(f *flag.FlagSet) {}
 
 // Execute executes the command and returns an ExitStatus.
 func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+	var title string
+
 	// 引数が多すぎる時はエラーを返す
 	if !validateArgs(f.Args()) {
 		fmt.Fprintf(os.Stderr, "too much args. needed one.\n")
@@ -43,7 +47,7 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 	}
 
 	if len(f.Args()) > 0 {
-		c.title = f.Args()[0]
+		title = f.Args()[0]
 	} else {
 		fmt.Print("Enter Title: ")
 		r := bufio.NewReader(os.Stdin)
@@ -52,11 +56,11 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 			fmt.Fprintf(os.Stderr, "failed to read title: %v\n", err)
 			return subcommands.ExitFailure
 		}
-		c.title = input
+		title = input
 	}
 
 	// Markdownファイルの作成
-	topHeader := "# " + c.title + "\n\n"
+	topHeader := "# " + title + "\n\n"
 	noteFile := filepath.Join(c.cfg.Volume, uuid.NewString()+".md")
 
 	fp, err := os.Create(noteFile)
@@ -67,7 +71,19 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 	defer fp.Close()
 	fmt.Fprint(fp, topHeader)
 
-	fmt.Printf("✅ Note Created!\nID: %d\tTitle: %s\n", 0, c.title)
+	// Noteのメタデータを保存
+	note := &store.Note{
+		ID:    0,
+		Title: title,
+		Path:  noteFile,
+	}
+
+	id, err := c.store.Save(*note)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to save note: %v\n", err)
+	}
+
+	fmt.Printf("✅ Note Created!\nID: %d\tTitle: %s\n", id, note.Title)
 
 	return subcommands.ExitSuccess
 }

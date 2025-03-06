@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"encoding/json"
@@ -6,14 +6,14 @@ import (
 	"os"
 )
 
-type config struct {
+type Config struct {
 	Volume       string `json:"volume"`
 	MetaDataPath string `json:"metadatapath"`
 	Editor       string `json:"editor"`
 	GrepCmd      string `json:"grepcmd"`
 }
 
-func NewConfig(filename string) (*config, error) {
+func NewConfig(filename string) (*Config, error) {
 
 	// 設定ファイルが存在しない場合の処理
 	if _, err := os.Stat(filename); err != nil {
@@ -24,7 +24,7 @@ func NewConfig(filename string) (*config, error) {
 		defer fp.Close()
 
 		// デフォルト設定
-		cfg := &config{
+		cfg := &Config{
 			Volume:       "./data",
 			MetaDataPath: "./.metadata.json",
 			Editor:       "vim",
@@ -47,7 +47,7 @@ func NewConfig(filename string) (*config, error) {
 	}
 
 	// configインスタンスの生成
-	cfg := new(config)
+	cfg := new(Config)
 	if err := json.Unmarshal(bytes, &cfg); err != nil {
 		return nil, err
 	}
