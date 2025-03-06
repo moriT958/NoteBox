@@ -1,6 +1,6 @@
 {
 	"volume": "./data",
 	"metadatapath": "./.metadata.json",
-	"editor": "vim",
+	"editor": "nvim",
 	"grepcmd": "grep"
 }
