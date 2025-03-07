@@ -47,6 +47,7 @@ func InitCommands(ctx context.Context, cfg *config.Config) int {
 	subcommands.Register(&newCmd{cfg: cfg, store: store}, "")
 	subcommands.Register(&lsCmd{cfg: cfg, store: store}, "")
 	subcommands.Register(&editCmd{cfg: cfg, store: store}, "")
+	subcommands.Register(&rmCmd{cfg: cfg, store: store}, "")
 
 	flag.Parse()
 
