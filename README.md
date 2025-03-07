@@ -11,7 +11,7 @@
 
 ## 特徴
 
-- GitHubを利用したオンライン自動保存/同期
+- GitHubを利用したオンライン保存/同期
 - メモ管理をCLIで完結
 - メモのグルーピング
 - メモの文字列検索機能
@@ -30,6 +30,7 @@
 - `note grep <string>`: ノートを文字列で検索
 - `note config`: NoteBoxアプリの設定を編集。
 - `note help`: コマンド一覧やコマンドのヘルプを表示
+- `note upload`: GitHubへプッシュ
 
 - `note box ls`: ノートのグループ(ボックス)一覧を表示
 - `note box status <box-id>`: ボックス内のノート一覧を表示
