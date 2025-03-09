@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"notebox/config"
 	"notebox/store"
-	"os"
 
 	"github.com/google/subcommands"
 )
@@ -31,10 +30,7 @@ func (*lsCmd) SetFlags(f *flag.FlagSet) {}
 
 func (c *lsCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
 	// StoreからNoteの一覧を取得
-	notes, err := c.store.FindAll()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed get list of notes: %v\n", err)
-	}
+	notes := c.store.FindAll()
 
 	// 取得したデータを標準出力に書き出す
 	for i := range len(notes) {

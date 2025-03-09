@@ -60,8 +60,13 @@ func (c *editCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfac
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to convert id arg to integer: %v\n", err)
+		return subcommands.ExitFailure
 	}
 	note, err := c.store.FindByID(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "note does't exit: %v\n", err)
+		return subcommands.ExitFailure
+	}
 
 	// Noteから得たPathを指定して、vimで開く
 	cmd := exec.Command(c.cfg.Editor, fmt.Sprintf("%s", note.Path))
@@ -69,6 +74,7 @@ func (c *editCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfac
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to open file by your editor: %v\n", err)
+		return subcommands.ExitFailure
 	}
 
 	return subcommands.ExitSuccess
