@@ -5,13 +5,14 @@ import (
 	"flag"
 	"log"
 	"notebox/config"
+	"notebox/note"
 	"notebox/store"
 
 	"github.com/google/subcommands"
 )
 
 func InitCommands(ctx context.Context, cfg *config.Config) int {
-	store, err := store.NewNoteStore(cfg.MetaDataPath)
+	store, err := note.NewNoteRepository(cfg.MetaDataPath)
 	if err != nil {
 		log.Println(err)
 		return int(subcommands.ExitFailure)

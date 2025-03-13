@@ -1,7 +1,7 @@
 notebox: main.go
-	go build -o note .
+	go build -o box .
 
-clean: notebox
+clean: box
 	rm -rf ./data/*
 	rm .metadata.json
-	rm ./note
+	rm ./box
