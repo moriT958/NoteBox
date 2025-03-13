@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"notebox/config"
-	"notebox/store"
 	"os"
 	"os/exec"
 	"strconv"
@@ -14,10 +13,7 @@ import (
 	"github.com/google/subcommands"
 )
 
-type editCmd struct {
-	cfg   *config.Config
-	store store.Store
-}
+type editCmd struct{}
 
 var _ subcommands.Command = (*editCmd)(nil)
 
@@ -62,14 +58,14 @@ func (c *editCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interfac
 		fmt.Fprintf(os.Stderr, "failed to convert id arg to integer: %v\n", err)
 		return subcommands.ExitFailure
 	}
-	note, err := c.store.FindByID(id)
+	note, err := Nr.FindByID(id)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "note does't exit: %v\n", err)
 		return subcommands.ExitFailure
 	}
 
 	// Noteから得たPathを指定して、vimで開く
-	cmd := exec.Command(c.cfg.Editor, fmt.Sprintf("%s", note.Path))
+	cmd := exec.Command(config.Editor, fmt.Sprintf("%s", note.Path))
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {

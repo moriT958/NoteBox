@@ -5,18 +5,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"notebox/config"
-	"notebox/store"
 	"os"
 	"strconv"
 
 	"github.com/google/subcommands"
 )
 
-type rmCmd struct {
-	cfg   *config.Config
-	store store.Store
-}
+type rmCmd struct{}
 
 var _ subcommands.Command = (*rmCmd)(nil)
 
@@ -62,7 +57,7 @@ func (c *rmCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{
 		fmt.Fprintf(os.Stderr, "failed to convert id arg to integer: %v\n", err)
 	}
 
-	if err := c.store.DeleteByID(id); err != nil {
+	if err := Nr.DeleteByID(id); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to delete note: %v\n", err)
 		return subcommands.ExitFailure
 	}
