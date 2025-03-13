@@ -3,25 +3,21 @@ package cli
 import (
 	"context"
 	"flag"
-	"log"
-	"notebox/config"
 	"notebox/note"
-	"notebox/store"
 
 	"github.com/google/subcommands"
 )
 
-func InitCommands(ctx context.Context, cfg *config.Config) int {
-	store, err := note.NewNoteRepository(cfg.MetaDataPath)
-	if err != nil {
-		log.Println(err)
-		return int(subcommands.ExitFailure)
-	}
+var (
+	Nr *note.NoteRepository
+)
 
-	subcommands.Register(&newCmd{cfg: cfg, store: store}, "")
-	subcommands.Register(&lsCmd{cfg: cfg, store: store}, "")
-	subcommands.Register(&editCmd{cfg: cfg, store: store}, "")
-	subcommands.Register(&rmCmd{cfg: cfg, store: store}, "")
+func InitCommands(ctx context.Context, nr *note.NoteRepository) int {
+
+	subcommands.Register(&newCmd{}, "")
+	subcommands.Register(&lsCmd{}, "")
+	subcommands.Register(&editCmd{}, "")
+	subcommands.Register(&rmCmd{}, "")
 
 	flag.Parse()
 

@@ -2,33 +2,43 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"log"
 	"notebox/cli"
 	"notebox/config"
+	"notebox/note"
 	"os"
 )
 
-const configFile = "./config.json"
+const (
+	configFile = "./config.json"
+	sqliteDsn  = "./db.sqlite"
+)
+
+func initDB() *sql.DB {
+
+	db, err := sql.Open("sqlite", sqliteDsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return db
+}
 
 func main() {
 	// configファイルをロードする
-	cfg, err := config.NewConfig(configFile)
-	if err != nil {
+	if err := config.LoadConfigFile(configFile); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load config file: %v\n", err)
 		os.Exit(1)
 	}
 
-	// .metadata.jsonの存在確認
-	if _, err := os.Stat(cfg.MetaDataPath); err != nil {
-		fp, err := os.Create(cfg.MetaDataPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to create data file: %v\n", err)
-			os.Exit(1)
-		}
-		defer fp.Close()
+	noteRepo, err := note.NewNoteRepository(initDB())
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	// サブコマンドを登録
 	ctx := context.Background()
-	os.Exit(cli.InitCommands(ctx, cfg))
+	os.Exit(cli.InitCommands(ctx, noteRepo))
 }

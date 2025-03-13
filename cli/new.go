@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"notebox/config"
-	"notebox/store"
+	"notebox/note"
 	"os"
 	"path/filepath"
 
@@ -16,10 +16,7 @@ import (
 
 var _ subcommands.Command = (*newCmd)(nil)
 
-type newCmd struct {
-	store store.Store
-	cfg   *config.Config
-}
+type newCmd struct{}
 
 // Name returns the name of the command.
 func (*newCmd) Name() string { return "new" }
@@ -61,7 +58,7 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 
 	// Markdownファイルの作成
 	topHeader := "# " + title + "\n\n"
-	noteFile := filepath.Join(c.cfg.Volume, uuid.NewString()+".md")
+	noteFile := filepath.Join(config.Volume, uuid.NewString()+".md")
 
 	fp, err := os.Create(noteFile)
 	if err != nil {
@@ -72,13 +69,13 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 	fmt.Fprint(fp, topHeader)
 
 	// Noteのメタデータを保存
-	note := &store.Note{
+	note := &note.Note{
 		ID:    0,
 		Title: title,
 		Path:  noteFile,
 	}
 
-	id, err := c.store.Save(*note)
+	id, err := Nr.Save(*note)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to save note: %v\n", err)
 	}
