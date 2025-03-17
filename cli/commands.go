@@ -12,7 +12,7 @@ var (
 	Nr *note.NoteRepository
 )
 
-func InitCommands(ctx context.Context, nr *note.NoteRepository) int {
+func InitCommands(ctx context.Context) int {
 
 	subcommands.Register(&newCmd{}, "")
 	subcommands.Register(&lsCmd{}, "")

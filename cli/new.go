@@ -70,7 +70,6 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) s
 
 	// Noteのメタデータを保存
 	note := &note.Note{
-		ID:    0,
 		Title: title,
 		Path:  noteFile,
 	}
