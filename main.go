@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	_ "modernc.org/sqlite"
 	"notebox/cli"
 	"notebox/config"
 	"notebox/note"
@@ -37,8 +38,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cli.Nr = noteRepo
 
 	// サブコマンドを登録
 	ctx := context.Background()
-	os.Exit(cli.InitCommands(ctx, noteRepo))
+	os.Exit(cli.InitCommands(ctx))
 }

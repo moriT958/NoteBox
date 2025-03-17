@@ -6,7 +6,7 @@
   - [x] `note ls`: メモ一覧を表示
   - [x] `note edit [id]`: メモを編集
   - [x] `note rm [id]`: メモを削除
-  - [ ] `NoteStore`オブジェクトの実装
+  - [x] `NoteStore`オブジェクトの実装
 
 - その他コマンドの実装(MVP)
 

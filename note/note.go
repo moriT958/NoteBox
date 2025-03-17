@@ -3,9 +3,9 @@ package note
 import "database/sql"
 
 type Note struct {
-	ID    int    `json:"id"`
-	Title string `json:"title"`
-	Path  string `json:"path"`
+	ID    int
+	Title string
+	Path  string
 }
 
 type Repository interface {
@@ -19,7 +19,7 @@ type NoteRepository struct {
 	DB *sql.DB
 }
 
-const dbSchema = `
+const initQuery = `
 CREATE TABLE IF NOT EXISTS notes (
 	id INTEGER PRIMARY KEY,
 	title TEXT NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS notes (
 
 func NewNoteRepository(db *sql.DB) (*NoteRepository, error) {
 	// Migrate database
-	if _, err := db.Exec(dbSchema); err != nil {
+	if _, err := db.Exec(initQuery); err != nil {
 		return nil, err
 	}
 	return &NoteRepository{DB: db}, nil
@@ -40,7 +40,8 @@ var _ Repository = (*NoteRepository)(nil)
 
 func (r *NoteRepository) Save(note Note) (int, error) {
 
-	if _, err := r.DB.Exec(`INSERT INTO notes (title, path) VALUES (?, ?);`, note.Title, note.Path); err != nil {
+	if err := r.DB.QueryRow(`INSERT INTO notes (title, path) VALUES (?, ?) RETURNING id;`,
+		note.Title, note.Path).Scan(&note.ID); err != nil {
 		return 0, err
 	}
 
