@@ -1,7 +1,8 @@
-notebox: main.go
+.PHONY: box
+box: main.go
 	go build -o box .
 
 clean: box
 	rm -rf ./data/*
-	rm .metadata.json
+	rm db.sqlite
 	rm ./box

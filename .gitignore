@@ -1,6 +1,6 @@
 db.sqlite
 data/
-.metadata.json
+box
 
 .DS_Store
 MEMO.md
