@@ -1,6 +1,6 @@
 db.sqlite
 .data/
-box
+notebox
 
 .DS_Store
 TODO.md
