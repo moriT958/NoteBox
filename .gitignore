@@ -1,5 +1,5 @@
 db.sqlite
-data/
+.data/
 box
 
 .DS_Store

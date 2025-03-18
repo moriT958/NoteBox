@@ -1,55 +1,69 @@
 package config
 
 import (
+	_ "embed"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"os"
 )
 
-type config struct {
-	Volume       string `json:"volume"`
-	MetaDataPath string `json:"metadatapath"`
-	Editor       string `json:"editor"`
-	GrepCmd      string `json:"grepcmd"`
-}
-
-func LoadConfigFile(filename string) error {
+func LoadConfigFile() error {
 
 	// 設定ファイルが存在しない場合の処理
-	if _, err := os.Stat(filename); err != nil {
-		fp, err := os.Create(filename)
-		if err != nil {
-			return err
-		}
-		defer fp.Close()
-
-		cfg := &config{
-			Volume:       "",
-			MetaDataPath: "",
-			Editor:       "",
-			GrepCmd:      "",
-		}
-		encoder := json.NewEncoder(fp)
-		encoder.SetIndent("", "	")
-		if err := encoder.Encode(cfg); err != nil {
+	if _, err := os.Stat(ConfigFile); err != nil {
+		if err := loadDefaultConfig(); err != nil {
 			return err
 		}
 	}
 
-	// ファイルの中身を読み取る
-	bytes, err := os.ReadFile(filename)
+	fp, err := os.Open(ConfigFile)
 	if err != nil {
 		return err
 	}
-	if len(bytes) == 0 {
-		return errors.New("config file is empty")
-	}
+	defer fp.Close()
 
-	// configインスタンスの生成
-	cfg := new(config)
-	if err := json.Unmarshal(bytes, &cfg); err != nil {
+	var tempConfig map[string]string
+	if err := json.NewDecoder(fp).Decode(&tempConfig); err != nil {
 		return err
 	}
+
+	if v, ok := tempConfig["volume"]; ok {
+		Volume = v
+	}
+	if v, ok := tempConfig["metadatadir"]; ok {
+		MetadataDir = v
+	}
+	if v, ok := tempConfig["editor"]; ok {
+		Editor = v
+	}
+	if v, ok := tempConfig["grepcmd"]; ok {
+		Grepcmd = v
+	}
+
+	return nil
+}
+
+func loadDefaultConfig() error {
+	// デフォルトの設定
+	defaultConfig := map[string]string{
+		"volume":      "./.data",
+		"metadatadir": "./db.sqlite",
+		"editor":      "vim",
+		"grepcmd":     "grep",
+	}
+
+	fp, err := os.Create(ConfigFile)
+	if err != nil {
+		return err
+	}
+	defer fp.Close()
+
+	encoder := json.NewEncoder(fp)
+	encoder.SetIndent("", "    ") // JSON を整形
+	if err := encoder.Encode(defaultConfig); err != nil {
+		return err
+	}
+	fmt.Printf("Config file not found, created default config: %s", ConfigFile)
 
 	return nil
 }
