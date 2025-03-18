@@ -1,6 +1,6 @@
 {
-	"volume": "./data",
-	"metadatapath": "./.metadata.json",
+	"volume": "./.data",
+	"metadatadir": "./db.sqlite",
 	"editor": "nvim",
 	"grepcmd": "grep"
 }

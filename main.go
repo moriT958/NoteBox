@@ -12,14 +12,9 @@ import (
 	"os"
 )
 
-const (
-	configFile = "./config.json"
-	sqliteDsn  = "./db.sqlite"
-)
-
 func initDB() *sql.DB {
 
-	db, err := sql.Open("sqlite", sqliteDsn)
+	db, err := sql.Open("sqlite", config.MetadataDir)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,7 +24,7 @@ func initDB() *sql.DB {
 
 func main() {
 	// configファイルをロードする
-	if err := config.LoadConfigFile(configFile); err != nil {
+	if err := config.LoadConfigFile(); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load config file: %v\n", err)
 		os.Exit(1)
 	}

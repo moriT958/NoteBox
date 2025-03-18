@@ -10,8 +10,8 @@
 
 - その他コマンドの実装(MVP)
 
-  - [ ] `note grep <string>`: ノートを文字列で検索
   - [ ] `note config`: NoteBoxアプリの設定を編集。
+  - [ ] `note grep <string>`: ノートを文字列で検索
   - [ ] `note help`: コマンド一覧やコマンドのヘルプを表示
   - [ ] `note view <id>`: メモをプレビュー
   - [ ] `note upload`: GitHubへプッシュ
