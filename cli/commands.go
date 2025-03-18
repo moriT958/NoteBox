@@ -18,6 +18,7 @@ func InitCommands(ctx context.Context) int {
 	subcommands.Register(&lsCmd{}, "")
 	subcommands.Register(&editCmd{}, "")
 	subcommands.Register(&rmCmd{}, "")
+	subcommands.Register(&configCmd{}, "")
 
 	flag.Parse()
 

@@ -1,8 +1,7 @@
-.PHONY: box
-box: main.go
-	go build -o box .
+.PHONY: notebox
+notebox: main.go
+	go build -o notebox .
 
-clean: box
-	rm -rf ./.data/*
-	rm db.sqlite
-	rm ./box
+.PHONY: clean
+clean: notebox
+	rm ./notebox
