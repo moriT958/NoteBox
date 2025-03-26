@@ -27,7 +27,7 @@ delete note and note metadata by id.
 
 func (*rmCmd) SetFlags(f *flag.FlagSet) {}
 
-func (c *rmCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+func (c *rmCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
 
 	// 引数で取得するID
 	var idStr string

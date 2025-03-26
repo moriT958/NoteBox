@@ -26,7 +26,7 @@ open config file and you can edit`
 
 func (*configCmd) SetFlags(f *flag.FlagSet) {}
 
-func (c *configCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+func (c *configCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
 
 	cmd := exec.Command(config.Editor, config.ConfigFile)
 	cmd.Stdin = os.Stdin

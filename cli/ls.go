@@ -24,7 +24,7 @@ list all notes`
 
 func (*lsCmd) SetFlags(f *flag.FlagSet) {}
 
-func (c *lsCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+func (c *lsCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
 	// StoreからNoteの一覧を取得
 	notes, err := Nr.FindAll()
 	if err != nil {

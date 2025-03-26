@@ -34,7 +34,7 @@ create new note.`
 func (*newCmd) SetFlags(f *flag.FlagSet) {}
 
 // Execute executes the command and returns an ExitStatus.
-func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
+func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
 	var title string
 
 	// 引数が多すぎる時はエラーを返す

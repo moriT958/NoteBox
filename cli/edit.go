@@ -28,7 +28,7 @@ edit note by your editor`
 
 func (*editCmd) SetFlags(f *flag.FlagSet) {}
 
-func (c *editCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...interface{}) subcommands.ExitStatus {
+func (c *editCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
 
 	// 引数で取得するID
 	var idStr string
