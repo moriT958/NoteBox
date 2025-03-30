@@ -3,13 +3,13 @@ package cli
 import (
 	"context"
 	"flag"
-	"notebox/note"
+	"notebox/models"
 
 	"github.com/google/subcommands"
 )
 
 var (
-	Nr *note.NoteRepository
+	Nr *models.NoteRepository
 )
 
 func InitCommands(ctx context.Context) int {

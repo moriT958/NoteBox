@@ -8,7 +8,7 @@ import (
 	"log"
 	"notebox/cli"
 	"notebox/config"
-	"notebox/note"
+	"notebox/models"
 	"os"
 
 	_ "modernc.org/sqlite"
@@ -41,7 +41,7 @@ func initDB() *sql.DB {
 func main() {
 
 	// Noteリポジトリの初期化
-	noteRepo, err := note.NewNoteRepository(initDB())
+	noteRepo, err := models.NewNoteRepository(initDB())
 	if err != nil {
 		log.Fatal(err)
 	}

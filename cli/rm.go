@@ -57,8 +57,19 @@ func (c *rmCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subco
 		fmt.Fprintf(os.Stderr, "failed to convert id arg to integer: %v\n", err)
 	}
 
+	note, err := Nr.FindByID(id)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to get note by id: %v\n", err)
+		return subcommands.ExitFailure
+	}
+
 	if err := Nr.DeleteByID(id); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to delete note: %v\n", err)
+		return subcommands.ExitFailure
+	}
+
+	if err := os.Remove(note.Path); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to remove note file: %v\n", err)
 		return subcommands.ExitFailure
 	}
 
