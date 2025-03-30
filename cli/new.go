@@ -6,7 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"notebox/config"
-	"notebox/note"
+	"notebox/models"
 	"os"
 	"path/filepath"
 
@@ -69,7 +69,7 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...any) subcomman
 	fmt.Fprint(fp, topHeader)
 
 	// Noteのメタデータを保存
-	note := &note.Note{
+	note := &models.Note{
 		Title: title,
 		Path:  noteFile,
 	}
