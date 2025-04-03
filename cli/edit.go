@@ -65,7 +65,7 @@ func (c *editCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) sub
 	}
 
 	// Noteから得たPathを指定して、editorで開く
-	cmd := exec.Command(config.Editor, note.GetFilePath())
+	cmd := exec.Command(config.Editor(), note.GetFilePath())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {

@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"log"
 	"notebox/cli"
 	"notebox/config"
@@ -15,33 +13,17 @@ import (
 )
 
 func init() {
-	// configファイルをロードする
-	if err := config.LoadConfigFile(); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to load config file: %v\n", err)
-		os.Exit(1)
-	}
-
-	// ボリュームファイルの存在確認
-	if _, err := os.Stat(config.Volume); errors.Is(err, os.ErrNotExist) {
-		if err := os.Mkdir(config.Volume, os.ModePerm); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to create volume file: %v\n", err)
-			os.Exit(1)
-		}
-	}
-}
-
-func initDB() *sql.DB {
-	db, err := sql.Open("sqlite", config.MetadataDir)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return db
+	config.GetConfig()
 }
 
 func main() {
+	db, err := sql.Open("sqlite", config.MetaDataDir())
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Noteリポジトリの初期化
-	noteRepo, err := models.NewNoteRepository(initDB())
+	noteRepo, err := models.NewNoteRepository(db)
 	if err != nil {
 		log.Fatal(err)
 	}
