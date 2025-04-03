@@ -64,8 +64,8 @@ func (c *editCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) sub
 		return subcommands.ExitFailure
 	}
 
-	// Noteから得たPathを指定して、vimで開く
-	cmd := exec.Command(config.Editor, fmt.Sprintf("%s", note.Path))
+	// Noteから得たPathを指定して、editorで開く
+	cmd := exec.Command(config.Editor, note.GetFilePath())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {

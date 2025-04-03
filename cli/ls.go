@@ -34,7 +34,7 @@ func (c *lsCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subco
 
 	// 取得したデータを標準出力に書き出す
 	for i := range len(notes) {
-		fmt.Printf("ID: %d\tTitle: %s\tPath: %s\n", notes[i].ID, notes[i].Title, notes[i].Path)
+		fmt.Printf("ID: %d\tTitle: %s\n", notes[i].ID, notes[i].Title)
 	}
 
 	return subcommands.ExitSuccess

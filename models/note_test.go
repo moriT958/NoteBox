@@ -2,8 +2,10 @@ package models
 
 import (
 	"database/sql"
-	_ "modernc.org/sqlite"
 	"testing"
+	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 func TestSave(t *testing.T) {
@@ -18,9 +20,9 @@ func TestSave(t *testing.T) {
 	}
 
 	note := Note{
-		ID:    1,
-		Title: "Test",
-		Path:  "./test/path",
+		ID:        1,
+		Title:     "Test",
+		CreatedAt: time.Now(),
 	}
 
 	id, err := repo.Save(note)

@@ -1,17 +1,30 @@
 package models
 
-import "database/sql"
+import (
+	"database/sql"
+	"notebox/config"
+	"path/filepath"
+	"time"
+)
 
 type Note struct {
-	ID    int
-	Title string
-	Path  string
+	ID        int
+	Title     string
+	CreatedAt time.Time
+}
+
+func (n *Note) CreatedAtStr() string {
+	return n.CreatedAt.Format(`2006-01-02`)
+}
+
+func (n *Note) GetFilePath() string {
+	return filepath.Join(config.Volume, n.Title+"-"+n.CreatedAtStr()+".md")
 }
 
 type Repository interface {
 	Save(Note) (int, error)
-	FindByID(int) (Note, error)
-	FindAll() ([]Note, error)
+	FindByID(int) (*Note, error)
+	FindAll() ([]*Note, error)
 	DeleteByID(int) error
 }
 
@@ -22,8 +35,8 @@ type NoteRepository struct {
 const initQuery = `
 CREATE TABLE IF NOT EXISTS notes (
 	id INTEGER PRIMARY KEY,
-	title TEXT NOT NULL,
-	path TEXT NOT NULL
+	title TEXT NOT NULL UNIQUE,
+	created_at TEXT NOT NULL
 );
 `
 
@@ -38,31 +51,36 @@ func NewNoteRepository(db *sql.DB) (*NoteRepository, error) {
 // Implement Repository interface
 var _ Repository = (*NoteRepository)(nil)
 
+// TODO:
+// add update methods. if exsits, override.
 func (r *NoteRepository) Save(note Note) (int, error) {
-
-	if err := r.DB.QueryRow(`INSERT INTO notes (title, path) VALUES (?, ?) RETURNING id;`,
-		note.Title, note.Path).Scan(&note.ID); err != nil {
+	if err := r.DB.QueryRow(`INSERT INTO notes (title, created_at) VALUES (?, ?) RETURNING id;`,
+		note.Title, note.CreatedAtStr()).Scan(&note.ID); err != nil {
 		return 0, err
 	}
 
 	return note.ID, nil
 }
 
-func (r *NoteRepository) FindByID(id int) (Note, error) {
-
+func (r *NoteRepository) FindByID(id int) (*Note, error) {
 	note := new(Note)
 
-	if err := r.DB.QueryRow(`SELECT id, title, path FROM notes WHERE id = ?;`, id).
-		Scan(&note.ID, &note.Title, &note.Path); err != nil {
-		return Note{}, err
+	var timeStr string
+	if err := r.DB.QueryRow(`SELECT id, title, created_at FROM notes WHERE id = ?;`, id).
+		Scan(&note.ID, &note.Title, &timeStr); err != nil {
+		return &Note{}, err
 	}
+	t, err := time.Parse("2006-01-02", timeStr)
+	if err != nil {
+		return nil, err
+	}
+	note.CreatedAt = t
 
-	return *note, nil
+	return note, nil
 }
 
-func (r *NoteRepository) FindAll() ([]Note, error) {
-
-	notes := make([]Note, 0)
+func (r *NoteRepository) FindAll() ([]*Note, error) {
+	notes := make([]*Note, 0)
 
 	rows, err := r.DB.Query(`SELECT * FROM notes;`)
 	if err != nil {
@@ -71,10 +89,18 @@ func (r *NoteRepository) FindAll() ([]Note, error) {
 
 	for rows.Next() {
 		n := new(Note)
-		if err := rows.Scan(&n.ID, &n.Title, &n.Path); err != nil {
+		var timeStr string
+		if err := rows.Scan(&n.ID, &n.Title, &timeStr); err != nil {
 			return nil, err
 		}
-		notes = append(notes, *n)
+
+		t, err := time.Parse("2006-01-02", timeStr)
+		if err != nil {
+			return nil, err
+		}
+		n.CreatedAt = t
+
+		notes = append(notes, n)
 	}
 
 	return notes, nil
