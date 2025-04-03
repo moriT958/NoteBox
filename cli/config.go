@@ -28,7 +28,7 @@ func (*configCmd) SetFlags(f *flag.FlagSet) {}
 
 func (c *configCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
 
-	cmd := exec.Command(config.Editor, config.ConfigFile)
+	cmd := exec.Command(config.Editor(), config.CfgDir())
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	if err := cmd.Run(); err != nil {

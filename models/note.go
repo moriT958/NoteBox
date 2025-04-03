@@ -18,7 +18,7 @@ func (n *Note) CreatedAtStr() string {
 }
 
 func (n *Note) GetFilePath() string {
-	return filepath.Join(config.Volume, n.Title+"-"+n.CreatedAtStr()+".md")
+	return filepath.Join(config.Volume(), n.Title+"-"+n.CreatedAtStr()+".md")
 }
 
 type Repository interface {
@@ -29,7 +29,8 @@ type Repository interface {
 }
 
 type NoteRepository struct {
-	DB *sql.DB
+	cfg *config.Config
+	DB  *sql.DB
 }
 
 const initQuery = `

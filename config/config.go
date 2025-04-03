@@ -1,69 +1,96 @@
 package config
 
 import (
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sync"
 )
 
-func LoadConfigFile() error {
+var (
+	cfg  *Config
+	once sync.Once
+)
 
-	// 設定ファイルが存在しない場合の処理
-	if _, err := os.Stat(ConfigFile); err != nil {
-		if err := loadDefaultConfig(); err != nil {
-			return err
-		}
-	}
-
-	fp, err := os.Open(ConfigFile)
-	if err != nil {
-		return err
-	}
-	defer fp.Close()
-
-	var tempConfig map[string]string
-	if err := json.NewDecoder(fp).Decode(&tempConfig); err != nil {
-		return err
-	}
-
-	if v, ok := tempConfig["volume"]; ok {
-		Volume = v
-	}
-	if v, ok := tempConfig["metadatadir"]; ok {
-		MetadataDir = v
-	}
-	if v, ok := tempConfig["editor"]; ok {
-		Editor = v
-	}
-	if v, ok := tempConfig["grepcmd"]; ok {
-		Grepcmd = v
-	}
-
-	return nil
+type Config struct {
+	HomeDir     string `json:"-"`
+	CfgDir      string `json:"-"`
+	MetaDataDir string `json:"-"`
+	Volume      string `json:"volume"`
+	Editor      string `json:"editor"`
+	Grepcmd     string `json:"grepcmd"`
 }
 
-func loadDefaultConfig() error {
-	// デフォルトの設定
-	defaultConfig := map[string]string{
-		"volume":      "./.data",
-		"metadatadir": "./db.sqlite",
-		"editor":      "vim",
-		"grepcmd":     "grep",
+func getHomeDir() string {
+	home, _ := os.UserHomeDir()
+	return home
+}
+
+func GetConfig() *Config {
+	once.Do(func() {
+		cfg = loadDefaultConfig()
+	})
+
+	return cfg
+}
+
+func loadDefaultConfig() *Config {
+	cfg = new(Config)
+	cfg.HomeDir = getHomeDir()
+	cfg.CfgDir = filepath.Join(getHomeDir(), ".config", "notebox", "config.json")
+	cfg.MetaDataDir = filepath.Join(getHomeDir(), ".config", "notebox", ".metadata.sqlite")
+
+	if err := os.MkdirAll(filepath.Join(cfg.HomeDir, ".config", "notebox", "files"), 0755); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
-	fp, err := os.Create(ConfigFile)
+	if _, err := os.Stat(cfg.CfgDir); os.IsNotExist(err) {
+		cfg.Volume = filepath.Join(getHomeDir(), ".config", "notebox", "files")
+		cfg.Editor = "vim"
+		cfg.Grepcmd = "grep"
+
+		fp, err := os.Create(cfg.CfgDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if err := json.NewEncoder(fp).Encode(cfg); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		defer fp.Close()
+
+	}
+
+	fp, err := os.Open(cfg.CfgDir)
 	if err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 	defer fp.Close()
 
-	encoder := json.NewEncoder(fp)
-	encoder.SetIndent("", "    ") // JSON を整形
-	if err := encoder.Encode(defaultConfig); err != nil {
-		return err
+	if err := json.NewDecoder(fp).Decode(&cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
-	fmt.Printf("Config file not found, created default config: %s", ConfigFile)
 
-	return nil
+	return cfg
+}
+
+func CfgDir() string {
+	return cfg.CfgDir
+}
+
+func Volume() string {
+	return cfg.Volume
+}
+
+func Editor() string {
+	return cfg.Editor
+}
+
+func MetaDataDir() string {
+	return cfg.MetaDataDir
 }
