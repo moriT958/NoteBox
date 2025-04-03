@@ -23,17 +23,17 @@
 ## 使用方法(完成状況)
 
 - 完成
-  - `notebox new [title]`: ノートを新規作成
-  - `notebox ls`: メモ一覧を表示
-  - `notebox edit [id]`: メモを編集
-  - `notebox rm [id]`: メモを削除
-  - `notebox config`: NoteBoxアプリの設定を編集。
+  - `note new [title]`: ノートを新規作成
+  - `note ls`: メモ一覧を表示
+  - `note edit [id]`: メモを編集
+  - `note rm [id]`: メモを削除
+  - `note config`: NoteBoxアプリの設定を編集。
 - 未完成
-  - `notebox view <id>`: メモをプレビュー
-  - `notebox grep <string>`: ノートを文字列で検索
-  - `notebox help`: コマンド一覧やコマンドのヘルプを表示
-  - `notebox upload`: GitHubへプッシュ
-  - `notebox shelf ls`: ノートのグループ(ボックス)一覧を表示
-  - `notebox shelf status <box-id>`: ボックス内のノート一覧を表示
-  - `notebox shelf add <id> <box-id>`: ノートをボックスに追加
-  - `notebox shelf out <id> <box-id>`: ノートをボックスから取り出す
+  - `note view <id>`: メモをプレビュー
+  - `note grep <string>`: ノートを文字列で検索
+  - `note help`: コマンド一覧やコマンドのヘルプを表示
+  - `note upload`: GitHubへプッシュ
+  - `note shelf ls`: ノートのグループ(ボックス)一覧を表示
+  - `note shelf status <box-id>`: ボックス内のノート一覧を表示
+  - `note shelf add <id> <box-id>`: ノートをボックスに追加
+  - `note shelf out <id> <box-id>`: ノートをボックスから取り出す
