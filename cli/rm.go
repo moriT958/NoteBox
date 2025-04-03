@@ -68,7 +68,7 @@ func (c *rmCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subco
 		return subcommands.ExitFailure
 	}
 
-	if err := os.Remove(note.Path); err != nil {
+	if err := os.Remove(note.GetFilePath()); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to remove note file: %v\n", err)
 		return subcommands.ExitFailure
 	}

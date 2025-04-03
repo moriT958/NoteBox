@@ -5,13 +5,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"notebox/config"
 	"notebox/models"
 	"os"
-	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/google/subcommands"
-	"github.com/google/uuid"
 )
 
 var _ subcommands.Command = (*newCmd)(nil)
@@ -53,25 +52,13 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...any) subcomman
 			fmt.Fprintf(os.Stderr, "failed to read title: %v\n", err)
 			return subcommands.ExitFailure
 		}
-		title = input
+		title = strings.TrimSuffix(input, "\n")
 	}
-
-	// Markdownファイルの作成
-	topHeader := "# " + title + "\n\n"
-	noteFile := filepath.Join(config.Volume, uuid.NewString()+".md")
-
-	fp, err := os.Create(noteFile)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create file: %v\n", err)
-		return subcommands.ExitFailure
-	}
-	defer fp.Close()
-	fmt.Fprint(fp, topHeader)
 
 	// Noteのメタデータを保存
 	note := &models.Note{
-		Title: title,
-		Path:  noteFile,
+		Title:     title,
+		CreatedAt: time.Now(),
 	}
 
 	id, err := Nr.Save(*note)
@@ -79,6 +66,15 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...any) subcomman
 		fmt.Fprintf(os.Stderr, "failed to save note: %v\n", err)
 	}
 
+	// Markdownファイルの作成
+	topHeader := "# " + title + "\n\n"
+	fp, err := os.Create(note.GetFilePath())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create file: %v\n", err)
+		return subcommands.ExitFailure
+	}
+	defer fp.Close()
+	fmt.Fprint(fp, topHeader)
 	fmt.Printf("✅ Note Created!\nID: %d\tTitle: %s\n", id, note.Title)
 
 	return subcommands.ExitSuccess
