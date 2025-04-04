@@ -1,14 +1,12 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
 	"notebox/config"
 	"os"
 	"os/exec"
-	"strconv"
 
 	"github.com/google/subcommands"
 )
@@ -30,34 +28,12 @@ func (*editCmd) SetFlags(f *flag.FlagSet) {}
 
 func (c *editCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
 
-	// 引数で取得するID
-	var idStr string
-
-	// 引数が多すぎる時はエラーを返す
-	if !validateArgs(f.Args()) {
-		fmt.Fprintf(os.Stderr, "too much args. needed one.\n")
-		return subcommands.ExitFailure
-	}
-
-	if len(f.Args()) > 0 {
-		idStr = f.Args()[0]
-	} else {
-		fmt.Print("Enter ID: ")
-		r := bufio.NewReader(os.Stdin)
-		input, err := r.ReadString('\n')
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read ID: %v\n", err)
-			return subcommands.ExitFailure
-		}
-		idStr = input
-	}
-
-	// 引数のIDからNoteを取得する
-	id, err := strconv.Atoi(idStr)
+	id, err := getIdArg(f.Args())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to convert id arg to integer: %v\n", err)
+		fmt.Fprintln(os.Stderr, err)
 		return subcommands.ExitFailure
 	}
+
 	note, err := Nr.FindByID(id)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "note does't exit: %v\n", err)
