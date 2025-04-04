@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"notebox/models"
@@ -34,25 +35,10 @@ func (*newCmd) SetFlags(f *flag.FlagSet) {}
 
 // Execute executes the command and returns an ExitStatus.
 func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...any) subcommands.ExitStatus {
-	var title string
-
-	// 引数が多すぎる時はエラーを返す
-	if !validateArgs(f.Args()) {
-		fmt.Fprintf(os.Stderr, "too much args. needed one.\n")
+	title, err := getTitleArg(f.Args())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		return subcommands.ExitFailure
-	}
-
-	if len(f.Args()) > 0 {
-		title = f.Args()[0]
-	} else {
-		fmt.Print("Enter Title: ")
-		r := bufio.NewReader(os.Stdin)
-		input, err := r.ReadString('\n')
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read title: %v\n", err)
-			return subcommands.ExitFailure
-		}
-		title = strings.TrimSuffix(input, "\n")
 	}
 
 	// Noteのメタデータを保存
@@ -78,4 +64,26 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...any) subcomman
 	fmt.Printf("✅ Note Created!\nID: %d\tTitle: %s\n", id, note.Title)
 
 	return subcommands.ExitSuccess
+}
+
+func getTitleArg(args []string) (string, error) {
+	var title string
+
+	if !validateArgs(args) {
+		return "", errors.New("too much args. needed one.")
+	}
+
+	if len(args) > 0 {
+		title = args[0]
+	} else {
+		fmt.Print("Enter Title: ")
+		r := bufio.NewReader(os.Stdin)
+		input, err := r.ReadString('\n')
+		if err != nil {
+			return "", err
+		}
+		title = strings.TrimSuffix(input, "\n")
+	}
+
+	return title, nil
 }
