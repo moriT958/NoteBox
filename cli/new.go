@@ -42,10 +42,9 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...any) subcomman
 	}
 
 	// Noteのメタデータを保存
-	note := &models.Note{
-		Title:     title,
-		CreatedAt: time.Now(),
-	}
+	note := new(models.Note)
+	note.SetTitle(title)
+	note.SetCreatedAt(time.Now())
 
 	id, err := Nr.Save(*note)
 	if err != nil {
@@ -61,7 +60,7 @@ func (c *newCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...any) subcomman
 	}
 	defer fp.Close()
 	fmt.Fprint(fp, topHeader)
-	fmt.Printf("✅ Note Created!\nID: %d\tTitle: %s\n", id, note.Title)
+	fmt.Printf("✅ Note Created!\nID: %d\tTitle: %s\n", id, note.Title())
 
 	return subcommands.ExitSuccess
 }

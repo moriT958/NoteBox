@@ -1,14 +1,16 @@
 package main
 
 import (
-	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"notebox/cli"
 	"notebox/config"
 	"notebox/models"
 	"os"
 
+	"github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
 	_ "modernc.org/sqlite"
 )
 
@@ -30,6 +32,27 @@ func main() {
 	cli.Nr = noteRepo
 
 	// サブコマンドを登録
-	ctx := context.Background()
-	os.Exit(cli.InitCommands(ctx))
+	// ctx := context.Background()
+	// os.Exit(cli.InitCommands(ctx))
+
+	// BubbleTea用
+	notes, err := noteRepo.FindAll()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	items := make([]list.Item, len(notes))
+	for i, n := range notes {
+		items[i] = n
+	}
+
+	m := model{list: list.New(items, list.NewDefaultDelegate(), 0, 0)}
+	m.list.Title = "My Fave Things"
+
+	p := tea.NewProgram(m, tea.WithAltScreen())
+
+	if _, err := p.Run(); err != nil {
+		fmt.Println("Error running program:", err)
+		os.Exit(1)
+	}
 }

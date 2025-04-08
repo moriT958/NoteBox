@@ -20,16 +20,16 @@ func TestSave(t *testing.T) {
 	}
 
 	note := Note{
-		ID:        1,
-		Title:     "Test",
-		CreatedAt: time.Now(),
+		id:       1,
+		title:    "Test",
+		createAt: time.Now(),
 	}
 
 	id, err := repo.Save(note)
 	if err != nil {
 		t.Error(err)
 	}
-	if id != note.ID {
+	if id != note.id {
 		t.Error("idが違います")
 	}
 }

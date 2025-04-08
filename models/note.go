@@ -8,18 +8,28 @@ import (
 )
 
 type Note struct {
-	ID        int
-	Title     string
-	CreatedAt time.Time
+	id       int
+	title    string
+	createAt time.Time
 }
 
+// Implement BubbleTea list.Item interface
+func (n Note) FilterValue() string { return n.title }
+
+func (n Note) ID() int             { return n.id }
+func (n Note) Title() string       { return n.title }
+func (n Note) Description() string { return n.CreatedAtStr() }
+
 func (n *Note) CreatedAtStr() string {
-	return n.CreatedAt.Format(`2006-01-02`)
+	return n.createAt.Format(`2006-01-02`)
 }
 
 func (n *Note) GetFilePath() string {
-	return filepath.Join(config.Volume(), n.Title+"-"+n.CreatedAtStr()+".md")
+	return filepath.Join(config.Volume(), n.title+"-"+n.CreatedAtStr()+".md")
 }
+
+func (n *Note) SetTitle(title string)            { n.title = title }
+func (n *Note) SetCreatedAt(createdAt time.Time) { n.createAt = createdAt }
 
 type Repository interface {
 	Save(Note) (int, error)
@@ -56,11 +66,11 @@ var _ Repository = (*NoteRepository)(nil)
 // add update methods. if exsits, override.
 func (r *NoteRepository) Save(note Note) (int, error) {
 	if err := r.DB.QueryRow(`INSERT INTO notes (title, created_at) VALUES (?, ?) RETURNING id;`,
-		note.Title, note.CreatedAtStr()).Scan(&note.ID); err != nil {
+		note.Title, note.CreatedAtStr()).Scan(&note.id); err != nil {
 		return 0, err
 	}
 
-	return note.ID, nil
+	return note.id, nil
 }
 
 func (r *NoteRepository) FindByID(id int) (*Note, error) {
@@ -68,14 +78,14 @@ func (r *NoteRepository) FindByID(id int) (*Note, error) {
 
 	var timeStr string
 	if err := r.DB.QueryRow(`SELECT id, title, created_at FROM notes WHERE id = ?;`, id).
-		Scan(&note.ID, &note.Title, &timeStr); err != nil {
+		Scan(&note.id, &note.title, &timeStr); err != nil {
 		return &Note{}, err
 	}
 	t, err := time.Parse("2006-01-02", timeStr)
 	if err != nil {
 		return nil, err
 	}
-	note.CreatedAt = t
+	note.createAt = t
 
 	return note, nil
 }
@@ -91,7 +101,7 @@ func (r *NoteRepository) FindAll() ([]*Note, error) {
 	for rows.Next() {
 		n := new(Note)
 		var timeStr string
-		if err := rows.Scan(&n.ID, &n.Title, &timeStr); err != nil {
+		if err := rows.Scan(&n.id, &n.title, &timeStr); err != nil {
 			return nil, err
 		}
 
@@ -99,7 +109,7 @@ func (r *NoteRepository) FindAll() ([]*Note, error) {
 		if err != nil {
 			return nil, err
 		}
-		n.CreatedAt = t
+		n.createAt = t
 
 		notes = append(notes, n)
 	}
