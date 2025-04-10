@@ -5,3 +5,4 @@ build: main.go
 .PHONY: clean
 clean: note
 	rm ./note
+	rm ~/.config/notebox/.metadata.sqlite
