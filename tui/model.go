@@ -27,7 +27,7 @@ var (
 
 type (
 	errMsg            struct{ error }
-	editorFinishedMsg struct{ err error }
+	editorFinishedMsg struct{ error }
 )
 
 type focusedArea int
@@ -45,11 +45,10 @@ const (
 )
 
 type model struct {
-	notes     []*models.Note
-	cursor    int
 	focus     focusedArea
 	mode      mode
 	warnModal warnModal
+	listPanel listPanel
 	viewport  viewport.Model
 	renderer  *glamour.TermRenderer
 	input     textinput.Model
@@ -62,9 +61,12 @@ func initModel() (*model, error) {
 		return nil, err
 	}
 
-	const width = 78
+	const (
+		height int = 45
+		width  int = 120
+	)
 
-	vp := viewport.New(width, 20)
+	vp := viewport.New(width, height)
 	vp.Style = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
@@ -88,16 +90,33 @@ func initModel() (*model, error) {
 	ti.Width = 30
 
 	m := &model{
-		notes:    notes,
+		listPanel: listPanel{
+			height: 45,
+			width:  10,
+			notes:  notes,
+			cursor: 0,
+		},
+		focus: focusListArea,
+		mode:  navigateMode,
+		warnModal: warnModal{
+			open:    false,
+			message: "",
+		},
 		viewport: vp,
 		renderer: renderer,
 		input:    ti,
 	}
+
+	m.viewport.SetContent("(No note selected)")
+	m.viewport.GotoTop()
+
 	return m, nil
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return tea.Batch(
+		tea.SetWindowTitle("NoteBox"),
+	)
 }
 
 func (m *model) openFileWithEditor(file string) tea.Cmd {
@@ -122,6 +141,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case editorFinishedMsg:
+		note := m.listPanel.notes[m.listPanel.cursor]
+		content, err := os.ReadFile(note.GetFilePath())
+		if err != nil {
+			m.Update(errMsg{err})
+		}
+		str, err := m.renderer.Render(string(content))
+		if err != nil {
+			m.Update(errMsg{err})
+		}
+		m.viewport.SetContent(str)
+		m.viewport.GotoTop()
+
 	case tea.KeyMsg:
 		if m.input.Focused() {
 			switch msg.String() {
@@ -150,7 +182,22 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					defer fp.Close()
 					fmt.Fprint(fp, topHeader)
 
-					m.notes = append(m.notes, note)
+					m.listPanel.notes = append(m.listPanel.notes, note)
+					m.listPanel.cursor = len(m.listPanel.notes) - 1
+
+					content, err := os.ReadFile(note.GetFilePath())
+					if err != nil {
+						m.Update(errMsg{err})
+					}
+
+					str, err := m.renderer.Render(string(content))
+					if err != nil {
+						m.Update(errMsg{err})
+					}
+
+					m.viewport.SetContent(str)
+					m.viewport.GotoTop()
+
 				}
 				m.input.SetValue("")
 				m.input.Blur()
@@ -165,14 +212,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else if m.warnModal.open {
 			switch msg.String() {
 			case "y":
-				id := m.notes[m.cursor].ID
+				if err := os.Remove(m.listPanel.notes[m.listPanel.cursor].GetFilePath()); err != nil {
+					m.Update(errMsg{err})
+				}
+
+				id := m.listPanel.notes[m.listPanel.cursor].ID
 				models.GetRepository().DeleteByID(id)
-				m.notes = slices.Delete(m.notes, m.cursor, m.cursor+1)
-				if m.cursor > 0 && m.cursor >= len(m.notes) {
-					m.cursor--
+				m.listPanel.notes = slices.Delete(m.listPanel.notes, m.listPanel.cursor, m.listPanel.cursor+1)
+				if m.listPanel.cursor > 0 && m.listPanel.cursor >= len(m.listPanel.notes) {
+					m.listPanel.cursor--
 				}
 				m.warnModal.open = false
 				m.warnModal.message = ""
+
+				note := m.listPanel.notes[m.listPanel.cursor]
+				content, err := os.ReadFile(note.GetFilePath())
+				if err != nil {
+					m.Update(errMsg{err})
+				}
+
+				str, err := m.renderer.Render(string(content))
+				if err != nil {
+					m.Update(errMsg{err})
+				}
+
+				m.viewport.SetContent(str)
+				m.viewport.GotoTop()
+
 			case "n", "esc":
 				m.warnModal.open = false
 				m.warnModal.message = ""
@@ -184,7 +250,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 
 			case "e":
-				id := m.notes[m.cursor].ID
+				id := m.listPanel.notes[m.listPanel.cursor].ID
 				note, err := models.GetRepository().FindByID(id)
 				if err != nil {
 					log.Println("note does't exit:", err)
@@ -200,12 +266,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.deleteNoteWarn()
 
 			case "down", "j":
-				m.cursor++
-				if m.cursor >= len(m.notes) {
-					m.cursor = 0
+				m.listPanel.cursor++
+				if m.listPanel.cursor >= len(m.listPanel.notes) {
+					m.listPanel.cursor = 0
 				}
 
-				id := m.notes[m.cursor].ID
+				id := m.listPanel.notes[m.listPanel.cursor].ID
 				note, err := models.GetRepository().FindByID(id)
 				if err != nil {
 					log.Fatalln(err)
@@ -220,14 +286,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					fmt.Fprintln(os.Stderr, err)
 				}
 				m.viewport.SetContent(str)
+				m.viewport.GotoTop()
 
 			case "up", "k":
-				m.cursor--
-				if m.cursor < 0 {
-					m.cursor = len(m.notes) - 1
+				m.listPanel.cursor--
+				if m.listPanel.cursor < 0 {
+					m.listPanel.cursor = len(m.listPanel.notes) - 1
 				}
 
-				id := m.notes[m.cursor].ID
+				id := m.listPanel.notes[m.listPanel.cursor].ID
 				note, err := models.GetRepository().FindByID(id)
 				if err != nil {
 					log.Println(err)
@@ -242,6 +309,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					fmt.Fprintln(os.Stderr, err)
 				}
 				m.viewport.SetContent(str)
+				m.viewport.GotoTop()
 
 			case "right", "ctrl+l":
 				m.focus = focusPreviewArea
@@ -265,33 +333,46 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m model) View() string {
+func (m *model) listPanelRender() string {
 	s := strings.Builder{}
 	s.WriteString("📓 Your Notes 📓\n\n")
-
-	for i := 0; i < len(m.notes); i++ {
-		if m.cursor == i {
-			s.WriteString("▶︎ ")
+	for i := 0; i < len(m.listPanel.notes); i++ {
+		if m.listPanel.cursor == i {
+			s.WriteString(lipgloss.NewStyle().
+				Reverse(true).
+				Render(m.listPanel.notes[i].Title))
 		} else {
+			s.WriteString(m.listPanel.notes[i].Title)
 			s.WriteString(" ")
 		}
-		s.WriteString(m.notes[i].Title)
 		s.WriteString("\n")
+
 	}
+
+	return lipgloss.NewStyle().
+		Margin(0, 2).
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("63")).Render(s.String())
+}
+
+func (m model) View() string {
+	final := strings.Builder{}
+
+	listPanel := m.listPanelRender()
+	final.WriteString(listPanel)
 
 	if m.input.Focused() {
 		prompt := "Enter note name:\n\n" + m.input.View()
-		s.WriteString(docStyle.Render(prompt))
-		s.WriteString("\n")
-		return s.String()
+		final.WriteString("\n" + docStyle.Render(prompt) + "\n")
+		return final.String()
 	}
 
 	if m.warnModal.open {
-		s.WriteString(docStyle.Render(m.warnModal.message))
-		return s.String()
+		final.WriteString("\n" + docStyle.Render(m.warnModal.message) + "\n")
+		return final.String()
 	}
 
-	return lipgloss.JoinHorizontal(lipgloss.Center, s.String(), m.viewport.View()+m.helpView())
+	return lipgloss.JoinHorizontal(lipgloss.Center, final.String(), m.viewport.View()+m.helpView())
 }
 
 func (m model) helpView() string {
