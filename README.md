@@ -26,6 +26,8 @@
 
 ## 使用方法
 
+`note`コマンドで起動
+
 ### キーバインド
 
 - `j/k`または`↓/↑`: カーソルの上下移動
@@ -34,6 +36,27 @@
 - `e`: ノートの編集(エディター起動)
 - `d`: ノートの削除
 
+### サブコマンド
+
+- `note config`: 設定ファイルを編集
+- `note help`: ヘルプの表示
+- `note version`: バージョンを表示
+- `note pl`(未完成): パス一覧(設定ファイルやマークダウンファイルなどを保存している場所)を表示
+
+## インストール
+
+### ソースからビルド(未完成)
+
+1. `git clone https://github.com/moriT958/NoteBox`
+2. `cd NoteBox`
+3. `make build`
+
+### brew(未完成)
+
+`brew install notebox`(イメージ)
+
+## 使用イメージ
+
 ### ノート作成時の画面
 
 ![](/assets/create-view.png)
@@ -41,3 +64,4 @@
 ### ノート削除時の画面
 
 ![](/assets/delete-view.png)
+
