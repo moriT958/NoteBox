@@ -1,17 +1,4 @@
-.metadata
-db.sqlite
-config.json
-.data/
-
-notebox
-note
-main
-
 .DS_Store
 TODO.md
-tmp/
 
-memo/
-lists/
-result/
-table/
+note
