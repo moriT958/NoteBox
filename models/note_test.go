@@ -14,22 +14,26 @@ func TestSave(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	repo, err := NewNoteRepository(db)
+	if err := NewNoteRepository(db); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := GetRepository()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	note := Note{
-		id:       1,
-		title:    "Test",
-		createAt: time.Now(),
+		ID:       1,
+		Title:    "Test",
+		CreateAt: time.Now(),
 	}
 
 	id, err := repo.Save(note)
 	if err != nil {
 		t.Error(err)
 	}
-	if id != note.id {
+	if id != note.ID {
 		t.Error("idが違います")
 	}
 }

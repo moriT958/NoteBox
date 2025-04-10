@@ -21,7 +21,8 @@ func (*configCmd) Synopsis() string { return "edit config file" }
 
 func (*configCmd) Usage() string {
 	return `config:
-open config file and you can edit`
+open config file and you can edit
+`
 }
 
 func (*configCmd) SetFlags(f *flag.FlagSet) {}
