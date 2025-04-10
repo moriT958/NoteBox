@@ -1,7 +1,7 @@
-.PHONY: notebox
-notebox: main.go
-	go build -o notebox .
+.PHONY: build
+build: main.go
+	go build -o note .
 
 .PHONY: clean
-clean: notebox
-	rm ./notebox
+clean: note
+	rm ./note

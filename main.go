@@ -7,6 +7,7 @@ import (
 	"notebox/cli"
 	"notebox/config"
 	"notebox/models"
+	"notebox/tui"
 	"os"
 
 	_ "modernc.org/sqlite"
@@ -23,13 +24,17 @@ func main() {
 	}
 
 	// Noteリポジトリの初期化
-	noteRepo, err := models.NewNoteRepository(db)
-	if err != nil {
+	if err := models.NewNoteRepository(db); err != nil {
 		log.Fatal(err)
 	}
-	cli.Nr = noteRepo
 
-	// サブコマンドを登録
-	ctx := context.Background()
-	os.Exit(cli.InitCommands(ctx))
+	if len(os.Args) > 1 {
+		// サブコマンドを登録
+		ctx := context.Background()
+		os.Exit(cli.InitCommands(ctx))
+	} else {
+		if err := tui.StartApp(); err != nil {
+			log.Fatal(err)
+		}
+	}
 }

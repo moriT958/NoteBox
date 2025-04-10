@@ -14,15 +14,19 @@ func TestSave(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	repo, err := NewNoteRepository(db)
+	if err := NewNoteRepository(db); err != nil {
+		t.Fatal(err)
+	}
+
+	repo := GetRepository()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	note := Note{
-		ID:        1,
-		Title:     "Test",
-		CreatedAt: time.Now(),
+		ID:       1,
+		Title:    "Test",
+		CreateAt: time.Now(),
 	}
 
 	id, err := repo.Save(note)
