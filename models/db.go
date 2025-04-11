@@ -2,7 +2,6 @@ package models
 
 import (
 	"database/sql"
-	"notebox/config"
 	"time"
 )
 
@@ -13,16 +12,15 @@ CREATE TABLE IF NOT EXISTS notes (
 	created_at TEXT NOT NULL
 );`
 
-// Comment out, to check if Implement Repository interface
+// NoteRepository implements Repository interface
+// to check that, comment out below.
 // var _ Repository = (*NoteRepository)(nil)
-
 type NoteRepository struct {
-	cfg *config.Config
-	DB  *sql.DB
+	DB *sql.DB
 }
 
 func NewNoteRepository(db *sql.DB) error {
-	// Migrate database
+	// initial database schema apply
 	if _, err := db.Exec(initQuery); err != nil {
 		return err
 	}
@@ -36,7 +34,6 @@ func (r *NoteRepository) Save(note Note) (int, error) {
 		note.Title, note.CreatedAtStr()).Scan(&note.ID); err != nil {
 		return 0, err
 	}
-
 	return note.ID, nil
 }
 
@@ -59,36 +56,29 @@ func (r *NoteRepository) FindByID(id int) (*Note, error) {
 
 func (r *NoteRepository) FindAll() ([]*Note, error) {
 	notes := make([]*Note, 0)
-
 	rows, err := r.DB.Query(`SELECT * FROM notes;`)
 	if err != nil {
 		return nil, err
 	}
-
 	for rows.Next() {
 		n := new(Note)
 		var timeStr string
 		if err := rows.Scan(&n.ID, &n.Title, &timeStr); err != nil {
 			return nil, err
 		}
-
 		t, err := time.Parse("2006-01-02", timeStr)
 		if err != nil {
 			return nil, err
 		}
 		n.CreateAt = t
-
 		notes = append(notes, n)
 	}
-
 	return notes, nil
 }
 
 func (r *NoteRepository) DeleteByID(id int) error {
-
 	if _, err := r.DB.Exec(`DELETE FROM notes WHERE id = ?;`, id); err != nil {
 		return err
 	}
-
 	return nil
 }
