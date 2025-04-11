@@ -1,3 +1,3 @@
 package config
 
-const CurrentVersion string = "v1.0"
+const CurrentVersion string = "dev"

@@ -14,9 +14,9 @@ var (
 )
 
 type Config struct {
-	HomeDir     string `json:"-"`
-	CfgDir      string `json:"-"`
-	MetaDataDir string `json:"-"`
+	homeDir     string `json:"-"`
+	cfgDir      string `json:"-"`
+	metaDataDir string `json:"-"`
 	Volume      string `json:"volume"`
 	Editor      string `json:"editor"`
 	Grepcmd     string `json:"grepcmd"`
@@ -27,31 +27,29 @@ func getHomeDir() string {
 	return home
 }
 
-func GetConfig() *Config {
+func LoadConfig() {
 	once.Do(func() {
 		cfg = loadDefaultConfig()
 	})
-
-	return cfg
 }
 
 func loadDefaultConfig() *Config {
 	cfg = new(Config)
-	cfg.HomeDir = getHomeDir()
-	cfg.CfgDir = filepath.Join(getHomeDir(), ".config", "notebox", "config.json")
-	cfg.MetaDataDir = filepath.Join(getHomeDir(), ".config", "notebox", ".metadata.sqlite")
+	cfg.homeDir = getHomeDir()
+	cfg.cfgDir = filepath.Join(getHomeDir(), ".config", "notebox", "config.json")
+	cfg.metaDataDir = filepath.Join(getHomeDir(), ".config", "notebox", ".metadata.sqlite")
 
-	if err := os.MkdirAll(filepath.Join(cfg.HomeDir, ".config", "notebox", "files"), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(cfg.homeDir, ".config", "notebox", "files"), 0755); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	if _, err := os.Stat(cfg.CfgDir); os.IsNotExist(err) {
+	if _, err := os.Stat(cfg.cfgDir); os.IsNotExist(err) {
 		cfg.Volume = filepath.Join(getHomeDir(), ".config", "notebox", "files")
 		cfg.Editor = "vim"
 		cfg.Grepcmd = "grep"
 
-		fp, err := os.Create(cfg.CfgDir)
+		fp, err := os.Create(cfg.cfgDir)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -64,7 +62,7 @@ func loadDefaultConfig() *Config {
 
 	}
 
-	fp, err := os.Open(cfg.CfgDir)
+	fp, err := os.Open(cfg.cfgDir)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -79,18 +77,8 @@ func loadDefaultConfig() *Config {
 	return cfg
 }
 
-func CfgDir() string {
-	return cfg.CfgDir
-}
-
-func Volume() string {
-	return cfg.Volume
-}
-
-func Editor() string {
-	return cfg.Editor
-}
-
-func MetaDataDir() string {
-	return cfg.MetaDataDir
-}
+// Accessors to config
+func CfgDir() string      { return cfg.cfgDir }
+func Volume() string      { return cfg.Volume }
+func Editor() string      { return cfg.Editor }
+func MetaDataDir() string { return cfg.metaDataDir }

@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	config.GetConfig()
+	config.LoadConfig()
 }
 
 func main() {
@@ -33,8 +33,6 @@ func main() {
 		ctx := context.Background()
 		os.Exit(cli.InitCommands(ctx))
 	} else {
-		if err := tui.StartApp(); err != nil {
-			log.Fatal(err)
-		}
+		log.Fatal(tui.StartApp())
 	}
 }
