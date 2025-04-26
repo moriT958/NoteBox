@@ -1,38 +1,31 @@
 package main
 
 import (
-	"context"
-	"database/sql"
-	"log"
-	"notebox/cli"
-	"notebox/config"
-	"notebox/models"
-	"notebox/tui"
+	"log/slog"
 	"os"
 
-	_ "modernc.org/sqlite"
+	"NoteBox.tmp/internal/config"
+	"NoteBox.tmp/internal/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
-func init() {
-	config.LoadConfig()
-}
-
 func main() {
-	db, err := sql.Open("sqlite", config.MetaDataDir())
+
+	// Setup logger
+	fp, err := os.OpenFile(config.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	defer fp.Close()
+	logger := slog.New(slog.NewTextHandler(fp, &slog.HandlerOptions{AddSource: true}))
+	slog.SetDefault(logger)
+
+	config, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error(err.Error())
 	}
 
-	// Noteリポジトリの初期化
-	if err := models.NewNoteRepository(db); err != nil {
-		log.Fatal(err)
-	}
-
-	if len(os.Args) > 1 {
-		// サブコマンドを登録
-		ctx := context.Background()
-		os.Exit(cli.InitCommands(ctx))
-	} else {
-		log.Fatal(tui.StartApp())
+	m := tui.New(config)
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
 	}
 }
