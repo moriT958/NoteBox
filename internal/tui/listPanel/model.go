@@ -1,6 +1,9 @@
 package listpanel
 
 import (
+	"os/exec"
+
+	"NoteBox.tmp/internal/config"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -8,12 +11,13 @@ import (
 
 type Model struct {
 	volume string
+	editor string
 	notes  []Note
 	list   list.Model
 }
 
-func New(volume string) *Model {
-	notes := getAllNoteFiles(volume)
+func New(cfg *config.Config) *Model {
+	notes := getAllNoteFiles(cfg.Volume)
 	items := make([]list.Item, len(notes))
 	for i, n := range notes {
 		items[i] = n
@@ -22,7 +26,8 @@ func New(volume string) *Model {
 	list.Title = "My Notes"
 
 	m := &Model{
-		volume: volume,
+		volume: cfg.Volume,
+		editor: cfg.Editor,
 		notes:  notes,
 		list:   list,
 	}
@@ -42,6 +47,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "e", "enter":
+			note := m.notes[m.list.GlobalIndex()]
+			c := exec.Command(m.editor, note.path)
+			cmd = tea.ExecProcess(c, func(err error) tea.Msg {
+				return editorFinishedMsg{err}
+			})
+			cmds = append(cmds, cmd)
+
+			// return current note date as NoteMsg to BubbleTea runtime.
+			// because preview model recieve it and rerender.
+			cmds = append(cmds, func() tea.Msg { return NoteMsg{note} })
+
 		default:
 			cmd = func() tea.Msg { return NoteMsg{m.notes[m.list.GlobalIndex()]} }
 			cmds = append(cmds, cmd)

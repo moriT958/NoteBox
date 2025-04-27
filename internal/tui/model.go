@@ -25,7 +25,7 @@ func New(cfg *config.Config) *Model {
 
 	return &Model{
 		focus:     focusListPanel,
-		listPanel: *listpanel.New(cfg.Volume),
+		listPanel: *listpanel.New(cfg),
 		previewer: *previewer.New(),
 	}
 }
