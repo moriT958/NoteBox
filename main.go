@@ -26,7 +26,12 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(fp, nil))
 	slog.SetDefault(logger)
 
-	m := newModel()
+	m, err := newModel()
+	if err != nil {
+		slog.Error(err.Error())
+		os.Exit(1)
+	}
+
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		slog.Error(err.Error())
