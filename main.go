@@ -1,28 +1,32 @@
 package main
 
 import (
+	"errors"
+	"fmt"
+	tea "github.com/charmbracelet/bubbletea"
+	"io/fs"
 	"log/slog"
 	"os"
-
-	"NoteBox.tmp/internal/config"
-	"NoteBox.tmp/internal/tui"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
-func main() {
+/* File Operations */
 
-	// Setup logger
-	fp, err := os.OpenFile(config.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	defer fp.Close()
-	logger := slog.New(slog.NewTextHandler(fp, &slog.HandlerOptions{AddSource: true}))
+/* MAIN */
+
+func main() {
+	var fp *os.File
+	if _, err := os.Stat("notebox.log"); errors.Is(err, fs.ErrNotExist) {
+		fp, err = os.Create("notebox.log")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to create log file: %v\n", err)
+			os.Exit(1)
+		}
+		defer fp.Close()
+	}
+	logger := slog.New(slog.NewTextHandler(fp, nil))
 	slog.SetDefault(logger)
 
-	config, err := config.LoadConfig()
-	if err != nil {
-		slog.Error(err.Error())
-	}
-
-	m := tui.New(config)
+	m := newModel()
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		slog.Error(err.Error())
