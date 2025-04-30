@@ -1,6 +1,4 @@
 .DS_Store
 
-.config/
-.state/
-.volume/
+notebox.log
 note
