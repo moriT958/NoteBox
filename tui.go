@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -18,12 +20,12 @@ type note struct {
 }
 
 var notes []note = []note{
-	{title: "sample", content: "sample0"},
-	{title: "sample", content: "sample1"},
-	{title: "sample", content: "sample2"},
-	{title: "sample", content: "sample3"},
-	{title: "sample", content: "sample4"},
-	{title: "sample", content: "sample5"},
+	{title: "sample", content: "# sample0\n\n## hello\n\nthis is example0."},
+	{title: "sample", content: "# sample1\n\n## hello\n\nthis is example1."},
+	{title: "sample", content: "# sample2\n\n## hello\n\nthis is example2."},
+	{title: "sample", content: "# sample3\n\n## hello\n\nthis is example3."},
+	{title: "sample", content: "# sample4\n\n## hello\n\nthis is example4."},
+	{title: "sample", content: "# sample5\n\n## hello\n\nthis is example5."},
 }
 
 /* Main Model */
@@ -42,7 +44,7 @@ const (
 	focusTypingModal
 )
 
-func newModel() *model {
+func newModel() (*model, error) {
 
 	tm := &typingModal{
 		open:  false,
@@ -54,8 +56,17 @@ func newModel() *model {
 		notes:  notes,
 	}
 
+	r, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(40),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	pm := &previewerModel{
-		vp: viewport.New(0, 0),
+		vp:       viewport.New(0, 0),
+		renderer: r,
 	}
 
 	m := &model{
@@ -66,7 +77,7 @@ func newModel() *model {
 		previewer:   *pm,
 		typingModal: *tm,
 	}
-	return m
+	return m, nil
 }
 
 func (m model) Init() tea.Cmd {
@@ -192,7 +203,7 @@ func (m listPanelModel) view() string {
 		if i == m.cursor {
 			view.WriteString(">" + n.title)
 		} else {
-			view.WriteString(n.title)
+			view.WriteString(" " + n.title)
 		}
 		view.WriteString("\n")
 	}
@@ -200,11 +211,12 @@ func (m listPanelModel) view() string {
 }
 
 /* Previewer Model */
-
+type errMsg struct{ err error }
 type renderPreviewMsg struct{ content string }
 
 type previewerModel struct {
-	vp viewport.Model
+	vp       viewport.Model
+	renderer *glamour.TermRenderer
 }
 
 func (m previewerModel) init() tea.Cmd {
@@ -212,19 +224,29 @@ func (m previewerModel) init() tea.Cmd {
 }
 
 func (m previewerModel) update(msg tea.Msg) (previewerModel, tea.Cmd) {
-	var cmd tea.Cmd
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.vp.Height = msg.Height * 2 / 3
 		m.vp.Width = msg.Width * 2 / 3
 	case renderPreviewMsg:
-		m.vp.SetContent(msg.content)
+		renderedContent, err := m.renderer.Render(msg.content)
+		if err != nil {
+			slog.Error(err.Error())
+			cmd = func() tea.Msg { return errMsg{err} }
+			cmds = append(cmds, cmd)
+		}
+		m.vp.SetContent(renderedContent)
 	}
 
 	m.vp, cmd = m.vp.Update(msg)
+	cmds = append(cmds, cmd)
 
-	return m, cmd
+	return m, tea.Batch(cmds...)
 }
 
 func (m previewerModel) view() string {
