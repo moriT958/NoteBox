@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -46,16 +47,6 @@ const (
 
 func newModel() (*model, error) {
 
-	tm := &typingModal{
-		open:  false,
-		input: textinput.New(),
-	}
-
-	lp := &listPanelModel{
-		cursor: 0,
-		notes:  notes,
-	}
-
 	r, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
 		glamour.WithWordWrap(40),
@@ -64,18 +55,22 @@ func newModel() (*model, error) {
 		return nil, err
 	}
 
-	pm := &previewerModel{
-		vp:       viewport.New(0, 0),
-		renderer: r,
-	}
-
 	m := &model{
-		height:      0,
-		width:       0,
-		focus:       focusListPanel,
-		listPanel:   *lp,
-		previewer:   *pm,
-		typingModal: *tm,
+		height: 0,
+		width:  0,
+		focus:  focusListPanel,
+		listPanel: listPanelModel{
+			cursor: 0,
+			notes:  notes,
+		},
+		previewer: previewerModel{
+			vp:       viewport.New(0, 0),
+			renderer: r,
+		},
+		typingModal: typingModal{
+			open:  false,
+			input: textinput.New(),
+		},
 	}
 	return m, nil
 }
@@ -187,6 +182,11 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 			cmd = func() tea.Msg { return renderPreviewMsg{m.notes[m.cursor].content} }
 		case "n":
 			cmd = func() tea.Msg { return typingModalMsg{true} }
+		case "d":
+			m.notes = slices.Delete(m.notes, m.cursor, m.cursor+1)
+			if m.cursor > 0 {
+				m.cursor--
+			}
 		}
 	case createNewNoteMsg:
 		newNoteContent := fmt.Sprintf("# %s\n\n", msg.title)
