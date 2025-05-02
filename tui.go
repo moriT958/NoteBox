@@ -43,7 +43,6 @@ func newModel() (*model, error) {
 	if err != nil {
 		return nil, err
 	}
-	slog.Debug(notes[0].title)
 
 	m := &model{
 		height: 0,
