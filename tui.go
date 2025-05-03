@@ -174,12 +174,12 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 			cmd = func() tea.Msg { return typingModalMsg{true} }
 			cmds = append(cmds, cmd)
 		case "d":
+			cmds = append(cmds, deleteNoteFile(m.notes[m.cursor].title))
 			m.notes = slices.Delete(m.notes, m.cursor, m.cursor+1)
 			if m.cursor > 0 {
 				m.cursor--
 			}
-			cmd = func() tea.Msg { return renderPreviewMsg{m.notes[m.cursor].content} }
-			cmds = append(cmds, cmd)
+			cmds = append(cmds, func() tea.Msg { return renderPreviewMsg{m.notes[m.cursor].content} })
 		}
 	case createNewNoteMsg:
 		newNoteContent := fmt.Sprintf("# %s\n\n", msg.title)
