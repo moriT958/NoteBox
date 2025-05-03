@@ -39,18 +39,13 @@ func newModel() (*model, error) {
 		return nil, err
 	}
 
-	notes, err := loadNoteFiles(baseDir)
-	if err != nil {
-		return nil, err
-	}
-
 	m := &model{
 		height: 0,
 		width:  0,
 		focus:  focusListPanel,
 		listPanel: listPanelModel{
 			cursor: 0,
-			notes:  notes,
+			notes:  nil,
 		},
 		previewer: previewerModel{
 			vp:       viewport.New(0, 0),
@@ -64,14 +59,14 @@ func newModel() (*model, error) {
 	return m, nil
 }
 
+type notesLoadedMsg struct{ notes []note }
+
 func (m model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	// init previewer
-	cmds = append(cmds, m.previewer.init())
-	// init listPanel
-	cmds = append(cmds, m.listPanel.init())
-	// init typingModal
-	cmds = append(cmds, m.typingModal.init())
+	// load all note files
+	cmds = append(cmds, loadNoteFiles(baseDir))
+	// init textinput
+	cmds = append(cmds, textinput.Blink)
 	// set terminal window title
 	cmds = append(cmds, tea.SetWindowTitle("NoteBox"))
 	return tea.Batch(cmds...)
@@ -104,6 +99,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.typingModal, cmd = m.typingModal.update(msg)
 			cmds = append(cmds, cmd)
 		}
+	case notesLoadedMsg:
+		m.listPanel, cmd = m.listPanel.update(msg)
+		cmds = append(cmds, cmd)
 	case tea.WindowSizeMsg:
 		m.previewer, cmd = m.previewer.update(msg)
 		cmds = append(cmds, cmd)
@@ -147,12 +145,6 @@ type listPanelModel struct {
 	notes  []note
 }
 
-func (m listPanelModel) init() tea.Cmd {
-	return func() tea.Msg {
-		return renderPreviewMsg{m.notes[m.cursor].content}
-	}
-}
-
 type typingModalMsg struct{ isOpen bool }
 
 func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
@@ -161,6 +153,9 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 	switch msg := msg.(type) {
+	case notesLoadedMsg:
+		m.notes = msg.notes
+		return m, func() tea.Msg { return renderPreviewMsg{m.notes[m.cursor].content} }
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j", "down":
@@ -221,10 +216,6 @@ type previewerModel struct {
 	renderer *glamour.TermRenderer
 }
 
-func (m previewerModel) init() tea.Cmd {
-	return nil
-}
-
 func (m previewerModel) update(msg tea.Msg) (previewerModel, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
@@ -264,10 +255,6 @@ type createNewNoteMsg struct{ title string }
 type typingModal struct {
 	open  bool
 	input textinput.Model
-}
-
-func (m typingModal) init() tea.Cmd {
-	return textinput.Blink
 }
 
 func (m typingModal) update(msg tea.Msg) (typingModal, tea.Cmd) {

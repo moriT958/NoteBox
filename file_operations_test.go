@@ -12,48 +12,28 @@ func TestLoadNoteFiles(t *testing.T) {
 		{"test1", "# test1\n\n"},
 	}
 
-	got, err := loadNoteFiles("./testdata")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) == 0 {
-		t.Fatal("failed to load notes")
+	cmd := loadNoteFiles("./testdata")
+	msg := cmd()
+	if m, ok := msg.(errMsg); ok {
+		t.Fatal(m.err)
 	}
 
-	if noteNum := len(got); noteNum != 3 {
-		t.Errorf("want 3 notes, but got %d", noteNum)
-	}
+	if m, ok := msg.(notesLoadedMsg); ok {
+		if len(m.notes) == 0 {
+			t.Fatal("failed to load notes")
+		}
 
-	for i := range want {
-		if want[i] != got[i] {
-			t.Errorf("want %v, but got %v\n", want[i], got[i])
+		if len(m.notes) != 3 {
+			t.Errorf("want 3 notes, but got %d", len(m.notes))
+		}
+
+		for i := range want {
+			if want[i] != m.notes[i] {
+				t.Errorf("want %v, but got %v\n", want[i], m.notes[i])
+			}
 		}
 	}
 }
-
-// func TestWalk(t *testing.T) {
-// 	wantFileNum := 3
-// 	files := make([]string, 0)
-// 	if err := filepath.Walk("./testdata", func(path string, info fs.FileInfo, err error) error {
-// 		if err != nil {
-// 			return err
-// 		}
-// 		if info.IsDir() {
-// 			return nil
-// 		}
-//
-// 		_, filename := filepath.Split(path)
-// 		files = append(files, filename)
-//
-// 		return nil
-// 	}); err != nil {
-// 		t.Fatal(err)
-// 	}
-//
-// 	if len(files) != wantFileNum {
-// 		t.Errorf("want %d, but got %d\n", wantFileNum, len(files))
-// 	}
-// }
 
 func TestGetTitleFromFilename(t *testing.T) {
 	files := []string{

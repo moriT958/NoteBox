@@ -20,32 +20,34 @@ type note struct {
 
 const baseDir string = "./notes"
 
-func loadNoteFiles(baseDir string) ([]note, error) {
-	notes := make([]note, 0)
+func loadNoteFiles(baseDir string) tea.Cmd {
+	return func() tea.Msg {
+		notes := make([]note, 0)
 
-	if err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
+		if err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+
+			_, filename := filepath.Split(path)
+			title := getTitleFromFilename(filename)
+			notes = append(notes, note{title, string(content)})
+
 			return nil
+		}); err != nil {
+			return errMsg{err}
 		}
 
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		_, filename := filepath.Split(path)
-		title := getTitleFromFilename(filename)
-		notes = append(notes, note{title, string(content)})
-
-		return nil
-	}); err != nil {
-		return nil, err
+		return notesLoadedMsg{notes}
 	}
-
-	return notes, nil
 }
 
 func getTitleFromFilename(filename string) string {
