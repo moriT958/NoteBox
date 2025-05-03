@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -73,6 +74,31 @@ func createNewNoteFile(title string) tea.Cmd {
 
 		content := fmt.Sprintf("# %s\n\n", title)
 		fmt.Fprint(fp, content)
+
+		return nil
+	}
+}
+
+func deleteNoteFile(title string) tea.Cmd {
+	return func() tea.Msg {
+		err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
+			if info.IsDir() {
+				return nil
+			}
+
+			filename := info.Name()
+			if strings.HasPrefix(filename, title+"-") && strings.HasSuffix(filename, ".md") {
+				if err := os.Remove(path); err != nil {
+					return err
+				}
+				return io.EOF
+			}
+
+			return nil
+		})
+		if err != nil && err != io.EOF {
+			return errMsg{err}
+		}
 
 		return nil
 	}
