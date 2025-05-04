@@ -20,10 +20,11 @@ type note struct {
 	path  string
 }
 
-const baseDir string = "./notes"
-
-const dummyNotePath string = "./dummy.md"
-const defaultEditor string = "nvim"
+const (
+	baseDir       string = "./notes"
+	dummyNotePath string = "./dummy.md"
+	defaultEditor string = "nvim"
+)
 
 func loadNoteFiles(baseDir string) ([]note, error) {
 	notes := make([]note, 0)
@@ -127,7 +128,7 @@ func openNoteWithEditor(title string) tea.Cmd {
 		return nil
 	})
 	if err != nil && err != io.EOF {
-		return func() tea.Msg { return errMsg{err} }
+		return errCmd(err)
 	}
 	c := exec.Command(defaultEditor, filename)
 
