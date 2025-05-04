@@ -63,6 +63,8 @@ func createNewNoteFile(title string) tea.Cmd {
 	timeStr := time.Now().Format(time.DateOnly)
 
 	return func() tea.Msg {
+		// TODO:
+		// replace spaces with hyphen
 		filename := filepath.Join(baseDir,
 			title+"-"+timeStr+".md")
 
