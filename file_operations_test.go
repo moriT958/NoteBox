@@ -7,9 +7,9 @@ import (
 
 func TestLoadNoteFiles(t *testing.T) {
 	want := []note{
-		{"hello", "# hello\n\n"},
-		{"nice", "# nice\n\n"},
-		{"test1", "# test1\n\n"},
+		{"hello", "testdata/hello-2025-05-02.md"},
+		{"nice", "testdata/nice-2025-05-02.md"},
+		{"test1", "testdata/test1-2025-05-02.md"},
 	}
 
 	notes, err := loadNoteFiles("./testdata")
