@@ -76,12 +76,6 @@ func newModel() (*model, error) {
 	return m, nil
 }
 
-func errCmd(err error) tea.Cmd {
-	return func() tea.Msg {
-		return errMsg{err}
-	}
-}
-
 func (m model) Init() tea.Cmd {
 	var cmds []tea.Cmd
 	// init textinput
@@ -110,13 +104,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.focus {
 		case focusListPanel:
 			m.listPanel, cmd = m.listPanel.update(msg)
-			cmds = append(cmds, cmd)
+			return m, cmd
 		case focusPreviewer:
 			m.previewer, cmd = m.previewer.update(msg)
-			cmds = append(cmds, cmd)
+			return m, cmd
 		case focusTypingModal:
 			m.typingModal, cmd = m.typingModal.update(msg)
-			cmds = append(cmds, cmd)
+			return m, cmd
 		}
 	case tea.WindowSizeMsg:
 		m.previewer, cmd = m.previewer.update(msg)
@@ -132,13 +126,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focus = focusListPanel
 		}
 		m.typingModal, cmd = m.typingModal.update(msg)
-		cmds = append(cmds, cmd)
+		return m, cmd
 	case renderPreviewMsg:
 		m.previewer, cmd = m.previewer.update(msg)
-		cmds = append(cmds, cmd)
+		return m, cmd
 	case createNewNoteMsg:
 		m.listPanel, cmd = m.listPanel.update(msg)
-		cmds = append(cmds, cmd)
+		return m, cmd
 	case errMsg:
 		slog.Error(msg.err.Error())
 		return m, tea.Quit
@@ -199,8 +193,6 @@ type listPanelModel struct {
 	list list.Model
 }
 
-type typingModalMsg struct{ isOpen bool }
-
 func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
@@ -213,8 +205,7 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "n":
-			cmd = func() tea.Msg { return typingModalMsg{true} }
-			cmds = append(cmds, cmd)
+			return m, toggleModalCmd(true)
 		case "d":
 			if len(m.list.Items()) == 0 {
 				break
@@ -225,7 +216,7 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 			cmds = append(cmds, m.renderPreviewCmd())
 		case "e":
 			note := m.list.SelectedItem().(note)
-			cmds = append(cmds, openNoteWithEditor(note.title))
+			return m, openNoteWithEditor(note.title)
 		default:
 			m.list, cmd = m.list.Update(msg)
 			cmds = append(cmds, cmd)
@@ -262,19 +253,13 @@ func (m listPanelModel) view() string {
 }
 
 /* Previewer Model */
-type errMsg struct{ err error }
-type renderPreviewMsg struct{ path string }
-
 type previewerModel struct {
 	vp       viewport.Model
 	renderer *glamour.TermRenderer
 }
 
 func (m previewerModel) update(msg tea.Msg) (previewerModel, tea.Cmd) {
-	var (
-		cmd  tea.Cmd
-		cmds []tea.Cmd
-	)
+	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -287,17 +272,14 @@ func (m previewerModel) update(msg tea.Msg) (previewerModel, tea.Cmd) {
 		}
 		renderedContent, err := m.renderer.Render(string(content))
 		if err != nil {
-			slog.Error(err.Error())
-			cmd = func() tea.Msg { return errMsg{err} }
-			cmds = append(cmds, cmd)
+			return m, errCmd(err)
 		}
 		m.vp.SetContent(renderedContent)
+	default:
+		m.vp, cmd = m.vp.Update(msg)
 	}
 
-	m.vp, cmd = m.vp.Update(msg)
-	cmds = append(cmds, cmd)
-
-	return m, tea.Batch(cmds...)
+	return m, cmd
 }
 
 func (m previewerModel) view() string {
@@ -307,8 +289,6 @@ func (m previewerModel) view() string {
 }
 
 /* Typing Modal Model */
-
-type createNewNoteMsg struct{ note note }
 
 type typingModal struct {
 	open  bool
@@ -330,13 +310,12 @@ func (m typingModal) update(msg tea.Msg) (typingModal, tea.Cmd) {
 		switch msg.String() {
 		case "enter":
 			m.open = false
-			closeModalCmd := func() tea.Msg {
-				return typingModalMsg{false}
-			}
-			cmds = append(cmds, createNewNoteFileCmd(m.input.Value()), closeModalCmd)
+			cmds = append(cmds,
+				createNewNoteFileCmd(m.input.Value()),
+				toggleModalCmd(false))
 		case "esc", "ctrl+c":
 			m.open = false
-			cmds = append(cmds, func() tea.Msg { return typingModalMsg{false} })
+			cmds = append(cmds, toggleModalCmd(false))
 		}
 	case typingModalMsg:
 		m.input.Reset()
