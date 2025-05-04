@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
-	"slices"
+	"os"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -39,13 +41,28 @@ func newModel() (*model, error) {
 		return nil, err
 	}
 
+	notes, err := loadNoteFiles(baseDir)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]list.Item, 0)
+	for i := range notes {
+		items = append(items, notes[i])
+	}
+	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
+	l.Title = "📓 Your Notes 📓"
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(false)
+	l.Styles.Title = titleStyle
+	l.Styles.PaginationStyle = paginationStyle
+	l.Styles.HelpStyle = helpStyle
+
 	m := &model{
 		height: 0,
 		width:  0,
 		focus:  focusListPanel,
 		listPanel: listPanelModel{
-			cursor: 0,
-			notes:  nil,
+			list: l,
 		},
 		previewer: previewerModel{
 			vp:       viewport.New(0, 0),
@@ -59,12 +76,14 @@ func newModel() (*model, error) {
 	return m, nil
 }
 
-type notesLoadedMsg struct{ notes []note }
+func errCmd(err error) tea.Cmd {
+	return func() tea.Msg {
+		return errMsg{err}
+	}
+}
 
 func (m model) Init() tea.Cmd {
 	var cmds []tea.Cmd
-	// load all note files
-	cmds = append(cmds, loadNoteFiles(baseDir))
 	// init textinput
 	cmds = append(cmds, textinput.Blink)
 	// set terminal window title
@@ -99,13 +118,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.typingModal, cmd = m.typingModal.update(msg)
 			cmds = append(cmds, cmd)
 		}
-	case notesLoadedMsg:
-		m.listPanel, cmd = m.listPanel.update(msg)
-		cmds = append(cmds, cmd)
 	case tea.WindowSizeMsg:
 		m.previewer, cmd = m.previewer.update(msg)
 		cmds = append(cmds, cmd)
 		m.typingModal, cmd = m.typingModal.update(msg)
+		cmds = append(cmds, cmd)
+		m.listPanel, cmd = m.listPanel.update(msg)
 		cmds = append(cmds, cmd)
 	case typingModalMsg:
 		if msg.isOpen {
@@ -140,9 +158,45 @@ func (m model) View() string {
 
 /* List Panel Model */
 
+const listHeight = 14
+const defaultWidth = 20
+
+var (
+	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
+	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
+	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
+	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
+)
+
+func (n note) FilterValue() string { return "" }
+
+type itemDelegate struct{}
+
+func (d itemDelegate) Height() int                             { return 1 }
+func (d itemDelegate) Spacing() int                            { return 0 }
+func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	n, ok := listItem.(note)
+	if !ok {
+		return
+	}
+
+	str := fmt.Sprintf("%d. %s", index+1, n.title)
+
+	fn := itemStyle.Render
+	if index == m.Index() {
+		fn = func(s ...string) string {
+			return selectedItemStyle.Render("> " + strings.Join(s, " "))
+		}
+	}
+
+	fmt.Fprint(w, fn(str))
+}
+
 type listPanelModel struct {
-	cursor int
-	notes  []note
+	list list.Model
 }
 
 type typingModalMsg struct{ isOpen bool }
@@ -153,63 +207,63 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 	switch msg := msg.(type) {
-	case notesLoadedMsg:
-		m.notes = msg.notes
-		return m, func() tea.Msg { return renderPreviewMsg{m.notes[m.cursor].content} }
+	case tea.WindowSizeMsg:
+		m.list.SetWidth(msg.Width)
+		return m, m.renderPreviewCmd()
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "j", "down":
-			if m.cursor < len(m.notes)-1 {
-				m.cursor++
-			}
-			cmd = func() tea.Msg { return renderPreviewMsg{m.notes[m.cursor].content} }
-			cmds = append(cmds, cmd)
-		case "k", "up":
-			if m.cursor > 0 {
-				m.cursor--
-			}
-			cmd = func() tea.Msg { return renderPreviewMsg{m.notes[m.cursor].content} }
-			cmds = append(cmds, cmd)
 		case "n":
 			cmd = func() tea.Msg { return typingModalMsg{true} }
 			cmds = append(cmds, cmd)
 		case "d":
-			cmds = append(cmds, deleteNoteFile(m.notes[m.cursor].title))
-			m.notes = slices.Delete(m.notes, m.cursor, m.cursor+1)
-			if m.cursor > 0 {
-				m.cursor--
+			if len(m.list.Items()) == 0 {
+				break
 			}
-			cmds = append(cmds, func() tea.Msg { return renderPreviewMsg{m.notes[m.cursor].content} })
+			cmds = append(cmds, deleteNoteFile(m.list.SelectedItem().(note).title))
+			m.list.RemoveItem(m.list.Cursor())
+			m.list.CursorUp()
+			cmds = append(cmds, m.renderPreviewCmd())
+		case "e":
+			note := m.list.SelectedItem().(note)
+			cmds = append(cmds, openNoteWithEditor(note.title))
+		default:
+			m.list, cmd = m.list.Update(msg)
+			cmds = append(cmds, cmd)
+			cmds = append(cmds, m.renderPreviewCmd())
 		}
 	case createNewNoteMsg:
-		newNoteContent := fmt.Sprintf("# %s\n\n", msg.title)
-		m.notes = append(m.notes, note{msg.title, newNoteContent})
-		m.cursor = len(m.notes) - 1
-		cmds = append(cmds, createNewNoteFile(msg.title))
-
-		cmd = func() tea.Msg { return renderPreviewMsg{m.notes[m.cursor].content} }
+		newIndex := len(m.list.Items())
+		newNote := note{
+			title: msg.note.title,
+			path:  msg.note.path,
+		}
+		cmd = m.list.InsertItem(newIndex, newNote)
 		cmds = append(cmds, cmd)
+
+		m.list.Select(newIndex)
+		cmds = append(cmds, m.renderPreviewCmd())
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
+func (m listPanelModel) renderPreviewCmd() tea.Cmd {
+	if len(m.list.Items()) > 0 {
+		return func() tea.Msg { return renderPreviewMsg{m.list.SelectedItem().(note).path} }
+	} else {
+		return func() tea.Msg { return renderPreviewMsg{dummyNotePath} }
+	}
+}
+
 func (m listPanelModel) view() string {
 	view := strings.Builder{}
-	for i, n := range m.notes {
-		if i == m.cursor {
-			view.WriteString(">" + n.title)
-		} else {
-			view.WriteString(" " + n.title)
-		}
-		view.WriteString("\n")
-	}
+	view.WriteString(m.list.View())
 	return view.String()
 }
 
 /* Previewer Model */
 type errMsg struct{ err error }
-type renderPreviewMsg struct{ content string }
+type renderPreviewMsg struct{ path string }
 
 type previewerModel struct {
 	vp       viewport.Model
@@ -227,7 +281,11 @@ func (m previewerModel) update(msg tea.Msg) (previewerModel, tea.Cmd) {
 		m.vp.Height = msg.Height * 2 / 3
 		m.vp.Width = msg.Width * 2 / 3
 	case renderPreviewMsg:
-		renderedContent, err := m.renderer.Render(msg.content)
+		content, err := os.ReadFile(msg.path)
+		if err != nil {
+			return m, errCmd(err)
+		}
+		renderedContent, err := m.renderer.Render(string(content))
 		if err != nil {
 			slog.Error(err.Error())
 			cmd = func() tea.Msg { return errMsg{err} }
@@ -250,7 +308,7 @@ func (m previewerModel) view() string {
 
 /* Typing Modal Model */
 
-type createNewNoteMsg struct{ title string }
+type createNewNoteMsg struct{ note note }
 
 type typingModal struct {
 	open  bool
@@ -272,14 +330,10 @@ func (m typingModal) update(msg tea.Msg) (typingModal, tea.Cmd) {
 		switch msg.String() {
 		case "enter":
 			m.open = false
-			createNewNoteCmd := func() tea.Msg {
-				title := m.input.Value()
-				return createNewNoteMsg{title}
-			}
 			closeModalCmd := func() tea.Msg {
 				return typingModalMsg{false}
 			}
-			cmds = append(cmds, createNewNoteCmd, closeModalCmd)
+			cmds = append(cmds, createNewNoteFileCmd(m.input.Value()), closeModalCmd)
 		case "esc", "ctrl+c":
 			m.open = false
 			cmds = append(cmds, func() tea.Msg { return typingModalMsg{false} })
