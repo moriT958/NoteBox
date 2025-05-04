@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -15,40 +16,40 @@ import (
 /* Note Entity */
 
 type note struct {
-	title   string
-	content string
+	title string
+	path  string
 }
 
 const baseDir string = "./notes"
 
-func loadNoteFiles(baseDir string) tea.Cmd {
-	return func() tea.Msg {
-		notes := make([]note, 0)
+const dummyNotePath string = "./dummy.md"
+const defaultEditor string = "nvim"
 
-		if err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			if info.IsDir() {
-				return nil
-			}
+func loadNoteFiles(baseDir string) ([]note, error) {
+	notes := make([]note, 0)
 
-			content, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
-
-			_, filename := filepath.Split(path)
-			title := getTitleFromFilename(filename)
-			notes = append(notes, note{title, string(content)})
-
+	if err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
 			return nil
-		}); err != nil {
-			return errMsg{err}
 		}
 
-		return notesLoadedMsg{notes}
+		_, filename := filepath.Split(path)
+		title := getTitleFromFilename(filename)
+		note := &note{
+			title: title,
+			path:  path,
+		}
+		notes = append(notes, *note)
+
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
+	return notes, nil
 }
 
 func getTitleFromFilename(filename string) string {
@@ -59,7 +60,7 @@ func getTitleFromFilename(filename string) string {
 	return title
 }
 
-func createNewNoteFile(title string) tea.Cmd {
+func createNewNoteFileCmd(title string) tea.Cmd {
 	timeStr := time.Now().Format(time.DateOnly)
 
 	return func() tea.Msg {
@@ -77,7 +78,12 @@ func createNewNoteFile(title string) tea.Cmd {
 		content := fmt.Sprintf("# %s\n\n", title)
 		fmt.Fprint(fp, content)
 
-		return nil
+		note := note{
+			title: title,
+			path:  filename,
+		}
+
+		return createNewNoteMsg{note: note}
 	}
 }
 
@@ -104,4 +110,31 @@ func deleteNoteFile(title string) tea.Cmd {
 
 		return nil
 	}
+}
+
+func openNoteWithEditor(title string) tea.Cmd {
+	var filename string
+	err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+
+		if strings.HasPrefix(info.Name(), title+"-") && strings.HasSuffix(info.Name(), ".md") {
+			filename = filepath.Join(baseDir, info.Name())
+			return io.EOF
+		}
+
+		return nil
+	})
+	if err != nil && err != io.EOF {
+		return func() tea.Msg { return errMsg{err} }
+	}
+	c := exec.Command(defaultEditor, filename)
+
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		if err != nil {
+			return errMsg{err}
+		}
+		return nil
+	})
 }

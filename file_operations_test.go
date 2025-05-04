@@ -12,23 +12,22 @@ func TestLoadNoteFiles(t *testing.T) {
 		{"test1", "# test1\n\n"},
 	}
 
-	cmd := loadNoteFiles("./testdata")
-	switch msg := cmd().(type) {
-	case errMsg:
-		t.Fatal(msg.err)
-	case notesLoadedMsg:
-		if len(msg.notes) == 0 {
-			t.Fatal("failed to load notes")
-		}
+	notes, err := loadNoteFiles("./testdata")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		if len(msg.notes) != 3 {
-			t.Errorf("want 3 notes, but got %d", len(msg.notes))
-		}
+	if len(notes) == 0 {
+		t.Fatal("failed to load notes")
+	}
 
-		for i := range want {
-			if want[i] != msg.notes[i] {
-				t.Errorf("want %v, but got %v\n", want[i], msg.notes[i])
-			}
+	if len(notes) != 3 {
+		t.Errorf("want 3 notes, but got %d", len(notes))
+	}
+
+	for i := range want {
+		if want[i] != notes[i] {
+			t.Errorf("want %v, but got %v\n", want[i], notes[i])
 		}
 	}
 }
