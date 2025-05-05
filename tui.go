@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"NoteBox.tmp/config"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -41,7 +42,7 @@ func newModel() (*model, error) {
 		return nil, err
 	}
 
-	notes, err := loadNoteFiles(baseDir)
+	notes, err := loadNoteFiles(config.BaseDir)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +243,7 @@ func (m listPanelModel) renderPreviewCmd() tea.Cmd {
 	if len(m.list.Items()) > 0 {
 		return func() tea.Msg { return renderPreviewMsg{m.list.SelectedItem().(note).path} }
 	} else {
-		return func() tea.Msg { return renderPreviewMsg{dummyNotePath} }
+		return func() tea.Msg { return renderPreviewMsg{config.DummyNotePath} }
 	}
 }
 

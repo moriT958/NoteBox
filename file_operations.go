@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"NoteBox.tmp/config"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -19,12 +20,6 @@ type note struct {
 	title string
 	path  string
 }
-
-const (
-	baseDir       string = "./notes"
-	dummyNotePath string = "./dummy.md"
-	defaultEditor string = "nvim"
-)
 
 func loadNoteFiles(baseDir string) ([]note, error) {
 	notes := make([]note, 0)
@@ -67,7 +62,7 @@ func createNewNoteFileCmd(title string) tea.Cmd {
 	return func() tea.Msg {
 		// TODO:
 		// replace spaces with hyphen
-		filename := filepath.Join(baseDir,
+		filename := filepath.Join(config.BaseDir,
 			title+"-"+timeStr+".md")
 
 		fp, err := os.Create(filename)
@@ -90,7 +85,7 @@ func createNewNoteFileCmd(title string) tea.Cmd {
 
 func deleteNoteFile(title string) tea.Cmd {
 	return func() tea.Msg {
-		err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
+		err := filepath.Walk(config.BaseDir, func(path string, info fs.FileInfo, err error) error {
 			if info.IsDir() {
 				return nil
 			}
@@ -115,13 +110,13 @@ func deleteNoteFile(title string) tea.Cmd {
 
 func openNoteWithEditor(title string) tea.Cmd {
 	var filename string
-	err := filepath.Walk(baseDir, func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(config.BaseDir, func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
 
 		if strings.HasPrefix(info.Name(), title+"-") && strings.HasSuffix(info.Name(), ".md") {
-			filename = filepath.Join(baseDir, info.Name())
+			filename = filepath.Join(config.BaseDir, info.Name())
 			return io.EOF
 		}
 
@@ -130,7 +125,7 @@ func openNoteWithEditor(title string) tea.Cmd {
 	if err != nil && err != io.EOF {
 		return errCmd(err)
 	}
-	c := exec.Command(defaultEditor, filename)
+	c := exec.Command(config.DefaultEditor, filename)
 
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {
