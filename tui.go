@@ -50,11 +50,10 @@ func newModel() (*model, error) {
 	for i := range notes {
 		items = append(items, notes[i])
 	}
-	l := list.New(items, itemDelegate{}, defaultWidth, listHeight)
-	l.Title = "📓 Your Notes 📓"
+	l := list.New(items, itemDelegate{}, 0, 20)
+	l.Title = "Your Notes"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(false)
-	l.Styles.Title = titleStyle
 	l.Styles.PaginationStyle = paginationStyle
 	l.Styles.HelpStyle = helpStyle
 
@@ -93,20 +92,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "esc":
+		if msg.String() == "q" || msg.String() == "esc" {
 			return m, tea.Quit
-		case "ctrl+h":
-			m.focus = focusListPanel
-		case "ctrl+l":
-			m.focus = focusPreviewer
 		}
 
 		switch m.focus {
 		case focusListPanel:
+			switch msg.String() {
+			case "ctrl+h":
+				m.focus = focusListPanel
+			case "ctrl+l":
+				m.focus = focusPreviewer
+			}
 			m.listPanel, cmd = m.listPanel.update(msg)
 			return m, cmd
 		case focusPreviewer:
+			switch msg.String() {
+			case "ctrl+h":
+				m.focus = focusListPanel
+			case "ctrl+l":
+				m.focus = focusPreviewer
+			}
 			m.previewer, cmd = m.previewer.update(msg)
 			return m, cmd
 		case focusTypingModal:
@@ -114,6 +120,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 	case tea.WindowSizeMsg:
+		m.height, m.width = msg.Height, msg.Width
 		m.previewer, cmd = m.previewer.update(msg)
 		cmds = append(cmds, cmd)
 		m.typingModal, cmd = m.typingModal.update(msg)
@@ -142,28 +149,39 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m model) appTitleView() string {
+	return appTitleStyle.
+		Width(m.width).
+		Render("📓 NoteBox 📓")
+}
+
 func (m model) View() string {
-	return lipgloss.JoinVertical(lipgloss.Top,
-		"NoteBox",
-		lipgloss.JoinHorizontal(lipgloss.Left,
-			m.listPanel.view(),
-			m.previewer.view(),
-			m.typingModal.view()))
+	switch m.focus {
+	case focusListPanel:
+		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Top,
+			m.appTitleView(),
+			lipgloss.JoinHorizontal(lipgloss.Left,
+				borderStyle(true).Render(m.listPanel.view()),
+				borderStyle(false).Render(m.previewer.view()),
+				m.typingModal.view())))
+	case focusPreviewer:
+		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Top,
+			m.appTitleView(),
+			lipgloss.JoinHorizontal(lipgloss.Left,
+				borderStyle(false).Render(m.listPanel.view()),
+				borderStyle(true).Render(m.previewer.view()),
+				m.typingModal.view())))
+	default:
+		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Top,
+			m.appTitleView(),
+			lipgloss.JoinHorizontal(lipgloss.Left,
+				borderStyle(false).Render(m.listPanel.view()),
+				borderStyle(false).Render(m.previewer.view()),
+				borderStyle(true).Render(m.typingModal.view()))))
+	}
 }
 
 /* List Panel Model */
-
-const listHeight = 14
-const defaultWidth = 20
-
-var (
-	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
-	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
-)
 
 func (n note) FilterValue() string { return "" }
 
@@ -201,7 +219,10 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 	)
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.list.SetWidth(msg.Width)
+		h, v := appStyle.GetFrameSize()
+		m.list.SetSize(msg.Width*2/3-h, msg.Height*5/6-v)
+		// m.list.SetWidth(msg.Width / 3)
+		// m.list.SetHeight(msg.width)
 		return m, m.renderPreviewCmd()
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -264,8 +285,9 @@ func (m previewerModel) update(msg tea.Msg) (previewerModel, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.vp.Height = msg.Height * 2 / 3
-		m.vp.Width = msg.Width * 2 / 3
+		h, v := appStyle.GetFrameSize()
+		m.vp.Height = msg.Height*5/6 - v
+		m.vp.Width = msg.Width*2/3 - h
 	case renderPreviewMsg:
 		content, err := os.ReadFile(msg.path)
 		if err != nil {
@@ -276,6 +298,7 @@ func (m previewerModel) update(msg tea.Msg) (previewerModel, tea.Cmd) {
 			return m, errCmd(err)
 		}
 		m.vp.SetContent(renderedContent)
+		m.vp.GotoTop()
 	default:
 		m.vp, cmd = m.vp.Update(msg)
 	}
