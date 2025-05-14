@@ -21,9 +21,9 @@ func errCmd(err error) tea.Cmd {
 func toggleModalCmd(state bool) tea.Cmd {
 	return func() tea.Msg {
 		if state {
-			return typingModalMsg{false}
-		} else {
 			return typingModalMsg{true}
+		} else {
+			return typingModalMsg{false}
 		}
 	}
 }
