@@ -40,32 +40,3 @@ func borderStyle(focused bool) lipgloss.Style {
 		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: borderColor}).
 		Padding(0, 0, 0, 1)
 }
-
-// Generate border style
-// func GenerateBorder() lipgloss.Border {
-// 	return lipgloss.Border{
-// 		Top:         "─",
-// 		Bottom:      "─",
-// 		Left:        "│",
-// 		Right:       "│",
-// 		TopLeft:     "╭",
-// 		TopRight:    "╮",
-// 		BottomLeft:  "╰",
-// 		BottomRight: "╯",
-// 	}
-// }
-
-// border_middle_left = '├'
-// border_middle_right = '┤'
-
-// func ModalBorderStyle(height int, width int) lipgloss.Style {
-// 	border := GenerateBorder()
-// 	return lipgloss.NewStyle().Height(height).
-// 		Width(width).
-// 		Align(lipgloss.Center, lipgloss.Center).
-// 		Border(border).
-// 		BorderForeground(lipgloss.Color("#303446")).
-// 		BorderBackground(lipgloss.Color("#303446")).
-// 		Background(lipgloss.Color("#303446")).
-// 		Foreground(lipgloss.Color("#303446"))
-// }
