@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"NoteBox.tmp/config"
+	stringfunction "NoteBox.tmp/pkg/string_function"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -171,6 +172,18 @@ func (m model) View() string {
 				borderStyle(false).Render(m.listPanel.view()),
 				borderStyle(true).Render(m.previewer.view()),
 				m.typingModal.view())))
+	case focusTypingModal:
+		// centeredModal := lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		// 	borderStyle(true).Render(m.typingModal.view()))
+		modal := borderStyle(true).Render(m.typingModal.view())
+		overlayX := m.width/2 - ModalWidth/2
+		overlayY := m.height/2 - ModalHeight/2
+		mainView := appStyle.Render(lipgloss.JoinVertical(lipgloss.Top,
+			m.appTitleView(),
+			lipgloss.JoinHorizontal(lipgloss.Left,
+				borderStyle(false).Render(m.listPanel.view()),
+				borderStyle(false).Render(m.previewer.view()))))
+		return stringfunction.PlaceOverlay(overlayX, overlayY, modal, mainView)
 	default:
 		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Top,
 			m.appTitleView(),
@@ -352,10 +365,27 @@ func (m typingModal) update(msg tea.Msg) (typingModal, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+var (
+	ModalConfirm = lipgloss.NewStyle().Foreground(lipgloss.Color("#414559")).Background(lipgloss.Color("#99d1db"))
+	ModalCancel  = lipgloss.NewStyle().Foreground(lipgloss.Color("#414559")).Background(lipgloss.Color("#ea999c"))
+)
+
+var (
+	ModalHeight = 7
+	ModalWidth  = 60
+)
+
 func (m typingModal) view() string {
-	var view strings.Builder
 	if m.open {
-		view.WriteString(m.input.View())
+		confirm := ModalConfirm.Render(" (" + "enter" + ") Create ")
+		cancel := ModalCancel.Render(" (" + "ctrl+c" + ") Cancel ")
+
+		tip := confirm +
+			lipgloss.NewStyle().Render("           ") +
+			cancel
+
+		// return ModalBorderStyle(ModalHeight, ModalWidth).Render("\n" + m.input.View() + "\n\n" + tip)
+		return "\n" + m.input.View() + "\n\n" + tip
 	}
-	return view.String()
+	return ""
 }
