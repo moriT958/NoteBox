@@ -159,38 +159,31 @@ func (m model) appTitleView() string {
 func (m model) View() string {
 	switch m.focus {
 	case focusListPanel:
-		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Top,
+		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Center,
 			m.appTitleView(),
 			lipgloss.JoinHorizontal(lipgloss.Left,
 				borderStyle(true).Render(m.listPanel.view()),
 				borderStyle(false).Render(m.previewer.view()),
 				m.typingModal.view())))
 	case focusPreviewer:
-		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Top,
+		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Center,
 			m.appTitleView(),
 			lipgloss.JoinHorizontal(lipgloss.Left,
 				borderStyle(false).Render(m.listPanel.view()),
 				borderStyle(true).Render(m.previewer.view()),
 				m.typingModal.view())))
 	case focusTypingModal:
-		// centeredModal := lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
-		// 	borderStyle(true).Render(m.typingModal.view()))
 		modal := borderStyle(true).Render(m.typingModal.view())
 		overlayX := m.width/2 - ModalWidth/2
 		overlayY := m.height/2 - ModalHeight/2
-		mainView := appStyle.Render(lipgloss.JoinVertical(lipgloss.Top,
+		mainView := appStyle.Render(lipgloss.JoinVertical(lipgloss.Center,
 			m.appTitleView(),
 			lipgloss.JoinHorizontal(lipgloss.Left,
 				borderStyle(false).Render(m.listPanel.view()),
 				borderStyle(false).Render(m.previewer.view()))))
 		return stringfunction.PlaceOverlay(overlayX, overlayY, modal, mainView)
 	default:
-		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Top,
-			m.appTitleView(),
-			lipgloss.JoinHorizontal(lipgloss.Left,
-				borderStyle(false).Render(m.listPanel.view()),
-				borderStyle(false).Render(m.previewer.view()),
-				borderStyle(true).Render(m.typingModal.view()))))
+		return ""
 	}
 }
 
@@ -385,7 +378,8 @@ func (m typingModal) view() string {
 			cancel
 
 		// return ModalBorderStyle(ModalHeight, ModalWidth).Render("\n" + m.input.View() + "\n\n" + tip)
-		return "\n" + m.input.View() + "\n\n" + tip
+		return lipgloss.NewStyle().Align(lipgloss.Center, lipgloss.Center).
+			Render("\n" + m.input.View() + "\n\n" + tip)
 	}
 	return ""
 }
