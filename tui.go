@@ -294,11 +294,11 @@ func (m listPanelModel) view() string {
 	for i := m.offset; i < end; i++ {
 		if i == m.cursor {
 			str := "> " + m.items[i].title
-			str = truncate.StringWithTail(str, uint(m.width), "…")
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(borderActiveColor)).Render(str))
+			str = truncate.StringWithTail(str, uint(m.width), "…   ")
+			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(cursorColor)).Render(str))
 		} else {
 			str := "  " + m.items[i].title
-			str = truncate.StringWithTail(str, uint(m.width), "…")
+			str = truncate.StringWithTail(str, uint(m.width), "…   ")
 			b.WriteString(str)
 		}
 		if i != end-1 {

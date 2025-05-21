@@ -22,6 +22,7 @@ var (
 /* Border Style */
 
 const (
+	cursorColor       = "#f2d5cf"
 	borderActiveColor = "#babbf1"
 	borderColor       = "#737994"
 )
