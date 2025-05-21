@@ -36,7 +36,7 @@ func newModel() (*model, error) {
 
 	r, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(40),
+		glamour.WithWordWrap(95),
 	)
 	if err != nil {
 		return nil, err
@@ -323,6 +323,8 @@ func (m previewerModel) update(msg tea.Msg) (previewerModel, tea.Cmd) {
 		h, v := appStyle.GetFrameSize()
 		m.vp.Height = msg.Height*5/6 - v
 		m.vp.Width = msg.Width*2/3 - h
+		m.vp.Height = (msg.Height - v) * 5 / 6
+		m.vp.Width = (msg.Width - h) * 2 / 3
 	case renderPreviewMsg:
 		content, err := os.ReadFile(msg.path)
 		if err != nil {
