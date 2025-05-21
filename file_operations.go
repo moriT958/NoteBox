@@ -83,7 +83,7 @@ func createNewNoteFileCmd(title string) tea.Cmd {
 	}
 }
 
-func deleteNoteFile(title string) tea.Cmd {
+func deleteNoteFileCmd(title string) tea.Cmd {
 	return func() tea.Msg {
 		err := filepath.Walk(config.BaseDir, func(path string, info fs.FileInfo, err error) error {
 			if info.IsDir() {

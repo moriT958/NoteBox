@@ -1,20 +1,19 @@
 package main
 
 import (
-	"fmt"
-	"io"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 
 	"NoteBox.tmp/config"
 	stringfunction "NoteBox.tmp/pkg/string_function"
-	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/reflow/truncate"
 )
 
 /* Main Model */
@@ -47,23 +46,13 @@ func newModel() (*model, error) {
 	if err != nil {
 		return nil, err
 	}
-	items := make([]list.Item, 0)
-	for i := range notes {
-		items = append(items, notes[i])
-	}
-	l := list.New(items, itemDelegate{}, 0, 20)
-	l.Title = "Your Notes"
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(false)
-	l.Styles.PaginationStyle = paginationStyle
-	l.Styles.HelpStyle = helpStyle
 
 	m := &model{
 		height: 0,
 		width:  0,
 		focus:  focusListPanel,
 		listPanel: listPanelModel{
-			list: l,
+			items: notes,
 		},
 		previewer: previewerModel{
 			vp:       viewport.New(0, 0),
@@ -189,77 +178,95 @@ func (m model) View() string {
 
 /* List Panel Model */
 
-func (n note) FilterValue() string { return "" }
+type listPanelModel struct {
+	width, height int
+	cursor        int
+	items         []note
+	selected      string
+	offset        int
+}
 
-type itemDelegate struct{}
+func (m *listPanelModel) cursorUp() {
+	if m.cursor > 0 {
+		m.cursor--
+		if m.cursor < m.offset {
+			m.offset--
+		}
+	}
+}
 
-func (d itemDelegate) Height() int                             { return 1 }
-func (d itemDelegate) Spacing() int                            { return 0 }
-func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	n, ok := listItem.(note)
-	if !ok {
+func (m *listPanelModel) cursorDown() {
+	if m.cursor < len(m.items)-1 {
+		m.cursor++
+		if m.cursor >= m.offset+m.height {
+			m.offset++
+		}
+	}
+}
+
+// SelectedItem returns the current selected item in the list.
+func (m listPanelModel) selectedItem() note {
+	if m.cursor < 0 || len(m.items) == 0 || len(m.items) <= m.cursor {
+		return note{}
+	}
+
+	return m.items[m.cursor]
+}
+
+func (m *listPanelModel) removeItem() {
+	if m.cursor < 0 || len(m.items) == 0 || len(m.items) <= m.cursor {
 		return
 	}
 
-	str := fmt.Sprintf("%d. %s", index+1, n.title)
+	m.items = slices.Delete(m.items, m.cursor, m.cursor+1)
 
-	fn := itemStyle.Render
-	if index == m.Index() {
-		fn = func(s ...string) string {
-			return selectedItemStyle.Render("> " + strings.Join(s, " "))
-		}
+	if m.cursor > len(m.items)-1 {
+		m.cursor--
 	}
-
-	fmt.Fprint(w, fn(str))
-}
-
-type listPanelModel struct {
-	list list.Model
 }
 
 func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 	var (
-		cmd  tea.Cmd
+		// cmd  tea.Cmd
 		cmds []tea.Cmd
 	)
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h, v := appStyle.GetFrameSize()
-		m.list.SetSize(msg.Width*2/3-h, msg.Height*5/6-v)
-		// m.list.SetWidth(msg.Width / 3)
-		// m.list.SetHeight(msg.width)
+		m.width, m.height = (msg.Width-h)/5, (msg.Height-v)*5/6
 		return m, m.renderPreviewCmd()
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "n":
 			return m, toggleModalCmd(true)
+		case "j":
+			m.cursorDown()
+			cmds = append(cmds, m.renderPreviewCmd())
+		case "k":
+			m.cursorUp()
+			cmds = append(cmds, m.renderPreviewCmd())
 		case "d":
-			if len(m.list.Items()) == 0 {
+			if len(m.items) == 0 {
 				break
 			}
-			cmds = append(cmds, deleteNoteFile(m.list.SelectedItem().(note).title))
-			m.list.RemoveItem(m.list.Cursor())
-			m.list.CursorUp()
+			cmds = append(cmds, deleteNoteFileCmd(m.selectedItem().title))
+			m.removeItem()
 			cmds = append(cmds, m.renderPreviewCmd())
 		case "e":
-			note := m.list.SelectedItem().(note)
+			note := m.selectedItem()
 			return m, openNoteWithEditor(note.title)
-		default:
-			m.list, cmd = m.list.Update(msg)
-			cmds = append(cmds, cmd)
-			cmds = append(cmds, m.renderPreviewCmd())
 		}
 	case createNewNoteMsg:
-		newIndex := len(m.list.Items())
+		newIndex := len(m.items)
 		newNote := note{
 			title: msg.note.title,
 			path:  msg.note.path,
 		}
-		cmd = m.list.InsertItem(newIndex, newNote)
-		cmds = append(cmds, cmd)
+		m.items = append(m.items, newNote)
+		// TODO:
+		// move to this cursor on view
+		m.cursor = newIndex
 
-		m.list.Select(newIndex)
 		cmds = append(cmds, m.renderPreviewCmd())
 	}
 
@@ -267,17 +274,39 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 }
 
 func (m listPanelModel) renderPreviewCmd() tea.Cmd {
-	if len(m.list.Items()) > 0 {
-		return func() tea.Msg { return renderPreviewMsg{m.list.SelectedItem().(note).path} }
+	if len(m.items) > 0 {
+		return func() tea.Msg { return renderPreviewMsg{m.selectedItem().path} }
 	} else {
 		return func() tea.Msg { return renderPreviewMsg{config.DummyNotePath} }
 	}
 }
 
 func (m listPanelModel) view() string {
-	view := strings.Builder{}
-	view.WriteString(m.list.View())
-	return view.String()
+	render := lipgloss.NewStyle().Height(m.height).Width(m.width).Render
+
+	var b strings.Builder
+
+	if len(m.items) == 0 {
+		return render("No items.")
+	}
+
+	end := min(m.offset+m.height, len(m.items))
+	for i := m.offset; i < end; i++ {
+		if i == m.cursor {
+			str := "> " + m.items[i].title
+			str = truncate.StringWithTail(str, uint(m.width), "…")
+			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(borderActiveColor)).Render(str))
+		} else {
+			str := "  " + m.items[i].title
+			str = truncate.StringWithTail(str, uint(m.width), "…")
+			b.WriteString(str)
+		}
+		if i != end-1 {
+			b.WriteString("\n")
+		}
+	}
+
+	return render(b.String())
 }
 
 /* Previewer Model */
