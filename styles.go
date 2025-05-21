@@ -14,11 +14,9 @@ var (
 			Align(lipgloss.Center).
 			Padding(0, 1)
 
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color(borderActiveColor))
-	paginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
-	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
+	paginationStyle = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
+	helpStyle       = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
+	quitTextStyle   = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
 
 /* Border Style */
