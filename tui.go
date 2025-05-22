@@ -293,7 +293,7 @@ func (m listPanelModel) view() string {
 	end := min(m.offset+m.height, len(m.items))
 	for i := m.offset; i < end; i++ {
 		if i == m.cursor {
-			str := "> " + m.items[i].title
+			str := " " + m.items[i].title
 			str = truncate.StringWithTail(str, uint(m.width), "…   ")
 			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color(cursorColor)).Render(str))
 		} else {
