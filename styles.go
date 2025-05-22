@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -13,10 +12,6 @@ var (
 			BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: borderColor}).
 			Align(lipgloss.Center).
 			Padding(0, 1)
-
-	paginationStyle = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	helpStyle       = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
-	quitTextStyle   = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
 
 /* Border Style */
