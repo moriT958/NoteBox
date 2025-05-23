@@ -321,8 +321,6 @@ func (m previewerModel) update(msg tea.Msg) (previewerModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h, v := appStyle.GetFrameSize()
-		m.vp.Height = msg.Height*5/6 - v
-		m.vp.Width = msg.Width*2/3 - h
 		m.vp.Height = (msg.Height - v) * 5 / 6
 		m.vp.Width = (msg.Width - h) * 2 / 3
 	case renderPreviewMsg:
