@@ -1,17 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"NoteBox.tmp/config"
 	tea "github.com/charmbracelet/bubbletea"
+	"notebox/config"
 )
 
 /* Note Entity */
@@ -54,33 +52,6 @@ func getTitleFromFilename(filename string) string {
 
 	title := strings.Join(parts[:len(parts)-3], "-")
 	return title
-}
-
-func createNewNoteFileCmd(title string) tea.Cmd {
-	timeStr := time.Now().Format(time.DateOnly)
-
-	return func() tea.Msg {
-		// TODO:
-		// replace spaces with hyphen
-		filename := filepath.Join(config.BaseDir,
-			title+"-"+timeStr+".md")
-
-		fp, err := os.Create(filename)
-		if err != nil {
-			return errMsg{err}
-		}
-		defer fp.Close()
-
-		content := fmt.Sprintf("# %s\n\n", title)
-		fmt.Fprint(fp, content)
-
-		note := note{
-			title: title,
-			path:  filename,
-		}
-
-		return createNewNoteMsg{note: note}
-	}
 }
 
 func deleteNoteFileCmd(title string) tea.Cmd {

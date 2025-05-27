@@ -1,13 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
-	"NoteBox.tmp/config"
-	stringfunction "NoteBox.tmp/pkg/string_function"
+	"notebox/config"
+	stringfunction "notebox/pkg/string_function"
+	typingmodal "notebox/typing-modal"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -23,7 +28,7 @@ type model struct {
 	focus         int
 	listPanel     listPanelModel
 	previewer     previewerModel
-	typingModal   typingModal
+	typingModal   typingmodal.Model
 }
 
 const (
@@ -58,10 +63,7 @@ func newModel() (*model, error) {
 			vp:       viewport.New(0, 0),
 			renderer: r,
 		},
-		typingModal: typingModal{
-			open:  false,
-			input: textinput.New(),
-		},
+		typingModal: typingmodal.New(),
 	}
 	return m, nil
 }
@@ -106,29 +108,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.previewer, cmd = m.previewer.update(msg)
 			return m, cmd
 		case focusTypingModal:
-			m.typingModal, cmd = m.typingModal.update(msg)
+			m.typingModal, cmd = m.typingModal.Update(msg)
 			return m, cmd
 		}
 	case tea.WindowSizeMsg:
 		m.height, m.width = msg.Height, msg.Width
 		m.previewer, cmd = m.previewer.update(msg)
 		cmds = append(cmds, cmd)
-		m.typingModal, cmd = m.typingModal.update(msg)
+		m.typingModal, cmd = m.typingModal.Update(msg)
 		cmds = append(cmds, cmd)
 		m.listPanel, cmd = m.listPanel.update(msg)
 		cmds = append(cmds, cmd)
-	case typingModalMsg:
-		if msg.isOpen {
+	case typingmodal.TypingModalMsg:
+		if bool(msg) {
 			m.focus = focusTypingModal
 		} else {
 			m.focus = focusListPanel
 		}
-		m.typingModal, cmd = m.typingModal.update(msg)
+		m.typingModal, cmd = m.typingModal.Update(msg)
 		return m, cmd
 	case renderPreviewMsg:
 		m.previewer, cmd = m.previewer.update(msg)
 		return m, cmd
-	case createNewNoteMsg:
+	// case createNewNoteMsg:
+	// 	m.listPanel, cmd = m.listPanel.update(msg)
+	// 	return m, cmd
+	case typingmodal.InputDataMsg:
 		m.listPanel, cmd = m.listPanel.update(msg)
 		return m, cmd
 	case errMsg:
@@ -153,18 +158,19 @@ func (m model) View() string {
 			lipgloss.JoinHorizontal(lipgloss.Left,
 				borderStyle(true).Render(m.listPanel.view()),
 				borderStyle(false).Render(m.previewer.view()),
-				m.typingModal.view())))
+				m.typingModal.View())))
 	case focusPreviewer:
 		return appStyle.Render(lipgloss.JoinVertical(lipgloss.Center,
 			m.appTitleView(),
 			lipgloss.JoinHorizontal(lipgloss.Left,
 				borderStyle(false).Render(m.listPanel.view()),
 				borderStyle(true).Render(m.previewer.view()),
-				m.typingModal.view())))
+				m.typingModal.View())))
 	case focusTypingModal:
-		modal := borderStyle(true).Render(m.typingModal.view())
-		overlayX := m.width/2 - ModalWidth/2
-		overlayY := m.height/2 - ModalHeight/2
+		modal := borderStyle(true).Render(m.typingModal.View())
+		mw, mh := m.typingModal.GetSize()
+		overlayX := m.width/2 - mw/2
+		overlayY := m.height/2 - mh/2
 		mainView := appStyle.Render(lipgloss.JoinVertical(lipgloss.Center,
 			m.appTitleView(),
 			lipgloss.JoinHorizontal(lipgloss.Left,
@@ -226,10 +232,6 @@ func (m *listPanelModel) removeItem() {
 }
 
 func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
-	var (
-		// cmd  tea.Cmd
-		cmds []tea.Cmd
-	)
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		h, v := appStyle.GetFrameSize()
@@ -238,39 +240,56 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "n":
-			return m, toggleModalCmd(true)
+			return m, typingmodal.ToggleModalCmd(true)
 		case "j":
 			m.cursorDown()
-			cmds = append(cmds, m.renderPreviewCmd())
+			return m, m.renderPreviewCmd()
 		case "k":
 			m.cursorUp()
-			cmds = append(cmds, m.renderPreviewCmd())
+			return m, m.renderPreviewCmd()
 		case "d":
+			var cmds []tea.Cmd
 			if len(m.items) == 0 {
 				break
 			}
 			cmds = append(cmds, deleteNoteFileCmd(m.selectedItem().title))
 			m.removeItem()
 			cmds = append(cmds, m.renderPreviewCmd())
+			return m, tea.Batch(cmds...)
 		case "e":
 			note := m.selectedItem()
 			return m, openNoteWithEditor(note.title)
 		}
-	case createNewNoteMsg:
-		newIndex := len(m.items)
-		newNote := note{
-			title: msg.note.title,
-			path:  msg.note.path,
-		}
-		m.items = append(m.items, newNote)
-		// TODO:
-		// move to this cursor on view
-		m.cursor = newIndex
-
-		cmds = append(cmds, m.renderPreviewCmd())
+	case typingmodal.InputDataMsg:
+		title := string(msg)
+		return m, m.createNewNoteCmd(title)
 	}
+	return m, nil
+}
 
-	return m, tea.Batch(cmds...)
+func (m *listPanelModel) createNewNoteCmd(title string) tea.Cmd {
+	timeStr := time.Now().Format(time.DateOnly)
+	filename := filepath.Join(config.BaseDir, title+"-"+timeStr+".md")
+	note := note{
+		title: title,
+		path:  filename,
+	}
+	newIndex := len(m.items)
+	m.items = append(m.items, note)
+	m.cursor = newIndex
+
+	return func() tea.Msg {
+		fp, err := os.Create(filename)
+		if err != nil {
+			return errMsg{err}
+		}
+		defer fp.Close()
+
+		content := fmt.Sprintf("# %s\n\n", title)
+		fmt.Fprint(fp, content)
+
+		return nil
+	}
 }
 
 func (m listPanelModel) renderPreviewCmd() tea.Cmd {
@@ -345,70 +364,4 @@ func (m previewerModel) view() string {
 	view := strings.Builder{}
 	view.WriteString(m.vp.View())
 	return view.String()
-}
-
-/* Typing Modal Model */
-
-type typingModal struct {
-	open  bool
-	input textinput.Model
-}
-
-func (m typingModal) update(msg tea.Msg) (typingModal, tea.Cmd) {
-	var (
-		cmd  tea.Cmd
-		cmds []tea.Cmd
-	)
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.input.Placeholder = "Enter note name..."
-		m.input.Focus()
-		m.input.CharLimit = 50
-		m.input.Width = msg.Width / 3
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
-			m.open = false
-			cmds = append(cmds,
-				createNewNoteFileCmd(m.input.Value()),
-				toggleModalCmd(false))
-		case "esc", "ctrl+c":
-			m.open = false
-			cmds = append(cmds, toggleModalCmd(false))
-		}
-	case typingModalMsg:
-		m.input.Reset()
-		m.open = msg.isOpen
-	}
-
-	m.input, cmd = m.input.Update(msg)
-	cmds = append(cmds, cmd)
-
-	return m, tea.Batch(cmds...)
-}
-
-var (
-	ModalConfirm = lipgloss.NewStyle().Foreground(lipgloss.Color("#414559")).Background(lipgloss.Color("#99d1db"))
-	ModalCancel  = lipgloss.NewStyle().Foreground(lipgloss.Color("#414559")).Background(lipgloss.Color("#ea999c"))
-)
-
-var (
-	ModalHeight = 7
-	ModalWidth  = 60
-)
-
-func (m typingModal) view() string {
-	if m.open {
-		confirm := ModalConfirm.Render(" (" + "enter" + ") Create ")
-		cancel := ModalCancel.Render(" (" + "ctrl+c" + ") Cancel ")
-
-		tip := confirm +
-			lipgloss.NewStyle().Render("           ") +
-			cancel
-
-		// return ModalBorderStyle(ModalHeight, ModalWidth).Render("\n" + m.input.View() + "\n\n" + tip)
-		return lipgloss.NewStyle().Align(lipgloss.Center, lipgloss.Center).
-			Render("\n" + m.input.View() + "\n\n" + tip)
-	}
-	return ""
 }
