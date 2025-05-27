@@ -56,7 +56,7 @@ func getTitleFromFilename(filename string) string {
 
 func deleteNoteFileCmd(title string) tea.Cmd {
 	return func() tea.Msg {
-		err := filepath.Walk(config.BaseDir, func(path string, info fs.FileInfo, err error) error {
+		err := filepath.Walk(config.NotesDir(), func(path string, info fs.FileInfo, err error) error {
 			if info.IsDir() {
 				return nil
 			}
@@ -81,13 +81,13 @@ func deleteNoteFileCmd(title string) tea.Cmd {
 
 func openNoteWithEditor(title string) tea.Cmd {
 	var filename string
-	err := filepath.Walk(config.BaseDir, func(path string, info fs.FileInfo, err error) error {
+	err := filepath.Walk(config.NotesDir(), func(path string, info fs.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
 
 		if strings.HasPrefix(info.Name(), title+"-") && strings.HasSuffix(info.Name(), ".md") {
-			filename = filepath.Join(config.BaseDir, info.Name())
+			filename = filepath.Join(config.NotesDir(), info.Name())
 			return io.EOF
 		}
 
@@ -96,7 +96,7 @@ func openNoteWithEditor(title string) tea.Cmd {
 	if err != nil && err != io.EOF {
 		return errCmd(err)
 	}
-	c := exec.Command(config.DefaultEditor, filename)
+	c := exec.Command(config.Editor(), filename)
 
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		if err != nil {

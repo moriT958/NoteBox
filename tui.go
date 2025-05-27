@@ -47,7 +47,7 @@ func newModel() (*model, error) {
 		return nil, err
 	}
 
-	notes, err := loadNoteFiles(config.BaseDir)
+	notes, err := loadNoteFiles(config.NotesDir())
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +269,7 @@ func (m listPanelModel) update(msg tea.Msg) (listPanelModel, tea.Cmd) {
 
 func (m *listPanelModel) createNewNoteCmd(title string) tea.Cmd {
 	timeStr := time.Now().Format(time.DateOnly)
-	filename := filepath.Join(config.BaseDir, title+"-"+timeStr+".md")
+	filename := filepath.Join(config.NotesDir(), title+"-"+timeStr+".md")
 	note := note{
 		title: title,
 		path:  filename,
@@ -296,7 +296,7 @@ func (m listPanelModel) renderPreviewCmd() tea.Cmd {
 	if len(m.items) > 0 {
 		return func() tea.Msg { return renderPreviewMsg{m.selectedItem().path} }
 	} else {
-		return func() tea.Msg { return renderPreviewMsg{config.DummyNotePath} }
+		return func() tea.Msg { return renderPreviewMsg{config.DummyNoteDir()} }
 	}
 }
 

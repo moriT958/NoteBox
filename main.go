@@ -2,40 +2,23 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
+	"path/filepath"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"notebox/cli"
 	"notebox/config"
-)
+	"notebox/logger"
+	"notebox/utils"
 
-/* File Operations */
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 /* MAIN */
 
 func main() {
-
-	if _, err := os.Stat(config.LogfilePath); errors.Is(err, fs.ErrNotExist) {
-		if _, err = os.Create(config.LogfilePath); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to create log file: %v\n", err)
-			os.Exit(1)
-		}
-	}
-
-	fp, err := os.OpenFile(config.LogfilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to open log file: %v\n", err)
-		os.Exit(1)
-	}
-	defer fp.Close()
-
-	logger := slog.New(slog.NewTextHandler(fp, nil))
-	slog.SetDefault(logger)
-
+	slog.Info("hello, world!")
 	if len(os.Args) < 2 {
 		m, err := newModel()
 		if err != nil {
@@ -50,5 +33,26 @@ func main() {
 		}
 	} else {
 		os.Exit(cli.InitCommands(context.Background()))
+	}
+}
+
+func init() {
+	// ensure .notebox dir exits.
+	noteboxPath := filepath.Join(utils.HomeDir(), ".notebox")
+	if err := os.MkdirAll(noteboxPath, 0755); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to make notebox dir:", err)
+		os.Exit(1)
+	}
+
+	// load config
+	if err := config.Load(); err != nil {
+		fmt.Fprintln(os.Stderr, "failed load config:", err)
+		os.Exit(1)
+	}
+
+	// set logger
+	if err := logger.Set(); err != nil {
+		fmt.Fprintln(os.Stderr, "failed to set logger:", err)
+		os.Exit(1)
 	}
 }
