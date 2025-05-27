@@ -6,14 +6,14 @@ import (
 	"slices"
 	"strings"
 
-	"NoteBox.tmp/config"
-	stringfunction "NoteBox.tmp/pkg/string_function"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/truncate"
+	"notebox/config"
+	stringfunction "notebox/pkg/string_function"
 )
 
 /* Main Model */

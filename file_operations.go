@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"NoteBox.tmp/config"
 	tea "github.com/charmbracelet/bubbletea"
+	"notebox/config"
 )
 
 /* Note Entity */

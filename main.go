@@ -8,9 +8,9 @@ import (
 	"log/slog"
 	"os"
 
-	"NoteBox.tmp/cli"
-	"NoteBox.tmp/config"
 	tea "github.com/charmbracelet/bubbletea"
+	"notebox/cli"
+	"notebox/config"
 )
 
 /* File Operations */

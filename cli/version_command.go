@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 
-	"NoteBox.tmp/config"
 	"github.com/google/subcommands"
+	"notebox/config"
 )
 
 type versionCmd struct{}
