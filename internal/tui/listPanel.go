@@ -62,7 +62,13 @@ func (m model) viewListPanel() string {
 	var view strings.Builder
 
 	if len(m.listPanel.items) == 0 {
-		return "no items."
+		view.WriteString("no items.")
+		if m.focus == onListPanel {
+			return m.styles.borderActive.Render(
+				adjustSize(m.listPanel.width, m.listPanel.height)(view.String()))
+		}
+		return m.styles.borderPassive.Render(
+			adjustSize(m.listPanel.width, m.listPanel.height)(view.String()))
 	}
 
 	end := min(m.listPanel.offset+m.height, len(m.listPanel.items))
