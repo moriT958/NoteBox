@@ -89,6 +89,15 @@ func defualtConfig() *Config {
 	}
 }
 
+func GetConfig() (*Config, error) {
+	if cfg == nil {
+		return nil, errors.New("config not initialized")
+	}
+	return cfg, nil
+}
+
+// TODO:
+// this accessor methods will be removed.
 func Editor() string       { return cfg.Editor }
 func NotesDir() string     { return cfg.NotesDir }
 func DummyNoteDir() string { return cfg.DummyNoteDir }
