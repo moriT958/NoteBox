@@ -1,4 +1,4 @@
-package main
+package tui
 
 import (
 	"strings"
@@ -7,12 +7,12 @@ import (
 
 func TestLoadNoteFiles(t *testing.T) {
 	want := []note{
-		{"hello", "testdata/hello-2025-05-02.md"},
-		{"nice", "testdata/nice-2025-05-02.md"},
-		{"test1", "testdata/test1-2025-05-02.md"},
+		{"hello", "testdata/notes/hello-2025-05-02.md"},
+		{"nice", "testdata/notes/nice-2025-05-02.md"},
+		{"test1", "testdata/notes/test1-2025-05-02.md"},
 	}
 
-	notes, err := loadNoteFiles("./testdata")
+	notes, err := loadNoteFiles("testdata/notes")
 	if err != nil {
 		t.Fatal(err)
 	}

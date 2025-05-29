@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"notebox/utils"
+	"notebox/internal/utils"
 	"os"
 	"path/filepath"
 )

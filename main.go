@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"notebox/internal/cli"
+	"notebox/internal/config"
+	"notebox/internal/logger"
+	"notebox/internal/tui"
+	"notebox/internal/utils"
 	"os"
 	"path/filepath"
-
-	"notebox/cli"
-	"notebox/config"
-	"notebox/logger"
-	"notebox/utils"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -18,9 +18,8 @@ import (
 /* MAIN */
 
 func main() {
-	slog.Info("hello, world!")
 	if len(os.Args) < 2 {
-		m, err := newModel()
+		m, err := tui.NewModel()
 		if err != nil {
 			slog.Error(fmt.Sprintf("failed to initialize bubbletea model: %v", err))
 			os.Exit(1)

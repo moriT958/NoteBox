@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"notebox/utils"
+	"notebox/internal/utils"
 	"os"
 	"path/filepath"
 	"sync"
