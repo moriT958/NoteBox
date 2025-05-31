@@ -7,8 +7,9 @@ import (
 )
 
 func (m *model) updatePreviewerSize(msg tea.WindowSizeMsg) {
-	m.vp.Height = msg.Height * 5 / 6
-	m.vp.Width = msg.Width * 2 / 3
+	h, v := m.styles.main.GetFrameSize()
+	m.vp.Height = (msg.Height - v) * 5 / 6
+	m.vp.Width = (msg.Width - h) * 2 / 3
 }
 
 func (m *model) updatePreviewerContent(msg renderPreviewMsg) tea.Cmd {

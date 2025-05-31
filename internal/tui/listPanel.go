@@ -54,8 +54,9 @@ func (m *listPanel) removeItem() {
 }
 
 func (m *model) updateListPanelSize(msg tea.WindowSizeMsg) {
-	m.listPanel.width = msg.Width / 5
-	m.listPanel.height = msg.Height * 5 / 6
+	h, v := m.styles.main.GetFrameSize()
+	m.listPanel.width = (msg.Width - h) / 5
+	m.listPanel.height = (msg.Height - v) * 5 / 6
 }
 
 func (m model) viewListPanel() string {
@@ -71,7 +72,7 @@ func (m model) viewListPanel() string {
 			adjustSize(m.listPanel.width, m.listPanel.height)(view.String()))
 	}
 
-	end := min(m.listPanel.offset+m.height, len(m.listPanel.items))
+	end := min(m.listPanel.offset+m.listPanel.height, len(m.listPanel.items))
 	for i := m.listPanel.offset; i < end; i++ {
 		var title string
 		if i == m.listPanel.cursor {
