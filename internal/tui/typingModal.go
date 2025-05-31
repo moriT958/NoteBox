@@ -25,10 +25,11 @@ func (m *model) toggleTypingModal(ac modalAction) {
 }
 
 func (m *model) updateTypingModalSize(msg tea.WindowSizeMsg) {
+	h, _ := m.styles.main.GetFrameSize()
 	m.input.Placeholder = "Enter note name..."
 	m.input.Focus()
 	m.input.CharLimit = 50
-	m.input.Width = msg.Width / 3
+	m.input.Width = (msg.Width - h) / 3
 }
 
 func (m model) viewTypingModal() string {

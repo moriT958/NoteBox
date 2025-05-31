@@ -105,7 +105,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			return m.renderPreviewCmd(m.listPanel.selectedItem().path)
 		case "n":
 			m.toggleTypingModal(open)
-		case "ctrl+l":
+		case "l", "ctrl+l":
 			m.focus = onPreviewer
 		case "d":
 			m.toggleWarnModal(open)
@@ -124,7 +124,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		}
 	case onPreviewer:
 		switch msg.String() {
-		case "ctrl+h":
+		case "h", "ctrl+h":
 			m.focus = onListPanel
 		default:
 			m.vp, cmd = m.vp.Update(msg)
