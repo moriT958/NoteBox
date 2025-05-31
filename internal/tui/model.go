@@ -126,6 +126,8 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		switch msg.String() {
 		case "h", "ctrl+h":
 			m.focus = onListPanel
+		case "e":
+			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().path)
 		default:
 			m.vp, cmd = m.vp.Update(msg)
 		}
