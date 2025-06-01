@@ -76,10 +76,10 @@ func (m model) viewListPanel() string {
 	for i := m.listPanel.offset; i < end; i++ {
 		var title string
 		if i == m.listPanel.cursor {
-			title = " " + m.listPanel.items[i].title
+			title = "  " + m.listPanel.items[i].title
 			title = m.styles.cursorColor.Render(title)
 		} else {
-			title = "  " + m.listPanel.items[i].title
+			title = "   " + m.listPanel.items[i].title
 		}
 		title = truncate.StringWithTail(title, uint(m.listPanel.width), "…   ")
 		view.WriteString(title)

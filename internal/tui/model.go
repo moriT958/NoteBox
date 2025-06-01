@@ -50,7 +50,7 @@ func NewModel() (*model, error) {
 
 	r, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(95),
+		glamour.WithWordWrap(0),
 	)
 	if err != nil {
 		return nil, err
@@ -60,6 +60,9 @@ func NewModel() (*model, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	vp := viewport.New(0, 0)
+	vp.SetHorizontalStep(4)
 
 	m := &model{
 		cfg:         cfg,
@@ -74,7 +77,7 @@ func NewModel() (*model, error) {
 			items:  notes,
 			offset: 0,
 		},
-		vp:       viewport.New(0, 0),
+		vp:       vp,
 		renderer: r,
 		input:    textinput.New(),
 	}
@@ -105,7 +108,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			return m.renderPreviewCmd(m.listPanel.selectedItem().path)
 		case "n":
 			m.toggleTypingModal(open)
-		case "l", "ctrl+l":
+		case "ctrl+l":
 			m.focus = onPreviewer
 		case "d":
 			m.toggleWarnModal(open)
@@ -124,7 +127,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		}
 	case onPreviewer:
 		switch msg.String() {
-		case "h", "ctrl+h":
+		case "ctrl+h":
 			m.focus = onListPanel
 		case "e":
 			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().path)
