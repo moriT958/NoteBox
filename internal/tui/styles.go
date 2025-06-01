@@ -33,5 +33,5 @@ func defaultStyles() *styles {
 }
 
 func adjustSize(width, height int) func(strs ...string) string {
-	return lipgloss.NewStyle().Height(height).Width(width).Padding(0, 1).Render
+	return lipgloss.NewStyle().Height(height).Width(width).Render
 }
