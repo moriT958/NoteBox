@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"notebox/internal/cli"
-	"notebox/internal/config"
 	"notebox/internal/logger"
 	"notebox/internal/tui"
 	"notebox/internal/utils"
@@ -14,8 +13,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-/* MAIN */
 
 func main() {
 	if len(os.Args) < 2 {
@@ -40,12 +37,6 @@ func init() {
 	noteboxPath := filepath.Join(utils.HomeDir(), ".notebox")
 	if err := os.MkdirAll(noteboxPath, 0755); err != nil {
 		fmt.Fprintln(os.Stderr, "failed to make notebox dir:", err)
-		os.Exit(1)
-	}
-
-	// load config
-	if err := config.Load(); err != nil {
-		fmt.Fprintln(os.Stderr, "failed load config:", err)
 		os.Exit(1)
 	}
 
