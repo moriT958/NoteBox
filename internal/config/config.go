@@ -36,7 +36,7 @@ func GetConfig() (*Config, error) {
 }
 
 func loadConfig() (*Config, error) {
-	filename := filepath.Join(utils.HomeDir(), ".notebox", "config.json")
+	filename := filepath.Join(utils.HomeDir(), AppDirName, ConfigFileName)
 
 	// Create default setting file if not exist.
 	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
@@ -65,7 +65,7 @@ func loadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to decode config file: %v", err)
 	}
 
-	cfg.DummyNoteDir = filepath.Join(utils.HomeDir(), ".notebox", "dummy.md")
+	cfg.DummyNoteDir = filepath.Join(utils.HomeDir(), AppDirName, DummyFileName)
 
 	if err := ensureDirectoriesAndFiles(cfg); err != nil {
 		return nil, err
@@ -76,8 +76,8 @@ func loadConfig() (*Config, error) {
 
 func defaultConfig() *Config {
 	return &Config{
-		Editor:   "vim",
-		NotesDir: filepath.Join(utils.HomeDir(), ".notebox", "notes"),
+		Editor:   DefaultEditor,
+		NotesDir: filepath.Join(utils.HomeDir(), AppDirName, NotesDirName),
 	}
 }
 
@@ -91,7 +91,7 @@ func ensureDirectoriesAndFiles(cfg *Config) error {
 		return fmt.Errorf("failed to create dummy note: %v", err)
 	}
 	defer fp.Close()
-	fmt.Fprint(fp, "(( No Note Selected ))")
+	fmt.Fprint(fp, DummyNoteContent)
 
 	return nil
 }

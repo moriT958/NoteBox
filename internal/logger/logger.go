@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"notebox/internal/config"
 	"notebox/internal/utils"
 	"os"
 	"path/filepath"
 )
 
 func Set() error {
-	filename := filepath.Join(utils.HomeDir(), ".notebox", "notebox.log")
+	filename := filepath.Join(utils.HomeDir(), config.AppDirName, config.LogFileName)
 
 	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
 		if _, err = os.Create(filename); err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"notebox/internal/cli"
+	"notebox/internal/config"
 	"notebox/internal/logger"
 	"notebox/internal/tui"
 	"notebox/internal/utils"
@@ -34,7 +35,7 @@ func main() {
 
 func init() {
 	// ensure .notebox dir exits.
-	noteboxPath := filepath.Join(utils.HomeDir(), ".notebox")
+	noteboxPath := filepath.Join(utils.HomeDir(), config.AppDirName)
 	if err := os.MkdirAll(noteboxPath, 0755); err != nil {
 		fmt.Fprintln(os.Stderr, "failed to make notebox dir:", err)
 		os.Exit(1)
