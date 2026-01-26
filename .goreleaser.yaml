@@ -24,6 +24,8 @@ builds:
       - linux
       - windows
       - darwin
+    ldflags:
+      - -s -w -X notebox/internal/config.CurrentVersion={{.Version}}
 
 archives:
   - formats: [tar.gz]

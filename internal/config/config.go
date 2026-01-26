@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	CurrentVersion string = "version 0.0"
+	// Set by goreleaser
+	CurrentVersion string = "dev"
 )
 
 var (
@@ -95,9 +96,3 @@ func GetConfig() (*Config, error) {
 	}
 	return cfg, nil
 }
-
-// TODO:
-// this accessor methods will be removed.
-func Editor() string       { return cfg.Editor }
-func NotesDir() string     { return cfg.NotesDir }
-func DummyNoteDir() string { return cfg.DummyNoteDir }
