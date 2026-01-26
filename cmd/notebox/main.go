@@ -19,13 +19,13 @@ func main() {
 	if len(os.Args) < 2 {
 		m, err := tui.NewModel()
 		if err != nil {
-			slog.Error(fmt.Sprintf("failed to initialize bubbletea model: %v", err))
+			slog.Error("failed to initialize bubbletea model", "error", err)
 			os.Exit(1)
 		}
 
 		p := tea.NewProgram(m, tea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
-			slog.Error(fmt.Sprintf("failed to run bubbletea app: %v", err))
+			slog.Error("failed to run bubbletea app", "error", err)
 			os.Exit(1)
 		}
 	} else {
