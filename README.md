@@ -1,6 +1,6 @@
 # 📓 NoteBox 📓
 
-ターミナルで動作するノート管理アプリ。
+A terminal-based note-taking app.
 
 ![](/assets/overview.png)
 
