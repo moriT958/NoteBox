@@ -23,3 +23,8 @@ tasks:
     cmds:
       - goreleaser check
       - goreleaser release --snapshot --clean
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -v ./internal/...
