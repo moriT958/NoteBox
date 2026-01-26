@@ -4,54 +4,26 @@
 
 ![](/assets/overview.png)
 
-## 特徴
+## Installation
 
-- [BubbleTea](https://github.com/charmbracelet/bubbletea)を使用した綺麗なUI
-- ノート管理をターミナルで完結できる
-- Vimライクなキーバインディング
-- Markdown形式でメモ・ノートテイキング
-- Vimなどの好きなエディタで編集
-- Markdownで作成したノートのプレビュー
-- レスポンシブデザイン
-- 未完成
-  - ノートのあいまい検索機能
-  - カラーテーマやキーバインドの自由な設定
-  - Hugoなどの静的サイトジェネレータとの連携
+**Using cURL**
 
-## 誰におすすめか
+```bash
+curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | sh
+```
 
-- ターミナル上での作業が好きな人
-- Markdownでのノート作成をする人
-- 自分のノートをブログ化したい
+## Usage
 
-## 使用方法
+`notebox` to start
 
-`note`コマンドで起動
+### defalut keybindings
 
-### キーバインド(デフォルト)
+- `j/k` | `↓/↑`: move cursor
+- `ctrl+l` | `ctrl+h`: Toggle focus between the preview pane and the list panel
+- `n`: New note
+- `e`: Edit note
+- `d`: Delete note
 
-- `j/k`または`↓/↑`: カーソルの上下移動
-- `ctrl+l/ctrl+h`: プレビューワーへのフォーカス、ノートリストパネルへのフォーカスの切り替え
-- `n`: ノートの新規作成
-- `e`: ノートの編集(エディター起動)
-- `d`: ノートの削除
+### Subcommands
 
-### サブコマンド
-
-- `note version`: バージョンを表示
-- 未完成
-  - `note config`: 設定ファイルを編集
-  - `note help`: ヘルプの表示
-  - `note pl`: パス一覧(設定ファイルやマークダウンファイルなどを保存している場所)を表示
-
-## インストール
-
-### Homebrew(未完成)
-
-`brew install notebox`(イメージ)
-
-## 使用イメージ
-
-### ノート作成時の画面
-
-![](/assets/create-view.png)
+- `note version`: show version
