@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+
+tasks:
+  run:
+    desc: Run the TUI
+    cmds:
+      - go run cmd/notebox/main.go
+
+  build:
+    desc: Build the TUI
+    cmds:
+      - go build -o notebox cmd/notebox/main.go
+
+  clean:
+    desc: Clean the Binary
+    cmds:
+      - rm ./notebox
+
+  release:
+    desc: Release the CLI binary in local
+    cmds:
+      - goreleaser check
+      - goreleaser release --snapshot --clean
