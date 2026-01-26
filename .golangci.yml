@@ -1,0 +1,27 @@
+# https://golangci-lint.run/docs/configuration/file/
+
+# See the dedicated "version" documentation section.
+version: "2"
+linters:
+  # See the dedicated "linters" documentation section.
+  enable:
+    - whitespace
+    - wrapcheck
+    - unused
+  exclusions:
+    presets:
+      - common-false-positives
+
+formatters:
+  # See the dedicated "formatters" documentation section.
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      rewrite-rules:
+        - pattern: "interface{}"
+          replacement: "any"
+    goimports:
+      local-prefixes:
+        - github.com/moriT958/NoteBox
