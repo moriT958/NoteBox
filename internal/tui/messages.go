@@ -10,10 +10,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// NOTE:
-// Command function (tea.Cmd) is only treates side effects.
-// Don't update tea model directly in command functions.
-
 type note struct {
 	title string
 	path  string

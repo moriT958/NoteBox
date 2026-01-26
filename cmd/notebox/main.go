@@ -15,19 +15,17 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-/* MAIN */
-
 func main() {
 	if len(os.Args) < 2 {
 		m, err := tui.NewModel()
 		if err != nil {
-			slog.Error(fmt.Sprintf("failed to initialize bubbletea model: %v", err))
+			slog.Error("failed to initialize bubbletea model", "error", err)
 			os.Exit(1)
 		}
 
 		p := tea.NewProgram(m, tea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
-			slog.Error(fmt.Sprintf("failed to run bubbletea app: %v", err))
+			slog.Error("failed to run bubbletea app", "error", err)
 			os.Exit(1)
 		}
 	} else {
@@ -37,15 +35,9 @@ func main() {
 
 func init() {
 	// ensure .notebox dir exits.
-	noteboxPath := filepath.Join(utils.HomeDir(), ".notebox")
+	noteboxPath := filepath.Join(utils.HomeDir(), config.AppDirName)
 	if err := os.MkdirAll(noteboxPath, 0755); err != nil {
 		fmt.Fprintln(os.Stderr, "failed to make notebox dir:", err)
-		os.Exit(1)
-	}
-
-	// load config
-	if err := config.Load(); err != nil {
-		fmt.Fprintln(os.Stderr, "failed load config:", err)
 		os.Exit(1)
 	}
 

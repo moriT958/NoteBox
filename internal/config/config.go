@@ -12,12 +12,14 @@ import (
 )
 
 var (
-	CurrentVersion string = "version 0.0"
+	// Set by goreleaser
+	CurrentVersion string = "dev"
 )
 
 var (
-	cfg  *Config
-	once sync.Once
+	instance *Config
+	once     sync.Once
+	initErr  error
 )
 
 type Config struct {
@@ -26,78 +28,70 @@ type Config struct {
 	DummyNoteDir string `json:"-"`
 }
 
-func Load() error {
-	var err error
-	filename := filepath.Join(utils.HomeDir(), ".notebox", "config.json")
+func GetConfig() (*Config, error) {
+	once.Do(func() {
+		instance, initErr = loadConfig()
+	})
+	return instance, initErr
+}
 
+func loadConfig() (*Config, error) {
+	filename := filepath.Join(utils.HomeDir(), AppDirName, ConfigFileName)
+
+	// Create default setting file if not exist.
 	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
 		fp, createErr := os.Create(filename)
 		if createErr != nil {
-			return fmt.Errorf("failed to create config file: %v", createErr)
+			return nil, fmt.Errorf("failed to create config file: %v", createErr)
 		}
 		defer fp.Close()
 
 		enc := json.NewEncoder(fp)
 		enc.SetIndent("", "  ")
-		if err := enc.Encode(defualtConfig()); err != nil {
-			return fmt.Errorf("failed to encode config file: %v", err)
+		if err := enc.Encode(defaultConfig()); err != nil {
+			return nil, fmt.Errorf("failed to encode config file: %v", err)
 		}
 	}
 
-	once.Do(func() {
-		cfg = new(Config)
-
-		file, openErr := os.Open(filename)
-		if openErr != nil {
-			err = openErr
-			return
-		}
-		defer file.Close()
-
-		if decodeErr := json.NewDecoder(file).Decode(&cfg); decodeErr != nil {
-			err = decodeErr
-			return
-		}
-
-		cfg.DummyNoteDir = defualtConfig().DummyNoteDir
-	})
-
-	return err
-}
-
-func defualtConfig() *Config {
-	notesdir := filepath.Join(utils.HomeDir(), ".notebox", "notes")
-	dummyNoteDir := filepath.Join(utils.HomeDir(), ".notebox", "dummy.md")
-
-	if err := os.MkdirAll(notesdir, 0755); err != nil {
-		fmt.Fprintln(os.Stderr, "failed to create notes dir:", err)
-		os.Exit(1)
-	}
-
-	fp, err := os.Create(dummyNoteDir)
+	// Read setting file
+	file, err := os.Open(filename)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "failed to create dummy note:", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to open config file: %v", err)
 	}
-	defer fp.Close()
-	fmt.Fprint(fp, "(( No Note Selected ))")
+	defer file.Close()
 
-	return &Config{
-		Editor:       "vim",
-		NotesDir:     notesdir,
-		DummyNoteDir: dummyNoteDir,
+	cfg := new(Config)
+	if err := json.NewDecoder(file).Decode(cfg); err != nil {
+		return nil, fmt.Errorf("failed to decode config file: %v", err)
 	}
-}
 
-func GetConfig() (*Config, error) {
-	if cfg == nil {
-		return nil, errors.New("config not initialized")
+	cfg.DummyNoteDir = filepath.Join(utils.HomeDir(), AppDirName, DummyFileName)
+
+	if err := ensureDirectoriesAndFiles(cfg); err != nil {
+		return nil, err
 	}
+
 	return cfg, nil
 }
 
-// TODO:
-// this accessor methods will be removed.
-func Editor() string       { return cfg.Editor }
-func NotesDir() string     { return cfg.NotesDir }
-func DummyNoteDir() string { return cfg.DummyNoteDir }
+func defaultConfig() *Config {
+	return &Config{
+		Editor:   DefaultEditor,
+		NotesDir: filepath.Join(utils.HomeDir(), AppDirName, NotesDirName),
+	}
+}
+
+func ensureDirectoriesAndFiles(cfg *Config) error {
+	if err := os.MkdirAll(cfg.NotesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create notes dir: %v", err)
+	}
+
+	fp, err := os.Create(cfg.DummyNoteDir)
+	if err != nil {
+		return fmt.Errorf("failed to create dummy note: %v", err)
+	}
+	defer fp.Close()
+	fmt.Fprint(fp, DummyNoteContent)
+
+	return nil
+}

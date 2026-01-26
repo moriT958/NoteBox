@@ -15,25 +15,54 @@ type listPanel struct {
 	offset        int
 }
 
-func (m *listPanel) cursorUp() {
-	if m.cursor > 0 {
-		m.cursor--
-		if m.cursor < m.offset {
-			m.offset--
+// Calculates the new cursor and offset when moving up
+func calcCursorUp(cursor, offset int) (newCursor, newOffset int) {
+	newCursor = cursor
+	newOffset = offset
+	if cursor > 0 {
+		newCursor = cursor - 1
+		if newCursor < offset {
+			newOffset = offset - 1
 		}
 	}
+	return
+}
+
+// Calculates the new cursor and offset when moving down
+func calcCursorDown(cursor, itemCount, offset, height int) (newCursor, newOffset int) {
+	newCursor = cursor
+	newOffset = offset
+	if cursor < itemCount-1 {
+		newCursor = cursor + 1
+		if newCursor >= offset+height {
+			newOffset = offset + 1
+		}
+	}
+	return
+}
+
+// Calculates the new items and cursor after removing an item
+func calcRemoveItem(items []note, cursor int) ([]note, int) {
+	if cursor < 0 || len(items) == 0 || cursor >= len(items) {
+		return items, cursor
+	}
+	newItems := slices.Delete(slices.Clone(items), cursor, cursor+1)
+	newCursor := cursor
+	if newCursor > len(newItems)-1 && newCursor > 0 {
+		newCursor--
+	}
+	return newItems, newCursor
+}
+
+func (m *listPanel) cursorUp() {
+	m.cursor, m.offset = calcCursorUp(m.cursor, m.offset)
 }
 
 func (m *listPanel) cursorDown() {
-	if m.cursor < len(m.items)-1 {
-		m.cursor++
-		if m.cursor >= m.offset+m.height {
-			m.offset++
-		}
-	}
+	m.cursor, m.offset = calcCursorDown(m.cursor, len(m.items), m.offset, m.height)
 }
 
-// SelectedItem returns the current selected item in the list.
+// Get selected item in the list
 func (m listPanel) selectedItem() note {
 	if m.cursor < 0 || len(m.items) == 0 || len(m.items) <= m.cursor {
 		return note{}
@@ -41,16 +70,9 @@ func (m listPanel) selectedItem() note {
 	return m.items[m.cursor]
 }
 
-// removeItem removes item on current cursor.
+// Remove item on current cursor
 func (m *listPanel) removeItem() {
-	if m.cursor < 0 || len(m.items) == 0 || len(m.items) <= m.cursor {
-		return
-	}
-	m.items = slices.Delete(m.items, m.cursor, m.cursor+1)
-
-	if m.cursor > len(m.items)-1 {
-		m.cursor--
-	}
+	m.items, m.cursor = calcRemoveItem(m.items, m.cursor)
 }
 
 func (m *model) updateListPanelSize(msg tea.WindowSizeMsg) {
