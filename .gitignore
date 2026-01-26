@@ -1,3 +1,8 @@
 .DS_Store
 
-note
+notebox
+
+CLAUDE.md
+
+# Added by goreleaser init:
+dist/

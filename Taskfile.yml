@@ -17,3 +17,9 @@ tasks:
     desc: Clean the Binary
     cmds:
       - rm ./notebox
+
+  release:
+    desc: Release the CLI binary in local
+    cmds:
+      - goreleaser check
+      - goreleaser release --snapshot --clean
