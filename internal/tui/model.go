@@ -17,6 +17,7 @@ const (
 	onPreviewer
 	onTypingModal
 	onWarnModal
+	onFuzzyModal
 )
 
 type model struct {
@@ -40,6 +41,9 @@ type model struct {
 
 	// listpanel fields
 	listPanel listPanel
+
+	// fuzzy modal fields
+	fuzzy fuzzyModal
 }
 
 func NewModel() (*model, error) {
@@ -80,6 +84,9 @@ func NewModel() (*model, error) {
 		vp:       vp,
 		renderer: r,
 		input:    textinput.New(),
+		fuzzy: fuzzyModal{
+			input: textinput.New(),
+		},
 	}
 	return m, nil
 }
@@ -114,6 +121,8 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			m.toggleWarnModal(open)
 		case "e":
 			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().path)
+		case "/":
+			m.toggleFuzzyModal(open)
 		}
 	case onTypingModal:
 		switch msg.String() {
@@ -150,6 +159,22 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		case "ctrl+c":
 			m.toggleTypingModal(shut)
 		}
+	case onFuzzyModal:
+		switch msg.String() {
+		case "enter":
+			m.selectFromFuzzy()
+			m.toggleFuzzyModal(shut)
+			return m.renderPreviewCmd(m.listPanel.selectedItem().path)
+		case "ctrl+c", "esc":
+			m.toggleFuzzyModal(shut)
+		case "ctrl+n", "down":
+			m.fuzzy.cursorDown()
+		case "ctrl+p", "up":
+			m.fuzzy.cursorUp()
+		default:
+			m.fuzzy.input, cmd = m.fuzzy.input.Update(msg)
+			m.fuzzy.filter(m.fuzzy.input.Value())
+		}
 	}
 	return cmd
 }
@@ -163,6 +188,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateListPanelSize(msg)
 		m.updatePreviewerSize(msg)
 		m.updateTypingModalSize(msg)
+		m.updateFuzzyModalSize(msg)
 		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().path)
 	case tea.KeyMsg:
 		cmd = m.handleKeyMsg(msg)
@@ -183,6 +209,9 @@ func (m model) View() string {
 	}
 	if m.focus == onWarnModal {
 		return m.viewWarnModal()
+	}
+	if m.focus == onFuzzyModal {
+		return m.viewFuzzyModal()
 	}
 	view := m.styles.main.Render(
 		lipgloss.JoinVertical(lipgloss.Center,
