@@ -23,6 +23,7 @@ curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | 
 - `n`: New note
 - `e`: Edit note
 - `d`: Delete note
+- `/`: Find note by title
 
 ### Subcommands
 
