@@ -195,8 +195,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case renderPreviewMsg:
 		cmd = m.updatePreviewerContent(msg)
 	case newNoteCreatedMsg:
-		m.listPanel.items = append(m.listPanel.items, note(msg))
-		m.listPanel.cursor = len(m.listPanel.items) - 1
+		m.listPanel.addItem(note(msg))
 		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().path)
 	}
 

@@ -54,6 +54,16 @@ func calcRemoveItem(items []note, cursor int) ([]note, int) {
 	return newItems, newCursor
 }
 
+// Calculates the new cursor and offset after adding an item
+func calcAddItem(itemCount, offset, height int) (newCursor, newOffset int) {
+	newCursor = itemCount - 1
+	newOffset = offset
+	if newCursor >= offset+height {
+		newOffset = newCursor - height + 1
+	}
+	return
+}
+
 func (m *listPanel) cursorUp() {
 	m.cursor, m.offset = calcCursorUp(m.cursor, m.offset)
 }
@@ -68,6 +78,12 @@ func (m listPanel) selectedItem() note {
 		return note{}
 	}
 	return m.items[m.cursor]
+}
+
+// Add item and adjust cursor/offset to keep it visible
+func (m *listPanel) addItem(n note) {
+	m.items = append(m.items, n)
+	m.cursor, m.offset = calcAddItem(len(m.items), m.offset, m.height)
 }
 
 // Remove item on current cursor

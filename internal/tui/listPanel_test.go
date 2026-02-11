@@ -189,6 +189,60 @@ func TestCalcRemoveItem(t *testing.T) {
 	}
 }
 
+func TestCalcAddItem(t *testing.T) {
+	tests := []struct {
+		name       string
+		itemCount  int
+		offset     int
+		height     int
+		wantCursor int
+		wantOffset int
+	}{
+		{
+			name:       "fits within panel",
+			itemCount:  3,
+			offset:     0,
+			height:     10,
+			wantCursor: 2,
+			wantOffset: 0,
+		},
+		{
+			name:       "just overflows",
+			itemCount:  11,
+			offset:     0,
+			height:     10,
+			wantCursor: 10,
+			wantOffset: 1,
+		},
+		{
+			name:       "already scrolled and overflows",
+			itemCount:  15,
+			offset:     4,
+			height:     10,
+			wantCursor: 14,
+			wantOffset: 5,
+		},
+		{
+			name:       "single item from empty",
+			itemCount:  1,
+			offset:     0,
+			height:     10,
+			wantCursor: 0,
+			wantOffset: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotCursor, gotOffset := calcAddItem(tt.itemCount, tt.offset, tt.height)
+			if gotCursor != tt.wantCursor || gotOffset != tt.wantOffset {
+				t.Errorf("calcAddItem() = (%d, %d), want (%d, %d)",
+					gotCursor, gotOffset, tt.wantCursor, tt.wantOffset)
+			}
+		})
+	}
+}
+
 func TestCalcRemoveItemImmutability(t *testing.T) {
 	original := []note{{title: "a"}, {title: "b"}, {title: "c"}}
 	originalLen := len(original)
