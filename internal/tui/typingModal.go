@@ -23,7 +23,7 @@ func (m *model) toggleTypingModal(ac modalAction) {
 }
 
 func (m *model) updateTypingModalSize(msg tea.WindowSizeMsg) {
-	h, _ := m.styles.main.GetFrameSize()
+	h, _ := m.styles.Main.GetFrameSize()
 	m.input.Placeholder = "Enter note name..."
 	m.input.Focus()
 	m.input.CharLimit = 50
@@ -31,15 +31,17 @@ func (m *model) updateTypingModalSize(msg tea.WindowSizeMsg) {
 }
 
 func (m model) viewTypingModal() string {
-	confirm := m.styles.modalConfirmColor.Render(" (enter) Create ")
-	cancel := m.styles.modalCalcelColor.Render(" (ctrl+c) Cancel ")
+	confirm := m.styles.Modal.Confirm.Render(" (enter) Create ")
+	cancel := m.styles.Modal.Cancel.Render(" (ctrl+c) Cancel ")
 	tip := confirm + "           " + cancel
-	modal := lipgloss.NewStyle().Width(m.modalWidth).Height(m.modalHeight).
-		Align(lipgloss.Center, lipgloss.Center).Render("\n" + m.input.View() + "\n\n" + tip)
+	modal := m.styles.Modal.Centered.
+		Width(m.modalWidth).
+		Height(m.modalHeight).
+		Render("\n" + m.input.View() + "\n\n" + tip)
 
 	modalX := (m.width - m.modalWidth) / 2
 	modalY := (m.height - m.modalHeight) / 2
-	modal = m.styles.borderActive.Render(modal)
+	modal = m.styles.BorderActive.Render(modal)
 
 	background := lipgloss.JoinVertical(lipgloss.Center,
 		m.viewHeader(),
@@ -53,5 +55,5 @@ func (m model) viewTypingModal() string {
 	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
 	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
 
-	return m.styles.main.Render(canvas.Render())
+	return m.styles.Main.Render(canvas.Render())
 }

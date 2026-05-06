@@ -28,9 +28,9 @@ func (m model) viewPreviewer() string {
 	view.WriteString(m.vp.View())
 
 	if m.focus == onPreviewer {
-		return m.styles.borderActive.Render(
-			adjustSize(m.vp.Width(), m.vp.Height())(view.String()))
+		return m.styles.BorderActive.Render(
+			m.styles.Sized(m.vp.Width(), m.vp.Height()).Render(view.String()))
 	}
-	return m.styles.borderPassive.Render(
-		adjustSize(m.vp.Width(), m.vp.Height())(view.String()))
+	return m.styles.BorderPassive.Render(
+		m.styles.Sized(m.vp.Width(), m.vp.Height()).Render(view.String()))
 }

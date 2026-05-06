@@ -3,6 +3,7 @@ package tui
 import (
 	"notebox/internal/config"
 	"notebox/internal/note"
+	uistyles "notebox/internal/tui/styles"
 
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
@@ -24,7 +25,7 @@ const (
 
 type model struct {
 	cfg    *config.Config
-	styles *styles
+	styles *uistyles.Style
 
 	// main model fields
 	width, height int
@@ -75,7 +76,7 @@ func NewModel() (*model, error) {
 
 	m := &model{
 		cfg:         cfg,
-		styles:      defaultStyles(),
+		styles:      uistyles.New(uistyles.DarkTheme),
 		width:       0,
 		height:      0,
 		modalWidth:  60,
@@ -215,7 +216,7 @@ func (m model) View() tea.View {
 	case onFuzzyModal:
 		content = m.viewFuzzyModal()
 	default:
-		content = m.styles.main.Render(
+		content = m.styles.Main.Render(
 			lipgloss.JoinVertical(lipgloss.Center,
 				m.viewHeader(),
 				lipgloss.JoinHorizontal(lipgloss.Top,
@@ -230,7 +231,7 @@ func (m model) View() tea.View {
 }
 
 func (m model) viewHeader() string {
-	return m.styles.header.
+	return m.styles.Header.
 		Align(lipgloss.Center).
 		Width(m.width).
 		Render("📓 NoteBox 📓")

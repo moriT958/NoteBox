@@ -16,13 +16,15 @@ func (m *model) toggleWarnModal(ac modalAction) {
 func (m model) viewWarnModal() string {
 
 	message := "Are you sure you want to remove?"
-	confirm := m.styles.modalConfirmColor.Render(" (enter) Yes ")
-	cancel := m.styles.modalCalcelColor.Render(" (ctrl+c) No ")
+	confirm := m.styles.Modal.Confirm.Render(" (enter) Yes ")
+	cancel := m.styles.Modal.Cancel.Render(" (ctrl+c) No ")
 	tip := confirm + "           " + cancel
-	modal := lipgloss.NewStyle().Width(m.modalWidth).Height(m.modalHeight).
-		Align(lipgloss.Center, lipgloss.Center).Render("\n" + message + "\n\n" + tip)
+	modal := m.styles.Modal.Centered.
+		Width(m.modalWidth).
+		Height(m.modalHeight).
+		Render("\n" + message + "\n\n" + tip)
 
-	modal = m.styles.borderActive.Render(modal)
+	modal = m.styles.BorderActive.Render(modal)
 	overlayX := m.width/2 - m.modalWidth/2
 	overlayY := m.height/2 - m.modalHeight/2
 
@@ -38,5 +40,5 @@ func (m model) viewWarnModal() string {
 	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
 	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
 
-	return m.styles.main.Render(canvas.Render())
+	return m.styles.Main.Render(canvas.Render())
 }

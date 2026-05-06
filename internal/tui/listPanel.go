@@ -103,11 +103,11 @@ func (m model) viewListPanel() string {
 	if len(m.listPanel.items) == 0 {
 		view.WriteString("no items.")
 		if m.focus == onListPanel {
-			return m.styles.borderActive.Render(
-				adjustSize(m.listPanel.width, m.listPanel.height)(view.String()))
+			return m.styles.BorderActive.Render(
+				m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(view.String()))
 		}
-		return m.styles.borderPassive.Render(
-			adjustSize(m.listPanel.width, m.listPanel.height)(view.String()))
+		return m.styles.BorderPassive.Render(
+			m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(view.String()))
 	}
 
 	end := min(m.listPanel.offset+m.listPanel.height, len(m.listPanel.items))
@@ -115,7 +115,7 @@ func (m model) viewListPanel() string {
 		var title string
 		if i == m.listPanel.cursor {
 			title = "  " + m.listPanel.items[i].Title
-			title = m.styles.cursorColor.Render(title)
+			title = m.styles.Cursor.Render(title)
 		} else {
 			title = "   " + m.listPanel.items[i].Title
 		}
@@ -127,9 +127,9 @@ func (m model) viewListPanel() string {
 	}
 
 	if m.focus == onListPanel {
-		return m.styles.borderActive.Render(
-			adjustSize(m.listPanel.width, m.listPanel.height)(view.String()))
+		return m.styles.BorderActive.Render(
+			m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(view.String()))
 	}
-	return m.styles.borderPassive.Render(
-		adjustSize(m.listPanel.width, m.listPanel.height)(view.String()))
+	return m.styles.BorderPassive.Render(
+		m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(view.String()))
 }
