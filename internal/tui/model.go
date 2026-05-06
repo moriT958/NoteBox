@@ -55,9 +55,8 @@ type model struct {
 	fnsModal filenameSearchModal
 
 	// key / help fields
-	keys     keyMap
-	help     help.Model
-	showHelp bool
+	keys keyMap
+	help help.Model
 }
 
 func NewModel() (*model, error) {
@@ -109,9 +108,8 @@ func NewModel() (*model, error) {
 		fnsModal: filenameSearchModal{
 			input: textinput.New(),
 		},
-		keys:     defaultKeyMap(),
-		help:     help.New(),
-		showHelp: true,
+		keys: defaultKeyMap(),
+		help: help.New(),
 	}
 	return m, nil
 }
@@ -127,7 +125,7 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 		return tea.Quit
 	}
 	if key.Matches(msg, m.keys.toggleHelp) {
-		m.showHelp = !m.showHelp
+		m.help.ShowAll = !m.help.ShowAll
 		return nil
 	}
 
@@ -252,6 +250,14 @@ func (m model) View() tea.View {
 			))
 	}
 
+	if overlay := m.viewFullHelpOverlay(); overlay != "" {
+		overlayY := max(0, m.height-lipgloss.Height(overlay))
+		fgLayer := lipgloss.NewLayer(overlay).X(0).Y(overlayY).Z(1)
+		bgLayer := lipgloss.NewLayer(content).X(0).Y(0).Z(0)
+		compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
+		content = lipgloss.NewCanvas(m.width, m.height).Compose(compositor).Render()
+	}
+
 	view := tea.NewView(content)
 	view.AltScreen = true
 	return view
@@ -262,22 +268,4 @@ func (m model) viewHeader() string {
 		Align(lipgloss.Center).
 		Width(m.width).
 		Render("📓 NoteBox 📓")
-}
-
-func (m model) viewHelp() string {
-	if !m.showHelp {
-		return ""
-	}
-
-	guideFocus := onListPanel
-	if m.focus == onPreviewer {
-		guideFocus = onPreviewer
-	}
-
-	focused := m.keys.forFocus(guideFocus)
-	guide := m.help.ShortHelpView(focused.ShortHelp())
-
-	return m.styles.Help.
-		Width(m.width).
-		Render(guide)
 }
