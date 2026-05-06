@@ -8,6 +8,7 @@ const (
 	LogFileName    = "notebox.log"
 
 	DefaultEditor = "vim"
+	defaultTheme  = "dark"
 
 	DummyNoteContent = "(( No Note Selected ))"
 )

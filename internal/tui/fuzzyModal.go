@@ -79,7 +79,7 @@ func (m *model) toggleFuzzyModal(ac modalAction) {
 }
 
 func (m *model) updateFuzzyModalSize(msg tea.WindowSizeMsg) {
-	_, v := m.styles.main.GetFrameSize()
+	_, v := m.styles.Main.GetFrameSize()
 	m.fnsModal.input.Placeholder = "Search notes..."
 	m.fnsModal.input.CharLimit = 50
 	m.fnsModal.input.SetWidth(m.modalWidth - 4)
@@ -108,8 +108,8 @@ func (m *model) selectFromFuzzy() {
 
 func (m model) viewFuzzyModal() string {
 	filteredList := m.renderFuzzyFilterdList()
-	confirm := m.styles.modalConfirmColor.Render(" (enter) Select ")
-	cancel := m.styles.modalCalcelColor.Render(" (ctrl+c) Cancel ")
+	confirm := m.styles.Modal.Confirm.Render(" (enter) Select ")
+	cancel := m.styles.Modal.Cancel.Render(" (ctrl+c) Cancel ")
 	tip := confirm + "           " + cancel
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
@@ -119,12 +119,11 @@ func (m model) viewFuzzyModal() string {
 	)
 
 	modalHeight := m.fnsModal.height + 6
-	modal := lipgloss.NewStyle().
+	modal := m.styles.Modal.Fuzzy.
 		Width(m.fnsModal.width).
 		Height(modalHeight).
-		Padding(1, 2).
 		Render(content + "\n\n" + tip)
-	modal = m.styles.borderActive.Render(modal)
+	modal = m.styles.BorderActive.Render(modal)
 
 	background := lipgloss.JoinVertical(lipgloss.Center,
 		m.viewHeader(),
@@ -143,7 +142,7 @@ func (m model) viewFuzzyModal() string {
 	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
 	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
 
-	return m.styles.main.Render(canvas.Render())
+	return m.styles.Main.Render(canvas.Render())
 }
 
 func (m *model) renderFuzzyFilterdList() string {
@@ -157,7 +156,7 @@ func (m *model) renderFuzzyFilterdList() string {
 			var title string
 			if i == m.fnsModal.cursor {
 				title = "  " + m.fnsModal.filtered[i].Title
-				title = m.styles.cursorColor.Render(title)
+				title = m.styles.Cursor.Render(title)
 			} else {
 				title = "   " + m.fnsModal.filtered[i].Title
 			}

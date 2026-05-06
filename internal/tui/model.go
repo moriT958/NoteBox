@@ -3,12 +3,12 @@ package tui
 import (
 	"notebox/internal/config"
 	"notebox/internal/note"
+	"notebox/internal/tui/styles"
 
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/glamour/v2"
-	gstyles "charm.land/glamour/v2/styles"
 	"charm.land/lipgloss/v2"
 )
 
@@ -24,7 +24,7 @@ const (
 
 type model struct {
 	cfg    *config.Config
-	styles *styles
+	styles *styles.Style
 
 	// main model fields
 	width, height int
@@ -54,8 +54,13 @@ func NewModel() (*model, error) {
 		return nil, err
 	}
 
+	theme, err := styles.GetColorTheme(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	r, err := glamour.NewTermRenderer(
-		glamour.WithStandardStyle(gstyles.DarkStyle),
+		glamour.WithStandardStyle(getGlamourTheme(theme)),
 		glamour.WithWordWrap(0),
 	)
 	if err != nil {
@@ -75,7 +80,7 @@ func NewModel() (*model, error) {
 
 	m := &model{
 		cfg:         cfg,
-		styles:      defaultStyles(),
+		styles:      styles.New(theme),
 		width:       0,
 		height:      0,
 		modalWidth:  60,
@@ -215,7 +220,7 @@ func (m model) View() tea.View {
 	case onFuzzyModal:
 		content = m.viewFuzzyModal()
 	default:
-		content = m.styles.main.Render(
+		content = m.styles.Main.Render(
 			lipgloss.JoinVertical(lipgloss.Center,
 				m.viewHeader(),
 				lipgloss.JoinHorizontal(lipgloss.Top,
@@ -230,7 +235,7 @@ func (m model) View() tea.View {
 }
 
 func (m model) viewHeader() string {
-	return m.styles.header.
+	return m.styles.Header.
 		Align(lipgloss.Center).
 		Width(m.width).
 		Render("📓 NoteBox 📓")
