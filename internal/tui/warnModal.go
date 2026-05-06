@@ -14,10 +14,9 @@ func (m *model) toggleWarnModal(ac modalAction) {
 }
 
 func (m model) viewWarnModal() string {
-
 	message := "Are you sure you want to remove?"
-	confirm := m.styles.Modal.Confirm.Render(" (enter) Yes ")
-	cancel := m.styles.Modal.Cancel.Render(" (ctrl+c) No ")
+	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") Yes ")
+	cancel := m.styles.Modal.Cancel.Render(" (" + selectionModalCancelKey + ") No ")
 	tip := confirm + "           " + cancel
 	modal := m.styles.Modal.Centered.
 		Width(m.modalWidth).

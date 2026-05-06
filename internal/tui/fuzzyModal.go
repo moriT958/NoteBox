@@ -108,8 +108,8 @@ func (m *model) selectFromFuzzy() {
 
 func (m model) viewFuzzyModal() string {
 	filteredList := m.renderFuzzyFilterdList()
-	confirm := m.styles.Modal.Confirm.Render(" (enter) Select ")
-	cancel := m.styles.Modal.Cancel.Render(" (ctrl+c) Cancel ")
+	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") Select ")
+	cancel := m.styles.Modal.Cancel.Render(" (" + selectionModalCancelKey + ") Cancel ")
 	tip := confirm + "           " + cancel
 
 	content := lipgloss.JoinVertical(lipgloss.Left,

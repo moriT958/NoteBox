@@ -49,34 +49,39 @@ type fuzzyModalKeyMap struct {
 	down    key.Binding
 }
 
+const (
+	selectionModalConfirmKey = "enter"
+	selectionModalCancelKey  = "esc"
+)
+
 func defaultKeyMap() keyMap {
 	vpKeys := viewport.DefaultKeyMap()
 
 	return keyMap{
 		quit: key.NewBinding(
-			key.WithKeys("q"),
-			key.WithHelp("q", "quit"),
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("ctrl+c", "quit"),
 		),
 		toggleHelp: key.NewBinding(
 			key.WithKeys("?"),
-			key.WithHelp("?", "toggle help"),
+			key.WithHelp("?", "more/less help"),
 		),
 		listPanel: listPanelKeyMap{
 			up: key.NewBinding(
-				key.WithKeys("k"),
-				key.WithHelp("k", "up"),
+				key.WithKeys("up", "k", "ctrl+p"),
+				key.WithHelp("↑/k", "up"),
 			),
 			down: key.NewBinding(
-				key.WithKeys("j"),
-				key.WithHelp("j", "down"),
+				key.WithKeys("down", "j", "ctrl+n"),
+				key.WithHelp("↓/j", "down"),
 			),
 			newNote: key.NewBinding(
 				key.WithKeys("n"),
 				key.WithHelp("n", "new"),
 			),
 			focusPreview: key.NewBinding(
-				key.WithKeys("ctrl+l"),
-				key.WithHelp("ctrl+l", "preview"),
+				key.WithKeys("right", "l"),
+				key.WithHelp("→/l", "preview"),
 			),
 			deleteNote: key.NewBinding(
 				key.WithKeys("d"),
@@ -93,8 +98,8 @@ func defaultKeyMap() keyMap {
 		},
 		previewer: previewerKeyMap{
 			focusList: key.NewBinding(
-				key.WithKeys("ctrl+h"),
-				key.WithHelp("ctrl+h", "list"),
+				key.WithKeys("left", "h"),
+				key.WithHelp("←/h", "list"),
 			),
 			editNote: key.NewBinding(
 				key.WithKeys("e"),
@@ -107,40 +112,32 @@ func defaultKeyMap() keyMap {
 		},
 		typingModal: modalKeyMap{
 			confirm: key.NewBinding(
-				key.WithKeys("enter"),
-				key.WithHelp("enter", "create"),
+				key.WithKeys(selectionModalConfirmKey),
 			),
 			cancel: key.NewBinding(
-				key.WithKeys("ctrl+c"),
-				key.WithHelp("ctrl+c", "cancel"),
+				key.WithKeys(selectionModalCancelKey),
 			),
 		},
 		warnModal: modalKeyMap{
 			confirm: key.NewBinding(
-				key.WithKeys("enter"),
-				key.WithHelp("enter", "yes"),
+				key.WithKeys(selectionModalConfirmKey),
 			),
 			cancel: key.NewBinding(
-				key.WithKeys("ctrl+c"),
-				key.WithHelp("ctrl+c", "no"),
+				key.WithKeys("q", selectionModalCancelKey),
 			),
 		},
 		fuzzyModal: fuzzyModalKeyMap{
 			confirm: key.NewBinding(
-				key.WithKeys("enter"),
-				key.WithHelp("enter", "select"),
+				key.WithKeys(selectionModalConfirmKey),
 			),
 			cancel: key.NewBinding(
-				key.WithKeys("ctrl+c", "esc"),
-				key.WithHelp("ctrl+c/esc", "cancel"),
+				key.WithKeys(selectionModalCancelKey),
 			),
 			up: key.NewBinding(
 				key.WithKeys("ctrl+p", "up"),
-				key.WithHelp("ctrl+p/up", "up"),
 			),
 			down: key.NewBinding(
 				key.WithKeys("ctrl+n", "down"),
-				key.WithHelp("ctrl+n/down", "down"),
 			),
 		},
 	}
