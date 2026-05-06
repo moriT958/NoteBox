@@ -110,7 +110,9 @@ func (m model) viewFuzzyModal() string {
 	filteredList := m.renderFuzzyFilterdList()
 	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") Select ")
 	cancel := m.styles.Modal.Cancel.Render(" (" + selectionModalCancelKey + ") Cancel ")
-	tip := confirm + "           " + cancel
+	tip := m.styles.Modal.Centered.
+		Width(m.fnsModal.width - 4).
+		Render(confirm + "           " + cancel)
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		m.fnsModal.input.View(),
