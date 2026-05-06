@@ -34,8 +34,8 @@ type ModalStyle struct {
 func New(theme Theme) *Style {
 	isDark := theme == DarkTheme
 
-	primary := lipgloss.LightDark(isDark)(lipgloss.Color("#b89988"), lipgloss.Color("#F793FF"))
-	active := lipgloss.LightDark(isDark)(lipgloss.Color("#fe640b"), lipgloss.Color("#F793FF"))
+	primary := lipgloss.LightDark(isDark)(lipgloss.Color("#b89988"), lipgloss.Color("#737994"))
+	active := lipgloss.LightDark(isDark)(lipgloss.Color("#fe640b"), lipgloss.Color("#babbf1"))
 	cursor := lipgloss.LightDark(isDark)(lipgloss.Color("#dc8a78"), lipgloss.Color("#f2d5cf"))
 
 	confirmFg := lipgloss.LightDark(isDark)(lipgloss.Color("#eff1f5"), lipgloss.Color("#414559"))
