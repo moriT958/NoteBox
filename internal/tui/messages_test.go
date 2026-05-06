@@ -2,6 +2,7 @@ package tui
 
 import (
 	"notebox/internal/config"
+	"notebox/internal/note"
 	"testing"
 )
 
@@ -9,12 +10,14 @@ func TestRenderPreviewCmd(t *testing.T) {
 	t.Run("model has a item", func(t *testing.T) {
 		model := model{
 			listPanel: listPanel{
-				items: []note{{"hello", "testdata/notes/hello-2025-05-02.md"}},
+				items: []note.Note{
+					{Title: "hello", Path: "testdata/notes/hello-2025-05-02.md"},
+				},
 			}}
 
 		want := renderPreviewMsg("# hello\n\n")
 
-		cmd := model.renderPreviewCmd(model.listPanel.items[0].path)
+		cmd := model.renderPreviewCmd(model.listPanel.items[0].Path)
 		got := cmd()
 
 		if err, ok := got.(errMsg); ok {
@@ -32,7 +35,7 @@ func TestRenderPreviewCmd(t *testing.T) {
 		model := model{
 			cfg: &config.Config{DummyNoteDir: "testdata/dummy.md"},
 			listPanel: listPanel{
-				items: []note{},
+				items: []note.Note{},
 			}}
 
 		want := renderPreviewMsg("(( No Note Selected ))\n")

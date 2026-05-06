@@ -1,6 +1,9 @@
 package tui
 
-import "testing"
+import (
+	"notebox/internal/note"
+	"testing"
+)
 
 func TestCalcCursorDown(t *testing.T) {
 	tests := []struct {
@@ -122,56 +125,56 @@ func TestCalcCursorUp(t *testing.T) {
 func TestCalcRemoveItem(t *testing.T) {
 	tests := []struct {
 		name       string
-		items      []note
+		items      []note.Note
 		cursor     int
 		wantLen    int
 		wantCursor int
 	}{
 		{
 			name:       "remove middle item",
-			items:      []note{{title: "a"}, {title: "b"}, {title: "c"}},
+			items:      []note.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}},
 			cursor:     1,
 			wantLen:    2,
 			wantCursor: 1,
 		},
 		{
 			name:       "remove last item",
-			items:      []note{{title: "a"}, {title: "b"}, {title: "c"}},
+			items:      []note.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}},
 			cursor:     2,
 			wantLen:    2,
 			wantCursor: 1,
 		},
 		{
 			name:       "remove first item",
-			items:      []note{{title: "a"}, {title: "b"}, {title: "c"}},
+			items:      []note.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}},
 			cursor:     0,
 			wantLen:    2,
 			wantCursor: 0,
 		},
 		{
 			name:       "remove only item",
-			items:      []note{{title: "a"}},
+			items:      []note.Note{{Title: "a"}},
 			cursor:     0,
 			wantLen:    0,
 			wantCursor: 0,
 		},
 		{
 			name:       "empty list",
-			items:      []note{},
+			items:      []note.Note{},
 			cursor:     0,
 			wantLen:    0,
 			wantCursor: 0,
 		},
 		{
 			name:       "invalid cursor negative",
-			items:      []note{{title: "a"}, {title: "b"}},
+			items:      []note.Note{{Title: "a"}, {Title: "b"}},
 			cursor:     -1,
 			wantLen:    2,
 			wantCursor: -1,
 		},
 		{
 			name:       "invalid cursor out of bounds",
-			items:      []note{{title: "a"}, {title: "b"}},
+			items:      []note.Note{{Title: "a"}, {Title: "b"}},
 			cursor:     5,
 			wantLen:    2,
 			wantCursor: 5,
@@ -244,7 +247,7 @@ func TestCalcAddItem(t *testing.T) {
 }
 
 func TestCalcRemoveItemImmutability(t *testing.T) {
-	original := []note{{title: "a"}, {title: "b"}, {title: "c"}}
+	original := []note.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}}
 	originalLen := len(original)
 
 	_, _ = calcRemoveItem(original, 1)

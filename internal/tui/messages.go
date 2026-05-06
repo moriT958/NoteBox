@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"notebox/internal/note"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,11 +10,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-type note struct {
-	title string
-	path  string
-}
 
 type errMsg error
 
@@ -47,7 +43,7 @@ func (m model) renderPreviewCmd(path string) tea.Cmd {
 }
 
 // this inform tea of if note file succesessfull created.
-type newNoteCreatedMsg note
+type newNoteCreatedMsg note.Note
 
 func createNewNoteCmd(notesdir, title string) tea.Cmd {
 	createdTime := time.Now().Format(time.DateOnly)
@@ -62,9 +58,9 @@ func createNewNoteCmd(notesdir, title string) tea.Cmd {
 		content := fmt.Sprintf("# %s\n\n", title)
 		fmt.Fprint(fp, content)
 
-		newNote := note{
-			title: title,
-			path:  filename,
+		newNote := note.Note{
+			Title: title,
+			Path:  filename,
 		}
 		return newNoteCreatedMsg(newNote)
 	}

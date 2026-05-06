@@ -2,6 +2,7 @@ package tui
 
 import (
 	"notebox/internal/config"
+	"notebox/internal/note"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -60,7 +61,7 @@ func NewModel() (*model, error) {
 		return nil, err
 	}
 
-	notes, err := loadNoteFiles(cfg.NotesDir)
+	notes, err := note.LoadNoteFiles(cfg.NotesDir)
 	if err != nil {
 		return nil, err
 	}
@@ -109,10 +110,10 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		switch msg.String() {
 		case "j":
 			m.listPanel.cursorDown()
-			return m.renderPreviewCmd(m.listPanel.selectedItem().path)
+			return m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 		case "k":
 			m.listPanel.cursorUp()
-			return m.renderPreviewCmd(m.listPanel.selectedItem().path)
+			return m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 		case "n":
 			m.toggleTypingModal(open)
 		case "ctrl+l":
@@ -120,7 +121,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		case "d":
 			m.toggleWarnModal(open)
 		case "e":
-			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().path)
+			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
 		case "/":
 			m.toggleFuzzyModal(open)
 		}
@@ -139,7 +140,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		case "ctrl+h":
 			m.focus = onListPanel
 		case "e":
-			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().path)
+			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
 		default:
 			m.vp, cmd = m.vp.Update(msg)
 		}
@@ -152,9 +153,9 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			// Do not change the execution order of deleteNotefileCmd, removeItem and renderPreviewCmd.
 			// Because the cursor value is modified within removeItem, and altering
 			// the order may lead to unexpected behavior.
-			cmds = append(cmds, deleteNoteFileCmd(m.listPanel.selectedItem().path))
+			cmds = append(cmds, deleteNoteFileCmd(m.listPanel.selectedItem().Path))
 			m.listPanel.removeItem()
-			cmds = append(cmds, m.renderPreviewCmd(m.listPanel.selectedItem().path))
+			cmds = append(cmds, m.renderPreviewCmd(m.listPanel.selectedItem().Path))
 			cmd = tea.Batch(cmds...)
 		case "ctrl+c":
 			m.toggleTypingModal(shut)
@@ -164,7 +165,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		case "enter":
 			m.selectFromFuzzy()
 			m.toggleFuzzyModal(shut)
-			return m.renderPreviewCmd(m.listPanel.selectedItem().path)
+			return m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 		case "ctrl+c", "esc":
 			m.toggleFuzzyModal(shut)
 		case "ctrl+n", "down":
@@ -189,14 +190,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updatePreviewerSize(msg)
 		m.updateTypingModalSize(msg)
 		m.updateFuzzyModalSize(msg)
-		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().path)
+		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 	case tea.KeyMsg:
 		cmd = m.handleKeyMsg(msg)
 	case renderPreviewMsg:
 		cmd = m.updatePreviewerContent(msg)
 	case newNoteCreatedMsg:
-		m.listPanel.addItem(note(msg))
-		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().path)
+		m.listPanel.addItem(note.Note(msg))
+		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 	}
 
 	return m, cmd

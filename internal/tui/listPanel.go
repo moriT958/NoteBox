@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"notebox/internal/note"
 	"slices"
 	"strings"
 
@@ -11,7 +12,7 @@ import (
 type listPanel struct {
 	width, height int
 	cursor        int
-	items         []note
+	items         []note.Note
 	offset        int
 }
 
@@ -42,7 +43,7 @@ func calcCursorDown(cursor, itemCount, offset, height int) (newCursor, newOffset
 }
 
 // Calculates the new items and cursor after removing an item
-func calcRemoveItem(items []note, cursor int) ([]note, int) {
+func calcRemoveItem(items []note.Note, cursor int) ([]note.Note, int) {
 	if cursor < 0 || len(items) == 0 || cursor >= len(items) {
 		return items, cursor
 	}
@@ -73,15 +74,15 @@ func (m *listPanel) cursorDown() {
 }
 
 // Get selected item in the list
-func (m listPanel) selectedItem() note {
+func (m listPanel) selectedItem() note.Note {
 	if m.cursor < 0 || len(m.items) == 0 || len(m.items) <= m.cursor {
-		return note{}
+		return note.Note{}
 	}
 	return m.items[m.cursor]
 }
 
 // Add item and adjust cursor/offset to keep it visible
-func (m *listPanel) addItem(n note) {
+func (m *listPanel) addItem(n note.Note) {
 	m.items = append(m.items, n)
 	m.cursor, m.offset = calcAddItem(len(m.items), m.offset, m.height)
 }
@@ -113,10 +114,10 @@ func (m model) viewListPanel() string {
 	for i := m.listPanel.offset; i < end; i++ {
 		var title string
 		if i == m.listPanel.cursor {
-			title = "  " + m.listPanel.items[i].title
+			title = "  " + m.listPanel.items[i].Title
 			title = m.styles.cursorColor.Render(title)
 		} else {
-			title = "   " + m.listPanel.items[i].title
+			title = "   " + m.listPanel.items[i].Title
 		}
 		title = truncate.StringWithTail(title, uint(m.listPanel.width), "…   ")
 		view.WriteString(title)

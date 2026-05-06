@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"notebox/internal/note"
 	stringfunction "notebox/internal/pkg/string_function"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -17,24 +18,24 @@ type fuzzyModal struct {
 	input         textinput.Model
 	cursor        int
 	offset        int
-	filtered      []note
-	allItems      []note
+	filtered      []note.Note
+	allItems      []note.Note
 }
 
 // filterNotes filters notes by fuzzy matching query against titles.
 // Returns all items if query is empty.
-func filterNotes(query string, items []note) []note {
+func filterNotes(query string, items []note.Note) []note.Note {
 	if query == "" {
 		return items
 	}
 
 	titles := make([]string, len(items))
 	for i, n := range items {
-		titles[i] = n.title
+		titles[i] = n.Title
 	}
 
 	matches := fuzzy.Find(query, titles)
-	result := make([]note, len(matches))
+	result := make([]note.Note, len(matches))
 	for i, match := range matches {
 		result[i] = items[match.Index]
 	}
@@ -56,9 +57,9 @@ func (m *fuzzyModal) cursorDown() {
 	m.cursor, m.offset = calcCursorDown(m.cursor, len(m.filtered), m.offset, m.height)
 }
 
-func (m fuzzyModal) selectedItem() note {
+func (m fuzzyModal) selectedItem() note.Note {
 	if len(m.filtered) == 0 {
-		return note{}
+		return note.Note{}
 	}
 	return m.filtered[m.cursor]
 }
@@ -89,12 +90,12 @@ func (m *model) updateFuzzyModalSize(msg tea.WindowSizeMsg) {
 
 func (m *model) selectFromFuzzy() {
 	selected := m.fuzzy.selectedItem()
-	if selected.path == "" {
+	if selected.Path == "" {
 		return
 	}
 
 	for i, item := range m.listPanel.items {
-		if item.path == selected.path {
+		if item.Path == selected.Path {
 			m.listPanel.cursor = i
 			if m.listPanel.cursor >= m.listPanel.height {
 				m.listPanel.offset = m.listPanel.cursor - m.listPanel.height + 1
@@ -116,10 +117,10 @@ func (m model) viewFuzzyModal() string {
 		for i := m.fuzzy.offset; i < end; i++ {
 			var title string
 			if i == m.fuzzy.cursor {
-				title = "  " + m.fuzzy.filtered[i].title
+				title = "  " + m.fuzzy.filtered[i].Title
 				title = m.styles.cursorColor.Render(title)
 			} else {
-				title = "   " + m.fuzzy.filtered[i].title
+				title = "   " + m.fuzzy.filtered[i].Title
 			}
 			title = truncate.StringWithTail(title, uint(m.fuzzy.width-4), "...")
 			listView.WriteString(title)
