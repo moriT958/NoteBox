@@ -3,12 +3,12 @@ package tui
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func (m *model) updatePreviewerSize(msg tea.WindowSizeMsg) {
-	m.vp.Height = msg.Height - 4
-	m.vp.Width = msg.Width - msg.Width/4 - 4
+	m.vp.SetWidth(msg.Width - msg.Width/4 - 4)
+	m.vp.SetHeight(msg.Height - 4)
 }
 
 func (m *model) updatePreviewerContent(msg renderPreviewMsg) tea.Cmd {
@@ -29,8 +29,8 @@ func (m model) viewPreviewer() string {
 
 	if m.focus == onPreviewer {
 		return m.styles.borderActive.Render(
-			adjustSize(m.vp.Width, m.vp.Height)(view.String()))
+			adjustSize(m.vp.Width(), m.vp.Height())(view.String()))
 	}
 	return m.styles.borderPassive.Render(
-		adjustSize(m.vp.Width, m.vp.Height)(view.String()))
+		adjustSize(m.vp.Width(), m.vp.Height())(view.String()))
 }

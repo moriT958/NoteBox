@@ -4,16 +4,15 @@ import (
 	"strings"
 
 	"notebox/internal/note"
-	stringfunction "notebox/internal/pkg/string_function"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/muesli/reflow/truncate"
 	"github.com/sahilm/fuzzy"
 )
 
-type fuzzyModal struct {
+type filenameSearchModal struct {
 	width, height int
 	input         textinput.Model
 	cursor        int
@@ -43,21 +42,21 @@ func filterNotes(query string, items []note.Note) []note.Note {
 	return result
 }
 
-func (m *fuzzyModal) filter(query string) {
+func (m *filenameSearchModal) filter(query string) {
 	m.filtered = filterNotes(query, m.allItems)
 	m.cursor = 0
 	m.offset = 0
 }
 
-func (m *fuzzyModal) cursorUp() {
+func (m *filenameSearchModal) cursorUp() {
 	m.cursor, m.offset = calcCursorUp(m.cursor, m.offset)
 }
 
-func (m *fuzzyModal) cursorDown() {
+func (m *filenameSearchModal) cursorDown() {
 	m.cursor, m.offset = calcCursorDown(m.cursor, len(m.filtered), m.offset, m.height)
 }
 
-func (m fuzzyModal) selectedItem() note.Note {
+func (m filenameSearchModal) selectedItem() note.Note {
 	if len(m.filtered) == 0 {
 		return note.Note{}
 	}
@@ -67,12 +66,12 @@ func (m fuzzyModal) selectedItem() note.Note {
 func (m *model) toggleFuzzyModal(ac modalAction) {
 	switch ac {
 	case open:
-		m.fuzzy.input.Reset()
-		m.fuzzy.allItems = m.listPanel.items
-		m.fuzzy.filtered = m.listPanel.items
-		m.fuzzy.cursor = 0
-		m.fuzzy.offset = 0
-		m.fuzzy.input.Focus()
+		m.fnsModal.input.Reset()
+		m.fnsModal.allItems = m.listPanel.items
+		m.fnsModal.filtered = m.listPanel.items
+		m.fnsModal.cursor = 0
+		m.fnsModal.offset = 0
+		m.fnsModal.input.Focus()
 		m.focus = onFuzzyModal
 	case shut:
 		m.focus = onListPanel
@@ -81,15 +80,15 @@ func (m *model) toggleFuzzyModal(ac modalAction) {
 
 func (m *model) updateFuzzyModalSize(msg tea.WindowSizeMsg) {
 	_, v := m.styles.main.GetFrameSize()
-	m.fuzzy.input.Placeholder = "Search notes..."
-	m.fuzzy.input.CharLimit = 50
-	m.fuzzy.input.Width = m.modalWidth - 4
-	m.fuzzy.width = m.modalWidth
-	m.fuzzy.height = (msg.Height - v) / 3
+	m.fnsModal.input.Placeholder = "Search notes..."
+	m.fnsModal.input.CharLimit = 50
+	m.fnsModal.input.SetWidth(m.modalWidth - 4)
+	m.fnsModal.width = m.modalWidth
+	m.fnsModal.height = (msg.Height - v) / 3
 }
 
 func (m *model) selectFromFuzzy() {
-	selected := m.fuzzy.selectedItem()
+	selected := m.fnsModal.selectedItem()
 	if selected.Path == "" {
 		return
 	}
@@ -108,53 +107,66 @@ func (m *model) selectFromFuzzy() {
 }
 
 func (m model) viewFuzzyModal() string {
+	filteredList := m.renderFuzzyFilterdList()
+	confirm := m.styles.modalConfirmColor.Render(" (enter) Select ")
+	cancel := m.styles.modalCalcelColor.Render(" (ctrl+c) Cancel ")
+	tip := confirm + "           " + cancel
+
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		m.fnsModal.input.View(),
+		"",
+		filteredList,
+	)
+
+	modalHeight := m.fnsModal.height + 6
+	modal := lipgloss.NewStyle().
+		Width(m.fnsModal.width).
+		Height(modalHeight).
+		Padding(1, 2).
+		Render(content + "\n\n" + tip)
+	modal = m.styles.borderActive.Render(modal)
+
+	background := lipgloss.JoinVertical(lipgloss.Center,
+		m.viewHeader(),
+		lipgloss.JoinHorizontal(lipgloss.Left,
+			m.viewListPanel(),
+			m.viewPreviewer(),
+		),
+	)
+
+	overlayX := m.width/2 - m.fnsModal.width/2
+	overlayY := m.height/2 - modalHeight/2
+
+	fgLayer := lipgloss.NewLayer(modal).X(overlayX).Y(overlayY).Z(1)
+	bgLayer := lipgloss.NewLayer(background).X(0).Y(0).Z(0)
+
+	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
+	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
+
+	return m.styles.main.Render(canvas.Render())
+}
+
+func (m *model) renderFuzzyFilterdList() string {
 	var listView strings.Builder
 
-	if len(m.fuzzy.filtered) == 0 {
+	if len(m.fnsModal.filtered) == 0 {
 		listView.WriteString("  No matches found")
 	} else {
-		end := min(m.fuzzy.offset+m.fuzzy.height, len(m.fuzzy.filtered))
-		for i := m.fuzzy.offset; i < end; i++ {
+		end := min(m.fnsModal.offset+m.fnsModal.height, len(m.fnsModal.filtered))
+		for i := m.fnsModal.offset; i < end; i++ {
 			var title string
-			if i == m.fuzzy.cursor {
-				title = "  " + m.fuzzy.filtered[i].Title
+			if i == m.fnsModal.cursor {
+				title = "  " + m.fnsModal.filtered[i].Title
 				title = m.styles.cursorColor.Render(title)
 			} else {
-				title = "   " + m.fuzzy.filtered[i].Title
+				title = "   " + m.fnsModal.filtered[i].Title
 			}
-			title = truncate.StringWithTail(title, uint(m.fuzzy.width-4), "...")
+			title = truncate.StringWithTail(title, uint(m.fnsModal.width-4), "...")
 			listView.WriteString(title)
 			if i != end-1 {
 				listView.WriteString("\n")
 			}
 		}
 	}
-
-	confirm := m.styles.modalConfirmColor.Render(" (enter) Select ")
-	cancel := m.styles.modalCalcelColor.Render(" (ctrl+c) Cancel ")
-	tip := confirm + "           " + cancel
-
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		m.fuzzy.input.View(),
-		"",
-		listView.String(),
-	)
-
-	modalHeight := m.fuzzy.height + 6
-	modal := lipgloss.NewStyle().
-		Width(m.fuzzy.width).
-		Height(modalHeight).
-		Padding(1, 2).
-		Render(content + "\n\n" + tip)
-
-	modal = m.styles.borderActive.Render(modal)
-	overlayX := m.width/2 - m.fuzzy.width/2
-	overlayY := m.height/2 - modalHeight/2
-	background := lipgloss.JoinVertical(lipgloss.Center,
-		m.viewHeader(),
-		lipgloss.JoinHorizontal(lipgloss.Left,
-			m.viewListPanel(),
-			m.viewPreviewer()))
-	return m.styles.main.Render(
-		stringfunction.PlaceOverlay(overlayX, overlayY, modal, background))
+	return listView.String()
 }

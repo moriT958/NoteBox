@@ -1,10 +1,8 @@
 package tui
 
 import (
-	stringfunction "notebox/internal/pkg/string_function"
-
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 type modalAction int
@@ -29,7 +27,7 @@ func (m *model) updateTypingModalSize(msg tea.WindowSizeMsg) {
 	m.input.Placeholder = "Enter note name..."
 	m.input.Focus()
 	m.input.CharLimit = 50
-	m.input.Width = (msg.Width - h) / 3
+	m.input.SetWidth((msg.Width - h) / 3)
 }
 
 func (m model) viewTypingModal() string {
@@ -39,14 +37,21 @@ func (m model) viewTypingModal() string {
 	modal := lipgloss.NewStyle().Width(m.modalWidth).Height(m.modalHeight).
 		Align(lipgloss.Center, lipgloss.Center).Render("\n" + m.input.View() + "\n\n" + tip)
 
+	modalX := (m.width - m.modalWidth) / 2
+	modalY := (m.height - m.modalHeight) / 2
 	modal = m.styles.borderActive.Render(modal)
-	overlayX := m.width/2 - m.modalWidth/2
-	overlayY := m.height/2 - m.modalHeight/2
+
 	background := lipgloss.JoinVertical(lipgloss.Center,
 		m.viewHeader(),
 		lipgloss.JoinHorizontal(lipgloss.Left,
 			m.viewListPanel(),
 			m.viewPreviewer()))
-	return m.styles.main.Render(
-		stringfunction.PlaceOverlay(overlayX, overlayY, modal, background))
+
+	fgLayer := lipgloss.NewLayer(modal).X(modalX).Y(modalY).Z(1)
+	bgLayer := lipgloss.NewLayer(background).X(0).Y(0).Z(0)
+
+	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
+	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
+
+	return m.styles.main.Render(canvas.Render())
 }

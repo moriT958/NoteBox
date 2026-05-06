@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
 
 type styles struct {
 	main              lipgloss.Style
@@ -12,19 +12,29 @@ type styles struct {
 	modalCalcelColor  lipgloss.Style
 }
 
+type theme bool
+
+const (
+	darkTheme  theme = true
+	lightTheme theme = false
+)
+
 func defaultStyles() *styles {
 	s := new(styles)
 
 	s.main = lipgloss.NewStyle()
 	s.header = lipgloss.NewStyle().
 		Border(lipgloss.DoubleBorder(), false, false, true, false).
-		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#737994"})
+		BorderForeground(lipgloss.LightDark(true)(lipgloss.Color("#F793FF"), lipgloss.Color("#737994")))
+
 	s.borderActive = lipgloss.NewStyle().
 		Border(lipgloss.ThickBorder(), true, true, true, true).
-		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#babbf1"})
+		BorderForeground(lipgloss.LightDark(true)(lipgloss.Color("#F793FF"), lipgloss.Color("#babbf1")))
+
 	s.borderPassive = lipgloss.NewStyle().
 		Border(lipgloss.ThickBorder(), true, true, true, true).
-		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#737994"})
+		BorderForeground(lipgloss.LightDark(true)(lipgloss.Color("#F793FF"), lipgloss.Color("#737994")))
+
 	s.cursorColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#f2d5cf"))
 	s.modalConfirmColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#414559")).Background(lipgloss.Color("#99d1db"))
 	s.modalCalcelColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#414559")).Background(lipgloss.Color("#ea999c"))

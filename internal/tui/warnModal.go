@@ -1,9 +1,7 @@
 package tui
 
 import (
-	stringfunction "notebox/internal/pkg/string_function"
-
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 func (m *model) toggleWarnModal(ac modalAction) {
@@ -27,12 +25,18 @@ func (m model) viewWarnModal() string {
 	modal = m.styles.borderActive.Render(modal)
 	overlayX := m.width/2 - m.modalWidth/2
 	overlayY := m.height/2 - m.modalHeight/2
+
 	background := lipgloss.JoinVertical(lipgloss.Center,
 		m.viewHeader(),
 		lipgloss.JoinHorizontal(lipgloss.Left,
 			m.viewListPanel(),
 			m.viewPreviewer()))
 
-	return m.styles.main.Render(
-		stringfunction.PlaceOverlay(overlayX, overlayY, modal, background))
+	fgLayer := lipgloss.NewLayer(modal).X(overlayX).Y(overlayY).Z(1)
+	bgLayer := lipgloss.NewLayer(background).X(0).Y(0).Z(0)
+
+	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
+	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
+
+	return m.styles.main.Render(canvas.Render())
 }

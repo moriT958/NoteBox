@@ -1,6 +1,6 @@
 .DS_Store
 
-notebox
+/notebox
 *.tmp
 
 # Added by goreleaser init:
