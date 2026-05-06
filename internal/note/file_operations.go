@@ -1,4 +1,4 @@
-package tui
+package note
 
 import (
 	"io/fs"
@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-func loadNoteFiles(notesDir string) ([]note, error) {
-	notes := make([]note, 0)
+func LoadNoteFiles(notesDir string) ([]Note, error) {
+	notes := make([]Note, 0)
 
 	if err := filepath.Walk(notesDir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
@@ -19,9 +19,9 @@ func loadNoteFiles(notesDir string) ([]note, error) {
 
 		_, filename := filepath.Split(path)
 		title := getTitleFromFilename(filename)
-		note := &note{
-			title: title,
-			path:  path,
+		note := &Note{
+			Title: title,
+			Path:  path,
 		}
 		notes = append(notes, *note)
 

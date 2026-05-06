@@ -2,12 +2,14 @@ package tui
 
 import (
 	"notebox/internal/config"
+	"notebox/internal/note"
 
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/glamour"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/glamour/v2"
+	gstyles "charm.land/glamour/v2/styles"
+	"charm.land/lipgloss/v2"
 )
 
 type focus int
@@ -42,8 +44,8 @@ type model struct {
 	// listpanel fields
 	listPanel listPanel
 
-	// fuzzy modal fields
-	fuzzy fuzzyModal
+	// fnsModal modal fields
+	fnsModal filenameSearchModal
 }
 
 func NewModel() (*model, error) {
@@ -53,19 +55,22 @@ func NewModel() (*model, error) {
 	}
 
 	r, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
+		glamour.WithStandardStyle(gstyles.DarkStyle),
 		glamour.WithWordWrap(0),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	notes, err := loadNoteFiles(cfg.NotesDir)
+	notes, err := note.LoadNoteFiles(cfg.NotesDir)
 	if err != nil {
 		return nil, err
 	}
 
-	vp := viewport.New(0, 0)
+	vp := viewport.New(
+		viewport.WithWidth(0),
+		viewport.WithHeight(0),
+	)
 	vp.SetHorizontalStep(4)
 
 	m := &model{
@@ -84,7 +89,7 @@ func NewModel() (*model, error) {
 		vp:       vp,
 		renderer: r,
 		input:    textinput.New(),
-		fuzzy: fuzzyModal{
+		fnsModal: filenameSearchModal{
 			input: textinput.New(),
 		},
 	}
@@ -92,10 +97,7 @@ func NewModel() (*model, error) {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(
-		textinput.Blink,
-		tea.SetWindowTitle("NoteBox"),
-	)
+	return nil
 }
 
 func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
@@ -109,10 +111,10 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		switch msg.String() {
 		case "j":
 			m.listPanel.cursorDown()
-			return m.renderPreviewCmd(m.listPanel.selectedItem().path)
+			return m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 		case "k":
 			m.listPanel.cursorUp()
-			return m.renderPreviewCmd(m.listPanel.selectedItem().path)
+			return m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 		case "n":
 			m.toggleTypingModal(open)
 		case "ctrl+l":
@@ -120,7 +122,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		case "d":
 			m.toggleWarnModal(open)
 		case "e":
-			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().path)
+			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
 		case "/":
 			m.toggleFuzzyModal(open)
 		}
@@ -139,7 +141,7 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		case "ctrl+h":
 			m.focus = onListPanel
 		case "e":
-			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().path)
+			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
 		default:
 			m.vp, cmd = m.vp.Update(msg)
 		}
@@ -152,9 +154,9 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			// Do not change the execution order of deleteNotefileCmd, removeItem and renderPreviewCmd.
 			// Because the cursor value is modified within removeItem, and altering
 			// the order may lead to unexpected behavior.
-			cmds = append(cmds, deleteNoteFileCmd(m.listPanel.selectedItem().path))
+			cmds = append(cmds, deleteNoteFileCmd(m.listPanel.selectedItem().Path))
 			m.listPanel.removeItem()
-			cmds = append(cmds, m.renderPreviewCmd(m.listPanel.selectedItem().path))
+			cmds = append(cmds, m.renderPreviewCmd(m.listPanel.selectedItem().Path))
 			cmd = tea.Batch(cmds...)
 		case "ctrl+c":
 			m.toggleTypingModal(shut)
@@ -164,16 +166,16 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 		case "enter":
 			m.selectFromFuzzy()
 			m.toggleFuzzyModal(shut)
-			return m.renderPreviewCmd(m.listPanel.selectedItem().path)
+			return m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 		case "ctrl+c", "esc":
 			m.toggleFuzzyModal(shut)
 		case "ctrl+n", "down":
-			m.fuzzy.cursorDown()
+			m.fnsModal.cursorDown()
 		case "ctrl+p", "up":
-			m.fuzzy.cursorUp()
+			m.fnsModal.cursorUp()
 		default:
-			m.fuzzy.input, cmd = m.fuzzy.input.Update(msg)
-			m.fuzzy.filter(m.fuzzy.input.Value())
+			m.fnsModal.input, cmd = m.fnsModal.input.Update(msg)
+			m.fnsModal.filter(m.fnsModal.input.Value())
 		}
 	}
 	return cmd
@@ -189,36 +191,41 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updatePreviewerSize(msg)
 		m.updateTypingModalSize(msg)
 		m.updateFuzzyModalSize(msg)
-		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().path)
+		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 	case tea.KeyMsg:
 		cmd = m.handleKeyMsg(msg)
 	case renderPreviewMsg:
 		cmd = m.updatePreviewerContent(msg)
 	case newNoteCreatedMsg:
-		m.listPanel.addItem(note(msg))
-		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().path)
+		m.listPanel.addItem(note.Note(msg))
+		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 	}
 
 	return m, cmd
 }
 
-func (m model) View() string {
-	if m.focus == onTypingModal {
-		return m.viewTypingModal()
+func (m model) View() tea.View {
+	var content string
+
+	switch m.focus {
+	case onTypingModal:
+		content = m.viewTypingModal()
+	case onWarnModal:
+		content = m.viewWarnModal()
+	case onFuzzyModal:
+		content = m.viewFuzzyModal()
+	default:
+		content = m.styles.main.Render(
+			lipgloss.JoinVertical(lipgloss.Center,
+				m.viewHeader(),
+				lipgloss.JoinHorizontal(lipgloss.Top,
+					m.viewListPanel(),
+					m.viewPreviewer(),
+				)))
 	}
-	if m.focus == onWarnModal {
-		return m.viewWarnModal()
-	}
-	if m.focus == onFuzzyModal {
-		return m.viewFuzzyModal()
-	}
-	view := m.styles.main.Render(
-		lipgloss.JoinVertical(lipgloss.Center,
-			m.viewHeader(),
-			lipgloss.JoinHorizontal(lipgloss.Top,
-				m.viewListPanel(),
-				m.viewPreviewer(),
-			)))
+
+	view := tea.NewView(content)
+	view.AltScreen = true
 	return view
 }
 

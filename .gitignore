@@ -1,8 +1,7 @@
 .DS_Store
 
-notebox
-
-CLAUDE.md
+/notebox
+*.tmp
 
 # Added by goreleaser init:
 dist/
