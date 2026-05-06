@@ -92,9 +92,8 @@ func (m *listPanel) removeItem() {
 }
 
 func (m *model) updateListPanelSize(msg tea.WindowSizeMsg) {
-	h, v := m.styles.main.GetFrameSize()
-	m.listPanel.width = (msg.Width - h) / 5
-	m.listPanel.height = (msg.Height - v) * 5 / 6
+	m.listPanel.width = msg.Width / 4
+	m.listPanel.height = msg.Height - 4
 }
 
 func (m model) viewListPanel() string {

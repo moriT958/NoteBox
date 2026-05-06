@@ -15,15 +15,15 @@ type styles struct {
 func defaultStyles() *styles {
 	s := new(styles)
 
-	s.main = lipgloss.NewStyle().Padding(1, 2)
+	s.main = lipgloss.NewStyle()
 	s.header = lipgloss.NewStyle().
 		Border(lipgloss.DoubleBorder(), false, false, true, false).
 		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#737994"})
 	s.borderActive = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder(), true, true, true, true).
+		Border(lipgloss.ThickBorder(), true, true, true, true).
 		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#babbf1"})
 	s.borderPassive = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder(), true, true, true, true).
+		Border(lipgloss.ThickBorder(), true, true, true, true).
 		BorderForeground(lipgloss.AdaptiveColor{Light: "#F793FF", Dark: "#737994"})
 	s.cursorColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#f2d5cf"))
 	s.modalConfirmColor = lipgloss.NewStyle().Foreground(lipgloss.Color("#414559")).Background(lipgloss.Color("#99d1db"))
