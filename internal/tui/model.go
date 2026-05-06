@@ -5,6 +5,8 @@ import (
 	"notebox/internal/note"
 	"notebox/internal/tui/styles"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -20,6 +22,11 @@ const (
 	onTypingModal
 	onWarnModal
 	onFuzzyModal
+)
+
+const (
+	layoutFramePadding = 4
+	helpGuideHeight    = 1
 )
 
 type model struct {
@@ -46,6 +53,10 @@ type model struct {
 
 	// fnsModal modal fields
 	fnsModal filenameSearchModal
+
+	// key / help fields
+	keys keyMap
+	help help.Model
 }
 
 func NewModel() (*model, error) {
@@ -97,6 +108,8 @@ func NewModel() (*model, error) {
 		fnsModal: filenameSearchModal{
 			input: textinput.New(),
 		},
+		keys: defaultKeyMap(),
+		help: help.New(),
 	}
 	return m, nil
 }
@@ -105,56 +118,61 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
+func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 	var cmd tea.Cmd
-	if msg.String() == "q" {
+
+	if key.Matches(msg, m.keys.quit) {
 		return tea.Quit
+	}
+	if key.Matches(msg, m.keys.toggleHelp) {
+		m.help.ShowAll = !m.help.ShowAll
+		return nil
 	}
 
 	switch m.focus {
 	case onListPanel:
-		switch msg.String() {
-		case "j":
+		switch {
+		case key.Matches(msg, m.keys.listPanel.down):
 			m.listPanel.cursorDown()
 			return m.renderPreviewCmd(m.listPanel.selectedItem().Path)
-		case "k":
+		case key.Matches(msg, m.keys.listPanel.up):
 			m.listPanel.cursorUp()
 			return m.renderPreviewCmd(m.listPanel.selectedItem().Path)
-		case "n":
+		case key.Matches(msg, m.keys.listPanel.newNote):
 			m.toggleTypingModal(open)
-		case "ctrl+l":
+		case key.Matches(msg, m.keys.listPanel.focusPreview):
 			m.focus = onPreviewer
-		case "d":
+		case key.Matches(msg, m.keys.listPanel.deleteNote):
 			m.toggleWarnModal(open)
-		case "e":
+		case key.Matches(msg, m.keys.listPanel.editNote):
 			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
-		case "/":
+		case key.Matches(msg, m.keys.listPanel.search):
 			m.toggleFuzzyModal(open)
 		}
 	case onTypingModal:
-		switch msg.String() {
-		case "enter":
+		switch {
+		case key.Matches(msg, m.keys.typingModal.confirm):
 			m.toggleTypingModal(shut)
 			cmd = createNewNoteCmd(m.cfg.NotesDir, m.input.Value())
-		case "ctrl+c":
+		case key.Matches(msg, m.keys.typingModal.cancel):
 			m.toggleTypingModal(shut)
 		default:
 			m.input, cmd = m.input.Update(msg)
 		}
 	case onPreviewer:
-		switch msg.String() {
-		case "ctrl+h":
+		switch {
+		case key.Matches(msg, m.keys.previewer.focusList):
 			m.focus = onListPanel
-		case "e":
+		case key.Matches(msg, m.keys.previewer.editNote):
 			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
 		default:
 			m.vp, cmd = m.vp.Update(msg)
 		}
 	case onWarnModal:
-		switch msg.String() {
-		case "enter":
+		switch {
+		case key.Matches(msg, m.keys.warnModal.confirm):
 			var cmds []tea.Cmd
-			m.toggleTypingModal(shut)
+			m.toggleWarnModal(shut)
 			// WARN:
 			// Do not change the execution order of deleteNotefileCmd, removeItem and renderPreviewCmd.
 			// Because the cursor value is modified within removeItem, and altering
@@ -163,20 +181,20 @@ func (m *model) handleKeyMsg(msg tea.KeyMsg) tea.Cmd {
 			m.listPanel.removeItem()
 			cmds = append(cmds, m.renderPreviewCmd(m.listPanel.selectedItem().Path))
 			cmd = tea.Batch(cmds...)
-		case "ctrl+c":
-			m.toggleTypingModal(shut)
+		case key.Matches(msg, m.keys.warnModal.cancel):
+			m.toggleWarnModal(shut)
 		}
 	case onFuzzyModal:
-		switch msg.String() {
-		case "enter":
+		switch {
+		case key.Matches(msg, m.keys.fuzzyModal.confirm):
 			m.selectFromFuzzy()
 			m.toggleFuzzyModal(shut)
 			return m.renderPreviewCmd(m.listPanel.selectedItem().Path)
-		case "ctrl+c", "esc":
+		case key.Matches(msg, m.keys.fuzzyModal.cancel):
 			m.toggleFuzzyModal(shut)
-		case "ctrl+n", "down":
+		case key.Matches(msg, m.keys.fuzzyModal.down):
 			m.fnsModal.cursorDown()
-		case "ctrl+p", "up":
+		case key.Matches(msg, m.keys.fuzzyModal.up):
 			m.fnsModal.cursorUp()
 		default:
 			m.fnsModal.input, cmd = m.fnsModal.input.Update(msg)
@@ -196,8 +214,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updatePreviewerSize(msg)
 		m.updateTypingModalSize(msg)
 		m.updateFuzzyModalSize(msg)
+		m.help.SetWidth(msg.Width)
 		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().Path)
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		cmd = m.handleKeyMsg(msg)
 	case renderPreviewMsg:
 		cmd = m.updatePreviewerContent(msg)
@@ -226,7 +245,17 @@ func (m model) View() tea.View {
 				lipgloss.JoinHorizontal(lipgloss.Top,
 					m.viewListPanel(),
 					m.viewPreviewer(),
-				)))
+				),
+				m.viewHelp(),
+			))
+	}
+
+	if overlay := m.viewFullHelpOverlay(); overlay != "" {
+		overlayY := max(0, m.height-lipgloss.Height(overlay))
+		fgLayer := lipgloss.NewLayer(overlay).X(0).Y(overlayY).Z(1)
+		bgLayer := lipgloss.NewLayer(content).X(0).Y(0).Z(0)
+		compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
+		content = lipgloss.NewCanvas(m.width, m.height).Compose(compositor).Render()
 	}
 
 	view := tea.NewView(content)

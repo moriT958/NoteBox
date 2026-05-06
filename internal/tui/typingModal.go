@@ -31,8 +31,8 @@ func (m *model) updateTypingModalSize(msg tea.WindowSizeMsg) {
 }
 
 func (m model) viewTypingModal() string {
-	confirm := m.styles.Modal.Confirm.Render(" (enter) Create ")
-	cancel := m.styles.Modal.Cancel.Render(" (ctrl+c) Cancel ")
+	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") Create ")
+	cancel := m.styles.Modal.Cancel.Render(" (" + selectionModalCancelKey + ") Cancel ")
 	tip := confirm + "           " + cancel
 	modal := m.styles.Modal.Centered.
 		Width(m.modalWidth).
@@ -47,7 +47,10 @@ func (m model) viewTypingModal() string {
 		m.viewHeader(),
 		lipgloss.JoinHorizontal(lipgloss.Left,
 			m.viewListPanel(),
-			m.viewPreviewer()))
+			m.viewPreviewer(),
+		),
+		m.viewHelp(),
+	)
 
 	fgLayer := lipgloss.NewLayer(modal).X(modalX).Y(modalY).Z(1)
 	bgLayer := lipgloss.NewLayer(background).X(0).Y(0).Z(0)

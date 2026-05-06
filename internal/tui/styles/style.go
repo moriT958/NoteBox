@@ -20,6 +20,7 @@ type Style struct {
 	BorderActive  lipgloss.Style
 	BorderPassive lipgloss.Style
 	Cursor        lipgloss.Style
+	Help          lipgloss.Style
 
 	Modal ModalStyle
 }
@@ -59,6 +60,10 @@ func New(theme Theme) *Style {
 			BorderForeground(primary),
 
 		Cursor: lipgloss.NewStyle().Foreground(cursor),
+
+		Help: lipgloss.NewStyle().
+			Align(lipgloss.Left).
+			PaddingLeft(1),
 
 		Modal: ModalStyle{
 			Centered: lipgloss.NewStyle().

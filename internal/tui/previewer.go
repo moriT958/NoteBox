@@ -9,8 +9,12 @@ import (
 )
 
 func (m *model) updatePreviewerSize(msg tea.WindowSizeMsg) {
-	m.vp.SetWidth(msg.Width - msg.Width/4 - 4)
-	m.vp.SetHeight(msg.Height - 4)
+	sidePanelWidth := msg.Width / layoutSidePanelRatio
+	previewWidth := msg.Width - sidePanelWidth - layoutFramePadding
+	contentHeight := msg.Height - layoutFramePadding - helpGuideHeight
+
+	m.vp.SetWidth(previewWidth)
+	m.vp.SetHeight(max(1, contentHeight))
 }
 
 func (m *model) updatePreviewerContent(msg renderPreviewMsg) tea.Cmd {

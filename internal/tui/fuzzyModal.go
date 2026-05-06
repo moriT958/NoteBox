@@ -108,9 +108,11 @@ func (m *model) selectFromFuzzy() {
 
 func (m model) viewFuzzyModal() string {
 	filteredList := m.renderFuzzyFilterdList()
-	confirm := m.styles.Modal.Confirm.Render(" (enter) Select ")
-	cancel := m.styles.Modal.Cancel.Render(" (ctrl+c) Cancel ")
-	tip := confirm + "           " + cancel
+	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") Select ")
+	cancel := m.styles.Modal.Cancel.Render(" (" + selectionModalCancelKey + ") Cancel ")
+	tip := m.styles.Modal.Centered.
+		Width(m.fnsModal.width - 4).
+		Render(confirm + "           " + cancel)
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		m.fnsModal.input.View(),
@@ -131,6 +133,7 @@ func (m model) viewFuzzyModal() string {
 			m.viewListPanel(),
 			m.viewPreviewer(),
 		),
+		m.viewHelp(),
 	)
 
 	overlayX := m.width/2 - m.fnsModal.width/2
