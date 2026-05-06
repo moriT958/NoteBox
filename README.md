@@ -2,7 +2,7 @@
 
 A terminal-based note-taking app.
 
-![](/assets/overview.mov)
+![](/assets/overview.png)
 
 ## Installation
 
