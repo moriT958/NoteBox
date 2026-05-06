@@ -92,9 +92,12 @@ func (m *listPanel) removeItem() {
 	m.items, m.cursor = calcRemoveItem(m.items, m.cursor)
 }
 
+const layoutSidePanelRatio = 4
+
 func (m *model) updateListPanelSize(msg tea.WindowSizeMsg) {
-	m.listPanel.width = msg.Width / 4
-	m.listPanel.height = msg.Height - 4
+	m.listPanel.width = msg.Width / layoutSidePanelRatio
+	contentHeight := msg.Height - layoutFramePadding - helpGuideHeight
+	m.listPanel.height = max(1, contentHeight)
 }
 
 func (m model) viewListPanel() string {

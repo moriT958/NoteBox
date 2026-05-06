@@ -131,6 +131,7 @@ func (m model) viewFuzzyModal() string {
 			m.viewListPanel(),
 			m.viewPreviewer(),
 		),
+		m.viewHelp(),
 	)
 
 	overlayX := m.width/2 - m.fnsModal.width/2

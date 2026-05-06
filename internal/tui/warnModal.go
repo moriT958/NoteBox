@@ -32,7 +32,10 @@ func (m model) viewWarnModal() string {
 		m.viewHeader(),
 		lipgloss.JoinHorizontal(lipgloss.Left,
 			m.viewListPanel(),
-			m.viewPreviewer()))
+			m.viewPreviewer(),
+		),
+		m.viewHelp(),
+	)
 
 	fgLayer := lipgloss.NewLayer(modal).X(overlayX).Y(overlayY).Z(1)
 	bgLayer := lipgloss.NewLayer(background).X(0).Y(0).Z(0)
