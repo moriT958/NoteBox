@@ -29,6 +29,6 @@ curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | 
 
 - `note version`: show version
 
-## Config 
+## Config
 
 - config file: `~/.notebox/config.json`
