@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"notebox/internal/tui/styles"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	gstyles "charm.land/glamour/v2/styles"
 )
 
 func (m *model) updatePreviewerSize(msg tea.WindowSizeMsg) {
@@ -33,4 +35,15 @@ func (m model) viewPreviewer() string {
 	}
 	return m.styles.BorderPassive.Render(
 		m.styles.Sized(m.vp.Width(), m.vp.Height()).Render(view.String()))
+}
+
+func getGlamourTheme(theme styles.Theme) string {
+	switch theme {
+	case styles.DarkTheme:
+		return gstyles.DarkStyle
+	case styles.LightTheme:
+		return gstyles.LightStyle
+	default:
+		return gstyles.DarkStyle
+	}
 }

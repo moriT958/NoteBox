@@ -1,6 +1,11 @@
 package styles
 
-import "charm.land/lipgloss/v2"
+import (
+	"errors"
+	"notebox/internal/config"
+
+	"charm.land/lipgloss/v2"
+)
 
 type Theme int
 
@@ -29,14 +34,14 @@ type ModalStyle struct {
 func New(theme Theme) *Style {
 	isDark := theme == DarkTheme
 
-	primary := lipgloss.LightDark(isDark)(lipgloss.Color("#F793FF"), lipgloss.Color("#737994"))
-	active := lipgloss.LightDark(isDark)(lipgloss.Color("#F793FF"), lipgloss.Color("#babbf1"))
-	cursor := lipgloss.LightDark(isDark)(lipgloss.Color("#f2d5cf"), lipgloss.Color("#f2d5cf"))
+	primary := lipgloss.LightDark(isDark)(lipgloss.Color("#b89988"), lipgloss.Color("#F793FF"))
+	active := lipgloss.LightDark(isDark)(lipgloss.Color("#fe640b"), lipgloss.Color("#F793FF"))
+	cursor := lipgloss.LightDark(isDark)(lipgloss.Color("#dc8a78"), lipgloss.Color("#f2d5cf"))
 
-	confirmFg := lipgloss.LightDark(isDark)(lipgloss.Color("#414559"), lipgloss.Color("#414559"))
-	confirmBg := lipgloss.LightDark(isDark)(lipgloss.Color("#99d1db"), lipgloss.Color("#99d1db"))
-	cancelFg := lipgloss.LightDark(isDark)(lipgloss.Color("#414559"), lipgloss.Color("#414559"))
-	cancelBg := lipgloss.LightDark(isDark)(lipgloss.Color("#ea999c"), lipgloss.Color("#ea999c"))
+	confirmFg := lipgloss.LightDark(isDark)(lipgloss.Color("#eff1f5"), lipgloss.Color("#414559"))
+	confirmBg := lipgloss.LightDark(isDark)(lipgloss.Color("#40a02b"), lipgloss.Color("#99d1db"))
+	cancelFg := lipgloss.LightDark(isDark)(lipgloss.Color("#eff1f5"), lipgloss.Color("#414559"))
+	cancelBg := lipgloss.LightDark(isDark)(lipgloss.Color("#d20f39"), lipgloss.Color("#ea999c"))
 
 	return &Style{
 		Main: lipgloss.NewStyle(),
@@ -75,4 +80,15 @@ func New(theme Theme) *Style {
 
 func (s *Style) Sized(width, height int) lipgloss.Style {
 	return s.Main.Width(width).Height(height)
+}
+
+func GetColorTheme(cfg *config.Config) (Theme, error) {
+	switch cfg.Theme {
+	case "dark":
+		return DarkTheme, nil
+	case "light":
+		return LightTheme, nil
+	default:
+		return 0, errors.New("unknown color theme")
+	}
 }

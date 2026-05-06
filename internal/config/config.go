@@ -8,6 +8,7 @@ import (
 	"notebox/internal/utils"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -25,6 +26,7 @@ var (
 type Config struct {
 	Editor       string `json:"editor"`
 	NotesDir     string `json:"notesdir"`
+	Theme        string `json:"theme"`
 	DummyNoteDir string `json:"-"`
 }
 
@@ -71,6 +73,8 @@ func loadConfig() (*Config, error) {
 		return nil, err
 	}
 
+	cfg.Theme = strings.ToLower(cfg.Theme)
+
 	return cfg, nil
 }
 
@@ -78,6 +82,7 @@ func defaultConfig() *Config {
 	return &Config{
 		Editor:   DefaultEditor,
 		NotesDir: filepath.Join(utils.HomeDir(), AppDirName, NotesDirName),
+		Theme:    defaultTheme,
 	}
 }
 

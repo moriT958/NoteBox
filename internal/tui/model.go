@@ -3,13 +3,12 @@ package tui
 import (
 	"notebox/internal/config"
 	"notebox/internal/note"
-	uistyles "notebox/internal/tui/styles"
+	"notebox/internal/tui/styles"
 
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/glamour/v2"
-	gstyles "charm.land/glamour/v2/styles"
 	"charm.land/lipgloss/v2"
 )
 
@@ -25,7 +24,7 @@ const (
 
 type model struct {
 	cfg    *config.Config
-	styles *uistyles.Style
+	styles *styles.Style
 
 	// main model fields
 	width, height int
@@ -55,8 +54,13 @@ func NewModel() (*model, error) {
 		return nil, err
 	}
 
+	theme, err := styles.GetColorTheme(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	r, err := glamour.NewTermRenderer(
-		glamour.WithStandardStyle(gstyles.DarkStyle),
+		glamour.WithStandardStyle(getGlamourTheme(theme)),
 		glamour.WithWordWrap(0),
 	)
 	if err != nil {
@@ -76,7 +80,7 @@ func NewModel() (*model, error) {
 
 	m := &model{
 		cfg:         cfg,
-		styles:      uistyles.New(uistyles.DarkTheme),
+		styles:      styles.New(theme),
 		width:       0,
 		height:      0,
 		modalWidth:  60,
