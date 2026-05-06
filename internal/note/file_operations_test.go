@@ -7,12 +7,12 @@ import (
 
 func TestLoadNoteFiles(t *testing.T) {
 	want := []Note{
-		{"hello", "testdata/notes/hello-2025-05-02.md"},
-		{"nice", "testdata/notes/nice-2025-05-02.md"},
-		{"test1", "testdata/notes/test1-2025-05-02.md"},
+		{"hello", "../testdata/notes/hello-2025-05-02.md"},
+		{"nice", "../testdata/notes/nice-2025-05-02.md"},
+		{"test1", "../testdata/notes/test1-2025-05-02.md"},
 	}
 
-	notes, err := LoadNoteFiles("testdata/notes")
+	notes, err := LoadNoteFiles("../testdata/notes")
 	if err != nil {
 		t.Fatal(err)
 	}

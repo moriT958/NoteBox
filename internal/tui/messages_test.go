@@ -11,7 +11,7 @@ func TestRenderPreviewCmd(t *testing.T) {
 		model := model{
 			listPanel: listPanel{
 				items: []note.Note{
-					{Title: "hello", Path: "testdata/notes/hello-2025-05-02.md"},
+					{Title: "hello", Path: "../testdata/notes/hello-2025-05-02.md"},
 				},
 			}}
 
@@ -33,7 +33,7 @@ func TestRenderPreviewCmd(t *testing.T) {
 
 	t.Run("model has no item", func(t *testing.T) {
 		model := model{
-			cfg: &config.Config{DummyNoteDir: "testdata/dummy.md"},
+			cfg: &config.Config{DummyNoteDir: "../testdata/dummy.md"},
 			listPanel: listPanel{
 				items: []note.Note{},
 			}}
