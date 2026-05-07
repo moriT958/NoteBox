@@ -7,6 +7,7 @@ import (
 	"notebox/internal/cli"
 	"notebox/internal/config"
 	"notebox/internal/logger"
+	"notebox/internal/note"
 	"notebox/internal/tui"
 	"notebox/internal/utils"
 	"os"
@@ -17,7 +18,14 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		m, err := tui.NewModel()
+		reg, err := note.NewFSNotifyRegisterer()
+		if err != nil {
+			slog.Error("failed to initialize fsnotify watcher", "error", err)
+			os.Exit(1)
+		}
+		defer reg.Close()
+
+		m, err := tui.NewModel(reg)
 		if err != nil {
 			slog.Error("failed to initialize bubbletea model", "error", err)
 			os.Exit(1)

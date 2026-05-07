@@ -14,6 +14,10 @@ type listPanel struct {
 	cursor        int
 	items         []note.Note
 	offset        int
+
+	// notes dir change watcher
+	registerer   note.Registerer
+	notesUpdates <-chan []note.Note
 }
 
 // Calculates the new cursor and offset when moving up
@@ -90,6 +94,48 @@ func (m *listPanel) addItem(n note.Note) {
 // Remove item on current cursor
 func (m *listPanel) removeItem() {
 	m.items, m.cursor = calcRemoveItem(m.items, m.cursor)
+}
+
+func (m *model) applyReloadedNotes(notes []note.Note) {
+	m.listPanel.items = notes
+
+	if len(notes) == 0 {
+		m.listPanel.cursor = 0
+		m.listPanel.offset = 0
+		return
+	}
+
+	for i, n := range notes {
+		if n.Path == m.listPanel.selectedItem().Path {
+			m.listPanel.cursor = i
+			m.ensureListCursorVisible()
+			return
+		}
+	}
+
+	if m.listPanel.cursor >= len(notes) {
+		m.listPanel.cursor = len(notes) - 1
+	}
+	if m.listPanel.cursor < 0 {
+		m.listPanel.cursor = 0
+	}
+	m.ensureListCursorVisible()
+}
+
+func (m *model) ensureListCursorVisible() {
+	if m.listPanel.height <= 0 {
+		m.listPanel.offset = 0
+		return
+	}
+	if m.listPanel.cursor < m.listPanel.offset {
+		m.listPanel.offset = m.listPanel.cursor
+	}
+	if m.listPanel.cursor >= m.listPanel.offset+m.listPanel.height {
+		m.listPanel.offset = m.listPanel.cursor - m.listPanel.height + 1
+	}
+	if m.listPanel.offset < 0 {
+		m.listPanel.offset = 0
+	}
 }
 
 const layoutSidePanelRatio = 4

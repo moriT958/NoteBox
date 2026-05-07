@@ -7,6 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.6
 	charm.land/glamour/v2 v2.0.0
 	charm.land/lipgloss/v2 v2.0.3
+	github.com/gofsnotify/fsnotify v0.0.3
 	github.com/google/subcommands v1.2.0
 	github.com/muesli/reflow v0.3.0
 	github.com/sahilm/fuzzy v0.1.1

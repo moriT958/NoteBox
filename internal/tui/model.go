@@ -59,7 +59,7 @@ type model struct {
 	help help.Model
 }
 
-func NewModel() (*model, error) {
+func NewModel(reg note.Registerer) (*model, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func NewModel() (*model, error) {
 		return nil, err
 	}
 
-	notes, err := note.LoadNoteFiles(cfg.NotesDir)
+	ch, err := reg.Register(cfg.NotesDir)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +98,8 @@ func NewModel() (*model, error) {
 		modalHeight: 7,
 		focus:       onListPanel,
 		listPanel: listPanel{
-			cursor: 0,
-			items:  notes,
-			offset: 0,
+			registerer:   reg,
+			notesUpdates: ch,
 		},
 		vp:       vp,
 		renderer: r,
@@ -115,7 +114,7 @@ func NewModel() (*model, error) {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return waitNoteChangeCmd(m.listPanel.notesUpdates)
 }
 
 func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
@@ -223,6 +222,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case newNoteCreatedMsg:
 		m.listPanel.addItem(note.Note(msg))
 		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().Path)
+	case notesChangedMsg:
+		m.applyReloadedNotes([]note.Note(msg))
+		if m.focus == onFuzzyModal {
+			m.fnsModal.allItems = m.listPanel.items
+			m.fnsModal.filter(m.fnsModal.input.Value())
+		}
+		cmd = tea.Batch(waitNoteChangeCmd(m.listPanel.notesUpdates), m.renderPreviewCmd(m.listPanel.selectedItem().Path))
 	}
 
 	return m, cmd
