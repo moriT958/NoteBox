@@ -23,6 +23,7 @@ type listPanelKeyMap struct {
 	down         key.Binding
 	newNote      key.Binding
 	focusPreview key.Binding
+	renameNote   key.Binding
 	deleteNote   key.Binding
 	editNote     key.Binding
 	search       key.Binding
@@ -82,6 +83,10 @@ func defaultKeyMap() keyMap {
 			focusPreview: key.NewBinding(
 				key.WithKeys("right", "l"),
 				key.WithHelp("→/l", "preview"),
+			),
+			renameNote: key.NewBinding(
+				key.WithKeys("r"),
+				key.WithHelp("r", "rename"),
 			),
 			deleteNote: key.NewBinding(
 				key.WithKeys("d"),
@@ -161,6 +166,7 @@ func (k focusedKeyMap) ShortHelp() []key.Binding {
 			k.keys.listPanel.up,
 			k.keys.listPanel.down,
 			k.keys.listPanel.newNote,
+			k.keys.listPanel.renameNote,
 			k.keys.listPanel.deleteNote,
 			k.keys.listPanel.search,
 			k.keys.toggleHelp,
@@ -187,7 +193,7 @@ func (k focusedKeyMap) FullHelp() [][]key.Binding {
 	case onListPanel:
 		return [][]key.Binding{
 			{k.keys.listPanel.up, k.keys.listPanel.down, k.keys.listPanel.focusPreview},
-			{k.keys.listPanel.newNote, k.keys.listPanel.deleteNote, k.keys.listPanel.editNote, k.keys.listPanel.search},
+			{k.keys.listPanel.newNote, k.keys.listPanel.renameNote, k.keys.listPanel.deleteNote, k.keys.listPanel.editNote, k.keys.listPanel.search},
 			{k.keys.toggleHelp, k.keys.quit},
 		}
 	case onPreviewer:
