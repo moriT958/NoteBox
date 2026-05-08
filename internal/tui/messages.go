@@ -84,3 +84,15 @@ func deleteNoteFileCmd(path string) tea.Cmd {
 		return nil
 	}
 }
+
+type notesChangedMsg []note.Note
+
+func waitNoteChangeCmd(ch <-chan []note.Note) tea.Cmd {
+	return func() tea.Msg {
+		notes, ok := <-ch
+		if !ok {
+			return nil
+		}
+		return notesChangedMsg(notes)
+	}
+}

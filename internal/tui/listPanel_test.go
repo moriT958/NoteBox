@@ -256,3 +256,98 @@ func TestCalcRemoveItemImmutability(t *testing.T) {
 		t.Errorf("original slice was mutated: len=%d, want=%d", len(original), originalLen)
 	}
 }
+
+func TestPreserveSelectionPos(t *testing.T) {
+	tests := []struct {
+		name       string
+		cursor     int
+		offset     int
+		height     int
+		itemCount  int
+		wantCursor int
+		wantOffset int
+	}{
+		{
+			name:       "empty items resets to zero",
+			cursor:     3,
+			offset:     2,
+			height:     10,
+			itemCount:  0,
+			wantCursor: 0,
+			wantOffset: 0,
+		},
+		{
+			name:       "keeps valid cursor and offset when visible",
+			cursor:     3,
+			offset:     2,
+			height:     5,
+			itemCount:  10,
+			wantCursor: 3,
+			wantOffset: 2,
+		},
+		{
+			name:       "clamps cursor to last item when out of range",
+			cursor:     10,
+			offset:     0,
+			height:     5,
+			itemCount:  4,
+			wantCursor: 3,
+			wantOffset: 0,
+		},
+		{
+			name:       "clamps negative cursor to zero",
+			cursor:     -2,
+			offset:     3,
+			height:     5,
+			itemCount:  8,
+			wantCursor: 0,
+			wantOffset: 0,
+		},
+		{
+			name:       "moves offset up when cursor is above window",
+			cursor:     1,
+			offset:     3,
+			height:     4,
+			itemCount:  10,
+			wantCursor: 1,
+			wantOffset: 1,
+		},
+		{
+			name:       "moves offset down when cursor is below window",
+			cursor:     7,
+			offset:     2,
+			height:     4,
+			itemCount:  12,
+			wantCursor: 7,
+			wantOffset: 4,
+		},
+		{
+			name:       "non-positive height resets offset",
+			cursor:     4,
+			offset:     3,
+			height:     0,
+			itemCount:  10,
+			wantCursor: 4,
+			wantOffset: 0,
+		},
+		{
+			name:       "negative offset is normalized to zero",
+			cursor:     1,
+			offset:     -3,
+			height:     5,
+			itemCount:  10,
+			wantCursor: 1,
+			wantOffset: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotCursor, gotOffset := preserveSelectionPos(tt.cursor, tt.offset, tt.height, tt.itemCount)
+			if gotCursor != tt.wantCursor || gotOffset != tt.wantOffset {
+				t.Errorf("preserveSelectionPos() = (%d, %d), want (%d, %d)",
+					gotCursor, gotOffset, tt.wantCursor, tt.wantOffset)
+			}
+		})
+	}
+}

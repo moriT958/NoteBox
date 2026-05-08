@@ -33,19 +33,27 @@ func TestLoadNoteFiles(t *testing.T) {
 }
 
 func TestGetTitleFromFilename(t *testing.T) {
-	files := []string{
-		"hello-2025-05-02.md",
-		"nice-2025-05-02.md",
-		"test1-2025-05-02.md",
-		"hi-there-2025-05-04.md",
+	tests := []struct {
+		name     string
+		filename string
+		want     string
+	}{
+		{name: "standard date suffix", filename: "hello-2025-05-02.md", want: "hello"},
+		{name: "another standard", filename: "nice-2025-05-02.md", want: "nice"},
+		{name: "numeric title", filename: "test1-2025-05-02.md", want: "test1"},
+		{name: "hyphenated title", filename: "hi-there-2025-05-04.md", want: "hi-there"},
+		{name: "short filename without date", filename: "todo.md", want: "todo"},
+		{name: "three segments only", filename: "2025-05-02.md", want: "2025-05-02"},
+		{name: "no extension", filename: "memo", want: "memo"},
+		{name: "four segments but no date format", filename: "a-b-c-d.md", want: "a"},
 	}
 
-	want := []string{"hello", "nice", "test1", "hi-there"}
-
-	for i := range files {
-		got := getTitleFromFilename(files[i])
-		if strings.Compare(got, want[i]) != 0 {
-			t.Errorf("want %s, but got %s\n", want[i], got)
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getTitleFromFilename(tt.filename)
+			if strings.Compare(got, tt.want) != 0 {
+				t.Errorf("want %s, but got %s", tt.want, got)
+			}
+		})
 	}
 }

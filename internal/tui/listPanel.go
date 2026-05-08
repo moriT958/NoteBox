@@ -14,6 +14,10 @@ type listPanel struct {
 	cursor        int
 	items         []note.Note
 	offset        int
+
+	// notes dir change watcher
+	registerer   note.Registerer
+	notesUpdates <-chan []note.Note
 }
 
 // Calculates the new cursor and offset when moving up
@@ -65,6 +69,38 @@ func calcAddItem(itemCount, offset, height int) (newCursor, newOffset int) {
 	return
 }
 
+// Calculates cursor and offset after notes reload while keeping cursor visible.
+func preserveSelectionPos(cursor, offset, height, itemCount int) (newCursor, newOffset int) {
+	if itemCount <= 0 {
+		return 0, 0
+	}
+
+	newCursor = cursor
+	newOffset = offset
+
+	if newCursor >= itemCount {
+		newCursor = itemCount - 1
+	}
+	if newCursor < 0 {
+		newCursor = 0
+	}
+
+	if height <= 0 {
+		newOffset = 0
+		return
+	}
+	if newCursor < newOffset {
+		newOffset = newCursor
+	}
+	if newCursor >= newOffset+height {
+		newOffset = newCursor - height + 1
+	}
+	if newOffset < 0 {
+		newOffset = 0
+	}
+	return
+}
+
 func (m *listPanel) cursorUp() {
 	m.cursor, m.offset = calcCursorUp(m.cursor, m.offset)
 }
@@ -90,6 +126,26 @@ func (m *listPanel) addItem(n note.Note) {
 // Remove item on current cursor
 func (m *listPanel) removeItem() {
 	m.items, m.cursor = calcRemoveItem(m.items, m.cursor)
+}
+
+// reloadAllNotes reloads all notes
+func (m *model) reloadAllNotes(notes []note.Note) {
+	selectedPath := m.listPanel.selectedItem().Path
+	m.listPanel.items = notes
+
+	for i, n := range notes {
+		if n.Path == selectedPath {
+			m.listPanel.cursor = i
+			break
+		}
+	}
+
+	m.listPanel.cursor, m.listPanel.offset = preserveSelectionPos(
+		m.listPanel.cursor,
+		m.listPanel.offset,
+		m.listPanel.height,
+		len(notes),
+	)
 }
 
 const layoutSidePanelRatio = 4

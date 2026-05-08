@@ -18,6 +18,10 @@ func LoadNoteFiles(notesDir string) ([]Note, error) {
 		}
 
 		_, filename := filepath.Split(path)
+		if filepath.Ext(filename) != ".md" {
+			return nil
+		}
+
 		title := getTitleFromFilename(filename)
 		note := &Note{
 			Title: title,
@@ -36,6 +40,9 @@ func LoadNoteFiles(notesDir string) ([]Note, error) {
 func getTitleFromFilename(filename string) string {
 	filename = strings.TrimSuffix(filename, ".md")
 	parts := strings.Split(filename, "-")
+	if len(parts) <= 3 {
+		return filename
+	}
 
 	title := strings.Join(parts[:len(parts)-3], "-")
 	return title
