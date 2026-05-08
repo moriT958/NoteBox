@@ -21,8 +21,8 @@ func TestLoadNoteFiles(t *testing.T) {
 		t.Fatal("failed to load notes")
 	}
 
-	if len(notes) != 3 {
-		t.Errorf("want 3 notes, but got %d", len(notes))
+	if len(notes) != len(want) {
+		t.Fatalf("want %d notes, but got %d", len(want), len(notes))
 	}
 
 	for i := range want {
