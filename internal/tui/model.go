@@ -223,7 +223,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.listPanel.addItem(note.Note(msg))
 		cmd = m.renderPreviewCmd(m.listPanel.selectedItem().Path)
 	case notesChangedMsg:
-		m.applyReloadedNotes([]note.Note(msg))
+		m.reloadAllNotes([]note.Note(msg))
 		if m.focus == onFuzzyModal {
 			m.fnsModal.allItems = m.listPanel.items
 			m.fnsModal.filter(m.fnsModal.input.Value())

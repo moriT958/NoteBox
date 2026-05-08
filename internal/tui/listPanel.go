@@ -69,6 +69,38 @@ func calcAddItem(itemCount, offset, height int) (newCursor, newOffset int) {
 	return
 }
 
+// Calculates cursor and offset after notes reload while keeping cursor visible.
+func preserveSelectionPos(cursor, offset, height, itemCount int) (newCursor, newOffset int) {
+	if itemCount <= 0 {
+		return 0, 0
+	}
+
+	newCursor = cursor
+	newOffset = offset
+
+	if newCursor >= itemCount {
+		newCursor = itemCount - 1
+	}
+	if newCursor < 0 {
+		newCursor = 0
+	}
+
+	if height <= 0 {
+		newOffset = 0
+		return
+	}
+	if newCursor < newOffset {
+		newOffset = newCursor
+	}
+	if newCursor >= newOffset+height {
+		newOffset = newCursor - height + 1
+	}
+	if newOffset < 0 {
+		newOffset = 0
+	}
+	return
+}
+
 func (m *listPanel) cursorUp() {
 	m.cursor, m.offset = calcCursorUp(m.cursor, m.offset)
 }
@@ -96,46 +128,24 @@ func (m *listPanel) removeItem() {
 	m.items, m.cursor = calcRemoveItem(m.items, m.cursor)
 }
 
-func (m *model) applyReloadedNotes(notes []note.Note) {
+// reloadAllNotes reloads all notes
+func (m *model) reloadAllNotes(notes []note.Note) {
+	selectedPath := m.listPanel.selectedItem().Path
 	m.listPanel.items = notes
 
-	if len(notes) == 0 {
-		m.listPanel.cursor = 0
-		m.listPanel.offset = 0
-		return
-	}
-
 	for i, n := range notes {
-		if n.Path == m.listPanel.selectedItem().Path {
+		if n.Path == selectedPath {
 			m.listPanel.cursor = i
-			m.ensureListCursorVisible()
-			return
+			break
 		}
 	}
 
-	if m.listPanel.cursor >= len(notes) {
-		m.listPanel.cursor = len(notes) - 1
-	}
-	if m.listPanel.cursor < 0 {
-		m.listPanel.cursor = 0
-	}
-	m.ensureListCursorVisible()
-}
-
-func (m *model) ensureListCursorVisible() {
-	if m.listPanel.height <= 0 {
-		m.listPanel.offset = 0
-		return
-	}
-	if m.listPanel.cursor < m.listPanel.offset {
-		m.listPanel.offset = m.listPanel.cursor
-	}
-	if m.listPanel.cursor >= m.listPanel.offset+m.listPanel.height {
-		m.listPanel.offset = m.listPanel.cursor - m.listPanel.height + 1
-	}
-	if m.listPanel.offset < 0 {
-		m.listPanel.offset = 0
-	}
+	m.listPanel.cursor, m.listPanel.offset = preserveSelectionPos(
+		m.listPanel.cursor,
+		m.listPanel.offset,
+		m.listPanel.height,
+		len(notes),
+	)
 }
 
 const layoutSidePanelRatio = 4
