@@ -2,8 +2,10 @@ package note
 
 import (
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func LoadNoteFiles(notesDir string) ([]Note, error) {
@@ -46,4 +48,31 @@ func getTitleFromFilename(filename string) string {
 
 	title := strings.Join(parts[:len(parts)-3], "-")
 	return title
+}
+
+func RenameNote(note Note, newTitle string) (Note, error) {
+	renamedNote := renameNote(note, newTitle)
+	if err := os.Rename(note.Path, renamedNote.Path); err != nil {
+		return Note{}, err
+	}
+	return renamedNote, nil
+}
+
+func renameNote(note Note, newTitle string) Note {
+	dir := filepath.Dir(note.Path)
+	stem := strings.TrimSuffix(filepath.Base(note.Path), ".md")
+	parts := strings.Split(stem, "-")
+
+	var newPath string
+	if len(parts) > 3 {
+		dateSuffix := strings.Join(parts[len(parts)-3:], "-")
+		newPath = filepath.Join(dir, newTitle+"-"+dateSuffix+".md")
+	} else {
+		newPath = filepath.Join(dir, newTitle+"-"+time.Now().Format(time.DateOnly)+".md")
+	}
+
+	return Note{
+		Title: newTitle,
+		Path:  newPath,
+	}
 }

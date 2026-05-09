@@ -22,6 +22,7 @@ const (
 	onTypingModal
 	onWarnModal
 	onFuzzyModal
+	onRenaming
 )
 
 const (
@@ -100,6 +101,7 @@ func NewModel(reg note.Registerer) (*model, error) {
 		listPanel: listPanel{
 			registerer:   reg,
 			notesUpdates: ch,
+			renameInput:  textinput.New(),
 		},
 		vp:       vp,
 		renderer: r,
@@ -147,6 +149,26 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
 		case key.Matches(msg, m.keys.listPanel.search):
 			m.toggleFuzzyModal(open)
+		case key.Matches(msg, m.keys.listPanel.renameNote):
+			if m.listPanel.selectedItem().Path != "" {
+				m.listPanel.renameInput.Reset()
+				m.listPanel.renameInput.SetValue(m.listPanel.selectedItem().Title)
+				m.listPanel.renameInput.Focus()
+				m.focus = onRenaming
+			}
+		}
+	case onRenaming:
+		switch {
+		case key.Matches(msg, m.keys.renameInput.confirm):
+			newTitle := m.listPanel.renameInput.Value()
+			m.listPanel.renameInput.Blur()
+			m.focus = onListPanel
+			cmd = renameNoteCmd(m.listPanel.selectedItem(), newTitle)
+		case key.Matches(msg, m.keys.renameInput.cancel):
+			m.listPanel.renameInput.Blur()
+			m.focus = onListPanel
+		default:
+			m.listPanel.renameInput, cmd = m.listPanel.renameInput.Update(msg)
 		}
 	case onTypingModal:
 		switch {

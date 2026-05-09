@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"github.com/muesli/reflow/truncate"
 )
@@ -14,6 +15,7 @@ type listPanel struct {
 	cursor        int
 	items         []note.Note
 	offset        int
+	renameInput   textinput.Model
 
 	// notes dir change watcher
 	registerer   note.Registerer
@@ -154,6 +156,13 @@ func (m *model) updateListPanelSize(msg tea.WindowSizeMsg) {
 	m.listPanel.width = msg.Width / layoutSidePanelRatio
 	contentHeight := msg.Height - layoutFramePadding - helpGuideHeight
 	m.listPanel.height = max(1, contentHeight)
+	m.listPanel.renameInput.SetWidth(m.listPanel.width - 4)
+	m.listPanel.cursor, m.listPanel.offset = preserveSelectionPos(
+		m.listPanel.cursor,
+		m.listPanel.offset,
+		m.listPanel.height,
+		len(m.listPanel.items),
+	)
 }
 
 func (m model) viewListPanel() string {
@@ -161,34 +170,45 @@ func (m model) viewListPanel() string {
 
 	if len(m.listPanel.items) == 0 {
 		view.WriteString("no items.")
-		if m.focus == onListPanel {
-			return m.styles.BorderActive.Render(
-				m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(view.String()))
-		}
-		return m.styles.BorderPassive.Render(
-			m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(view.String()))
+		return m.renderListPanelWithBorder(view.String())
 	}
 
 	end := min(m.listPanel.offset+m.listPanel.height, len(m.listPanel.items))
-	for i := m.listPanel.offset; i < end; i++ {
-		var title string
-		if i == m.listPanel.cursor {
-			title = "  " + m.listPanel.items[i].Title
-			title = m.styles.Cursor.Render(title)
-		} else {
-			title = "   " + m.listPanel.items[i].Title
-		}
-		title = truncate.StringWithTail(title, uint(m.listPanel.width), "…   ")
-		view.WriteString(title)
-		if i != end-1 {
+	for i, n := range m.listPanel.items[m.listPanel.offset:end] {
+		item := m.renderNoteItemLine(n)
+		view.WriteString(item)
+		if i != end-m.listPanel.offset-1 {
 			view.WriteString("\n")
 		}
 	}
 
+	return m.renderListPanelWithBorder(view.String())
+}
+
+func (m model) renderNoteItemLine(n note.Note) string {
+	if m.focus == onRenaming && n == m.listPanel.selectedItem() {
+		return "  " + m.listPanel.renameInput.View()
+	}
+
+	if n == m.listPanel.selectedItem() {
+		item := "  " + n.Title
+		item = m.styles.Cursor.Render(item)
+		item = truncate.StringWithTail(item, uint(m.listPanel.width), "…   ")
+		return item
+	}
+
+	item := "   " + n.Title
+	item = truncate.StringWithTail(item, uint(m.listPanel.width), "…   ")
+	return item
+}
+
+func (m model) renderListPanelWithBorder(content string) string {
 	if m.focus == onListPanel {
 		return m.styles.BorderActive.Render(
-			m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(view.String()))
+			m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(content),
+		)
 	}
 	return m.styles.BorderPassive.Render(
-		m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(view.String()))
+		m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(content),
+	)
 }
