@@ -1,12 +1,9 @@
 package tui
 
 import (
-	"fmt"
 	"notebox/internal/note"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -19,26 +16,16 @@ func errCmd(err error) tea.Cmd {
 	}
 }
 
-// this contains content of the note.
+// renderPreviewMsg contains rendered content of the note.
 type renderPreviewMsg string
 
-func (m model) renderPreviewCmd(path string) tea.Cmd {
+func renderPreviewCmd(renderer note.NoteRenderer, n note.Note) tea.Cmd {
 	return func() tea.Msg {
-		var content string
-		if len(m.listPanel.items) > 0 {
-			b, err := os.ReadFile(path)
-			if err != nil {
-				return errMsg(err)
-			}
-			content = string(b)
-		} else {
-			b, err := os.ReadFile(m.cfg.DummyNoteDir)
-			if err != nil {
-				return errMsg(err)
-			}
-			content = string(b)
+		rendered, err := renderer.RenderNote(n)
+		if err != nil {
+			return errMsg(err)
 		}
-		return renderPreviewMsg(string(content))
+		return renderPreviewMsg(rendered)
 	}
 }
 
@@ -46,21 +33,10 @@ func (m model) renderPreviewCmd(path string) tea.Cmd {
 type newNoteCreatedMsg note.Note
 
 func createNewNoteCmd(notesdir, title string) tea.Cmd {
-	createdTime := time.Now().Format(time.DateOnly)
 	return func() tea.Msg {
-		filename := filepath.Join(notesdir, title+"-"+createdTime+".md")
-		fp, err := os.Create(filename)
+		newNote, err := note.CreateNote(notesdir, title)
 		if err != nil {
 			return errMsg(err)
-		}
-		defer fp.Close()
-
-		content := fmt.Sprintf("# %s\n\n", title)
-		fmt.Fprint(fp, content)
-
-		newNote := note.Note{
-			Title: title,
-			Path:  filename,
 		}
 		return newNoteCreatedMsg(newNote)
 	}

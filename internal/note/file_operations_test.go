@@ -1,6 +1,9 @@
 package note
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +57,68 @@ func TestGetTitleFromFilename(t *testing.T) {
 			got := getTitleFromFilename(tt.filename)
 			if strings.Compare(got, tt.want) != 0 {
 				t.Errorf("want %s, but got %s", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestCreateNote(t *testing.T) {
+	today := time.Now().Format(time.DateOnly)
+
+	tests := []struct {
+		name        string
+		title       string
+		wantTitle   string
+		wantContent string
+	}{
+		{
+			name:        "simple title",
+			title:       "hello",
+			wantTitle:   "hello",
+			wantContent: "# hello\n\n",
+		},
+		{
+			name:        "hyphenated title",
+			title:       "my-note",
+			wantTitle:   "my-note",
+			wantContent: "# my-note\n\n",
+		},
+		{
+			name:        "multi-word hyphenated title",
+			title:       "hello-world-note",
+			wantTitle:   "hello-world-note",
+			wantContent: "# hello-world-note\n\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+
+			got, err := CreateNote(dir, tt.title)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if got.Title != tt.wantTitle {
+				t.Errorf("Title: want %q, but got %q", tt.wantTitle, got.Title)
+			}
+
+			wantPath := filepath.Join(dir, fmt.Sprintf("%s-%s.md", tt.title, today))
+			if got.Path != wantPath {
+				t.Errorf("Path: want %q, but got %q", wantPath, got.Path)
+			}
+
+			if _, err := os.Stat(got.Path); os.IsNotExist(err) {
+				t.Errorf("file does not exist: %s", got.Path)
+			}
+
+			content, err := os.ReadFile(got.Path)
+			if err != nil {
+				t.Fatalf("failed to read created file: %v", err)
+			}
+			if string(content) != tt.wantContent {
+				t.Errorf("Content: want %q, but got %q", tt.wantContent, string(content))
 			}
 		})
 	}

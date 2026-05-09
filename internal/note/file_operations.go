@@ -1,6 +1,7 @@
 package note
 
 import (
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -48,6 +49,25 @@ func getTitleFromFilename(filename string) string {
 
 	title := strings.Join(parts[:len(parts)-3], "-")
 	return title
+}
+
+func CreateNote(notesDir, title string) (Note, error) {
+	createdTime := time.Now().Format(time.DateOnly)
+
+	filename := filepath.Join(notesDir, title+"-"+createdTime+".md")
+	fp, err := os.Create(filename)
+	if err != nil {
+		return Note{}, err
+	}
+	defer fp.Close()
+
+	content := fmt.Sprintf("# %s\n\n", title)
+	fmt.Fprint(fp, content)
+
+	return Note{
+		Title: title,
+		Path:  filename,
+	}, nil
 }
 
 func RenameNote(note Note, newTitle string) (Note, error) {
