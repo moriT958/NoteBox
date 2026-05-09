@@ -1,12 +1,9 @@
 package tui
 
 import (
-	"fmt"
 	"notebox/internal/note"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -36,21 +33,10 @@ func renderPreviewCmd(renderer note.NoteRenderer, n note.Note) tea.Cmd {
 type newNoteCreatedMsg note.Note
 
 func createNewNoteCmd(notesdir, title string) tea.Cmd {
-	createdTime := time.Now().Format(time.DateOnly)
 	return func() tea.Msg {
-		filename := filepath.Join(notesdir, title+"-"+createdTime+".md")
-		fp, err := os.Create(filename)
+		newNote, err := note.CreateNote(notesdir, title)
 		if err != nil {
 			return errMsg(err)
-		}
-		defer fp.Close()
-
-		content := fmt.Sprintf("# %s\n\n", title)
-		fmt.Fprint(fp, content)
-
-		newNote := note.Note{
-			Title: title,
-			Path:  filename,
 		}
 		return newNoteCreatedMsg(newNote)
 	}
