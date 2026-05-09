@@ -2,6 +2,7 @@ package note
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/gofsnotify/fsnotify"
 )
@@ -44,12 +45,26 @@ func (r *FSNotifyRegisterer) Register(path string) (<-chan []Note, error) {
 func (r *FSNotifyRegisterer) watch(path string, ch chan<- []Note) {
 	defer close(ch)
 
+	// Debounce rapid successive events caused by editor's atomic write
+	var debounceTimer *time.Timer
+
 	for {
 		select {
 		case _, ok := <-r.Events:
 			if !ok {
 				return
 			}
+			if debounceTimer != nil {
+				debounceTimer.Stop()
+				// drain any already-fired tick to avoid a spurious reload
+				select {
+				case <-debounceTimer.C:
+				default:
+				}
+			}
+			debounceTimer = time.NewTimer(debounceDelay)
+		case <-timerC(debounceTimer):
+			debounceTimer = nil
 			notes, err := LoadNoteFiles(path)
 			if err != nil {
 				slog.Error("reload notes", slog.String("error", err.Error()))
@@ -63,4 +78,14 @@ func (r *FSNotifyRegisterer) watch(path string, ch chan<- []Note) {
 			slog.Error("fsnotify error", slog.String("error", err.Error()))
 		}
 	}
+}
+
+const debounceDelay = 100 * time.Millisecond
+
+// timerC avoids nil dereference(t.C) and disables the select case when no timer is set.
+func timerC(t *time.Timer) <-chan time.Time {
+	if t == nil {
+		return nil
+	}
+	return t.C
 }
