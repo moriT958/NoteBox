@@ -16,6 +16,7 @@ type keyMap struct {
 	typingModal modalKeyMap
 	warnModal   modalKeyMap
 	fuzzyModal  fuzzyModalKeyMap
+	renameInput modalKeyMap
 }
 
 type listPanelKeyMap struct {
@@ -145,6 +146,16 @@ func defaultKeyMap() keyMap {
 				key.WithKeys("ctrl+n", "down"),
 			),
 		},
+		renameInput: modalKeyMap{
+			confirm: key.NewBinding(
+				key.WithKeys(selectionModalConfirmKey),
+				key.WithHelp("enter", "confirm rename"),
+			),
+			cancel: key.NewBinding(
+				key.WithKeys(selectionModalCancelKey),
+				key.WithHelp("esc", "cancel"),
+			),
+		},
 	}
 }
 
@@ -183,6 +194,11 @@ func (k focusedKeyMap) ShortHelp() []key.Binding {
 			k.keys.toggleHelp,
 			k.keys.quit,
 		}
+	case onRenaming:
+		return []key.Binding{
+			k.keys.renameInput.confirm,
+			k.keys.renameInput.cancel,
+		}
 	default:
 		return []key.Binding{k.keys.toggleHelp, k.keys.quit}
 	}
@@ -202,6 +218,10 @@ func (k focusedKeyMap) FullHelp() [][]key.Binding {
 			{k.keys.previewer.halfPageUp, k.keys.previewer.halfPageDown},
 			{k.keys.previewer.focusList, k.keys.previewer.editNote},
 			{k.keys.toggleHelp, k.keys.quit},
+		}
+	case onRenaming:
+		return [][]key.Binding{
+			{k.keys.renameInput.confirm, k.keys.renameInput.cancel},
 		}
 	default:
 		return [][]key.Binding{{k.keys.toggleHelp, k.keys.quit}}

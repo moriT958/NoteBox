@@ -85,6 +85,16 @@ func deleteNoteFileCmd(path string) tea.Cmd {
 	}
 }
 
+func renameNoteCmd(n note.Note, newTitle string) tea.Cmd {
+	return func() tea.Msg {
+		_, err := note.RenameNote(n, newTitle)
+		if err != nil {
+			return errMsg(err)
+		}
+		return nil
+	}
+}
+
 type notesChangedMsg []note.Note
 
 func waitNoteChangeCmd(ch <-chan []note.Note) tea.Cmd {
