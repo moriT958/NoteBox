@@ -28,7 +28,6 @@ func (m model) viewWarnModal() string {
 	overlayY := m.height/2 - m.modalHeight/2
 
 	background := lipgloss.JoinVertical(lipgloss.Center,
-		m.viewHeader(),
 		lipgloss.JoinHorizontal(lipgloss.Left,
 			m.viewListPanel(),
 			m.viewPreviewer(),

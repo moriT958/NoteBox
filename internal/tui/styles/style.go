@@ -16,11 +16,13 @@ const (
 
 type Style struct {
 	Main          lipgloss.Style
-	Header        lipgloss.Style
 	BorderActive  lipgloss.Style
 	BorderPassive lipgloss.Style
 	Cursor        lipgloss.Style
 	Help          lipgloss.Style
+
+	ActiveColor  lipgloss.Style
+	PassiveColor lipgloss.Style
 
 	Modal ModalStyle
 }
@@ -47,9 +49,8 @@ func New(theme Theme) *Style {
 	return &Style{
 		Main: lipgloss.NewStyle(),
 
-		Header: lipgloss.NewStyle().
-			Border(lipgloss.DoubleBorder(), false, false, true, false).
-			BorderForeground(primary),
+		ActiveColor:  lipgloss.NewStyle().Foreground(active),
+		PassiveColor: lipgloss.NewStyle().Foreground(primary),
 
 		BorderActive: lipgloss.NewStyle().
 			Border(lipgloss.ThickBorder(), true, true, true, true).

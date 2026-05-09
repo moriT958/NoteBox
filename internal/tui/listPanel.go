@@ -154,9 +154,13 @@ const layoutSidePanelRatio = 4
 
 func (m *model) updateListPanelSize(msg tea.WindowSizeMsg) {
 	m.listPanel.width = msg.Width / layoutSidePanelRatio
-	contentHeight := msg.Height - layoutFramePadding - helpGuideHeight
+
+	_, borderV := m.styles.BorderPassive.GetFrameSize()
+	contentHeight := msg.Height - borderV - helpGuideHeight
+
 	m.listPanel.height = max(1, contentHeight)
 	m.listPanel.renameInput.SetWidth(m.listPanel.width - 4)
+
 	m.listPanel.cursor, m.listPanel.offset = preserveSelectionPos(
 		m.listPanel.cursor,
 		m.listPanel.offset,

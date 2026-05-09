@@ -25,8 +25,7 @@ const (
 )
 
 const (
-	layoutFramePadding = 4
-	helpGuideHeight    = 1
+	helpGuideHeight = 1
 )
 
 type model struct {
@@ -57,6 +56,10 @@ type model struct {
 	// key / help fields
 	keys keyMap
 	help help.Model
+
+	// tab bar fields
+	tabs      []string
+	activeTab int
 }
 
 func NewModel(reg note.Registerer) (*model, error) {
@@ -105,8 +108,10 @@ func NewModel(reg note.Registerer) (*model, error) {
 		fnsModal: filenameSearchModal{
 			input: textinput.New(),
 		},
-		keys: defaultKeyMap(),
-		help: help.New(),
+		keys:      defaultKeyMap(),
+		help:      help.New(),
+		tabs:      []string{"Preview", "Info"},
+		activeTab: 0,
 	}
 	return m, nil
 }
@@ -265,7 +270,6 @@ func (m model) View() tea.View {
 	default:
 		content = m.styles.Main.Render(
 			lipgloss.JoinVertical(lipgloss.Center,
-				m.viewHeader(),
 				lipgloss.JoinHorizontal(lipgloss.Top,
 					m.viewListPanel(),
 					m.viewPreviewer(),
@@ -285,11 +289,4 @@ func (m model) View() tea.View {
 	view := tea.NewView(content)
 	view.AltScreen = true
 	return view
-}
-
-func (m model) viewHeader() string {
-	return m.styles.Header.
-		Align(lipgloss.Center).
-		Width(m.width).
-		Render("📓 NoteBox 📓")
 }
