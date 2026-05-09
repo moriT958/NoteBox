@@ -19,26 +19,16 @@ func errCmd(err error) tea.Cmd {
 	}
 }
 
-// this contains content of the note.
+// renderPreviewMsg contains rendered content of the note.
 type renderPreviewMsg string
 
-func (m model) renderPreviewCmd(path string) tea.Cmd {
+func renderPreviewCmd(renderer note.NoteRenderer, n note.Note) tea.Cmd {
 	return func() tea.Msg {
-		var content string
-		if len(m.listPanel.items) > 0 {
-			b, err := os.ReadFile(path)
-			if err != nil {
-				return errMsg(err)
-			}
-			content = string(b)
-		} else {
-			b, err := os.ReadFile(m.cfg.DummyNoteDir)
-			if err != nil {
-				return errMsg(err)
-			}
-			content = string(b)
+		rendered, err := renderer.RenderNote(n)
+		if err != nil {
+			return errMsg(err)
 		}
-		return renderPreviewMsg(string(content))
+		return renderPreviewMsg(rendered)
 	}
 }
 
