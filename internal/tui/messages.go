@@ -82,3 +82,22 @@ func waitNoteChangeCmd(ch <-chan []note.Note) tea.Cmd {
 		return notesChangedMsg(notes)
 	}
 }
+
+type openNormalTabMsg tab
+
+func openNormalTabCmd(renderer note.NoteRenderer, n note.Note) tea.Cmd {
+	return func() tea.Msg {
+		rendered, err := renderer.RenderNote(n)
+		if err != nil {
+			return errMsg(err)
+		}
+
+		newTab := tab{
+			note:         n,
+			rendered:     rendered,
+			isPreviewTab: false,
+		}
+
+		return openNormalTabMsg(newTab)
+	}
+}

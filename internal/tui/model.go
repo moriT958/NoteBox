@@ -8,7 +8,6 @@ import (
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
-	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -37,8 +36,7 @@ type model struct {
 	focus         focus
 
 	// previewer fields
-	vp       viewport.Model
-	renderer note.NoteRenderer
+	previewer previewer
 
 	// modal fields
 	modalWidth  int
@@ -56,10 +54,6 @@ type model struct {
 	// key / help fields
 	keys keyMap
 	help help.Model
-
-	// tab bar fields
-	tabs      []string
-	activeTab int
 }
 
 func NewModel(reg note.Registerer) (*model, error) {
@@ -73,21 +67,15 @@ func NewModel(reg note.Registerer) (*model, error) {
 		return nil, err
 	}
 
-	r, err := note.NewGlamourRenderer(cfg.Theme)
-	if err != nil {
-		return nil, err
-	}
-
 	ch, err := reg.Register(cfg.NotesDir)
 	if err != nil {
 		return nil, err
 	}
 
-	vp := viewport.New(
-		viewport.WithWidth(0),
-		viewport.WithHeight(0),
-	)
-	vp.SetHorizontalStep(4)
+	prev, err := newPreviewer(cfg)
+	if err != nil {
+		return nil, err
+	}
 
 	m := &model{
 		cfg:         cfg,
@@ -102,16 +90,13 @@ func NewModel(reg note.Registerer) (*model, error) {
 			notesUpdates: ch,
 			renameInput:  textinput.New(),
 		},
-		vp:       vp,
-		renderer: r,
-		input:    textinput.New(),
+		previewer: *prev,
+		input:     textinput.New(),
 		fnsModal: filenameSearchModal{
 			input: textinput.New(),
 		},
-		keys:      defaultKeyMap(),
-		help:      help.New(),
-		tabs:      []string{"Preview", "Info"},
-		activeTab: 0,
+		keys: defaultKeyMap(),
+		help: help.New(),
 	}
 	return m, nil
 }
@@ -136,12 +121,15 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 		switch {
 		case key.Matches(msg, m.keys.listPanel.down):
 			m.listPanel.cursorDown()
-			return renderPreviewCmd(m.renderer, m.listPanel.selectedItem())
+			return m.previewer.previewNote(m.listPanel.selectedItem())
 		case key.Matches(msg, m.keys.listPanel.up):
 			m.listPanel.cursorUp()
-			return renderPreviewCmd(m.renderer, m.listPanel.selectedItem())
+			return m.previewer.previewNote(m.listPanel.selectedItem())
 		case key.Matches(msg, m.keys.listPanel.newNote):
 			m.toggleTypingModal(open)
+		case key.Matches(msg, m.keys.listPanel.openTab):
+			m.focus = onPreviewer
+			return openNormalTabCmd(m.previewer.renderer, m.listPanel.selectedItem())
 		case key.Matches(msg, m.keys.listPanel.focusPreview):
 			m.focus = onPreviewer
 		case key.Matches(msg, m.keys.listPanel.deleteNote):
@@ -187,8 +175,10 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 			m.focus = onListPanel
 		case key.Matches(msg, m.keys.previewer.editNote):
 			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
+		case key.Matches(msg, m.keys.listPanel.openTab):
+			return openNormalTabCmd(m.previewer.renderer, m.listPanel.selectedItem())
 		default:
-			m.vp, cmd = m.vp.Update(msg)
+			m.previewer.vp, cmd = m.previewer.vp.Update(msg)
 		}
 	case onWarnModal:
 		switch {
@@ -201,7 +191,7 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 			// the order may lead to unexpected behavior.
 			cmds = append(cmds, deleteNoteFileCmd(m.listPanel.selectedItem().Path))
 			m.listPanel.removeItem()
-			cmds = append(cmds, renderPreviewCmd(m.renderer, m.listPanel.selectedItem()))
+			cmds = append(cmds, renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem()))
 			cmd = tea.Batch(cmds...)
 		case key.Matches(msg, m.keys.warnModal.cancel):
 			m.toggleWarnModal(shut)
@@ -211,7 +201,7 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 		case key.Matches(msg, m.keys.fuzzyModal.confirm):
 			m.selectFromFuzzy()
 			m.toggleFuzzyModal(shut)
-			return renderPreviewCmd(m.renderer, m.listPanel.selectedItem())
+			return m.previewer.previewNote(m.listPanel.selectedItem())
 		case key.Matches(msg, m.keys.fuzzyModal.cancel):
 			m.toggleFuzzyModal(shut)
 		case key.Matches(msg, m.keys.fuzzyModal.down):
@@ -237,21 +227,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateTypingModalSize(msg)
 		m.updateFuzzyModalSize(msg)
 		m.help.SetWidth(msg.Width)
-		cmd = renderPreviewCmd(m.renderer, m.listPanel.selectedItem())
+		cmd = renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem())
 	case tea.KeyPressMsg:
 		cmd = m.handleKeyMsg(msg)
 	case renderPreviewMsg:
-		cmd = m.updatePreviewerContent(msg)
+		m.updatePreviewerContent(msg)
 	case newNoteCreatedMsg:
 		m.listPanel.addItem(note.Note(msg))
-		cmd = renderPreviewCmd(m.renderer, m.listPanel.selectedItem())
+		cmd = renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem())
+	case openNormalTabMsg:
+		m.previewer.openTab(msg)
 	case notesChangedMsg:
 		m.reloadAllNotes([]note.Note(msg))
 		if m.focus == onFuzzyModal {
 			m.fnsModal.allItems = m.listPanel.items
 			m.fnsModal.filter(m.fnsModal.input.Value())
 		}
-		cmd = tea.Batch(waitNoteChangeCmd(m.listPanel.notesUpdates), renderPreviewCmd(m.renderer, m.listPanel.selectedItem()))
+		cmd = tea.Batch(waitNoteChangeCmd(m.listPanel.notesUpdates), renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem()))
 	}
 
 	return m, cmd
@@ -288,5 +280,6 @@ func (m model) View() tea.View {
 
 	view := tea.NewView(content)
 	view.AltScreen = true
+	view.WindowTitle = "Note Box"
 	return view
 }

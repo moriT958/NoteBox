@@ -150,10 +150,10 @@ func (m *model) reloadAllNotes(notes []note.Note) {
 	)
 }
 
-const layoutSidePanelRatio = 4
+const layoutListPanelRatio = 4
 
 func (m *model) updateListPanelSize(msg tea.WindowSizeMsg) {
-	m.listPanel.width = msg.Width / layoutSidePanelRatio
+	m.listPanel.width = msg.Width / layoutListPanelRatio
 
 	_, borderV := m.styles.BorderPassive.GetFrameSize()
 	contentHeight := msg.Height - borderV - helpGuideHeight

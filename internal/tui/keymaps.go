@@ -23,6 +23,7 @@ type listPanelKeyMap struct {
 	up           key.Binding
 	down         key.Binding
 	newNote      key.Binding
+	openTab      key.Binding
 	focusPreview key.Binding
 	renameNote   key.Binding
 	deleteNote   key.Binding
@@ -35,6 +36,7 @@ type previewerKeyMap struct {
 	editNote     key.Binding
 	up           key.Binding
 	down         key.Binding
+	openTab      key.Binding
 	halfPageUp   key.Binding
 	halfPageDown key.Binding
 }
@@ -81,6 +83,10 @@ func defaultKeyMap() keyMap {
 				key.WithKeys("n"),
 				key.WithHelp("n", "new"),
 			),
+			openTab: key.NewBinding(
+				key.WithKeys("enter"),
+				key.WithHelp("enter", "open tab"),
+			),
 			focusPreview: key.NewBinding(
 				key.WithKeys("right", "l"),
 				key.WithHelp("→/l", "preview"),
@@ -111,8 +117,12 @@ func defaultKeyMap() keyMap {
 				key.WithKeys("e"),
 				key.WithHelp("e", "edit"),
 			),
-			up:           vpKeys.Up,
-			down:         vpKeys.Down,
+			up:   vpKeys.Up,
+			down: vpKeys.Down,
+			openTab: key.NewBinding(
+				key.WithKeys("enter"),
+				key.WithHelp("enter", "open tab"),
+			),
 			halfPageUp:   vpKeys.HalfPageUp,
 			halfPageDown: vpKeys.HalfPageDown,
 		},
@@ -177,6 +187,7 @@ func (k focusedKeyMap) ShortHelp() []key.Binding {
 			k.keys.listPanel.up,
 			k.keys.listPanel.down,
 			k.keys.listPanel.newNote,
+			k.keys.listPanel.openTab,
 			k.keys.listPanel.renameNote,
 			k.keys.listPanel.deleteNote,
 			k.keys.listPanel.search,
@@ -209,12 +220,12 @@ func (k focusedKeyMap) FullHelp() [][]key.Binding {
 	case onListPanel:
 		return [][]key.Binding{
 			{k.keys.listPanel.up, k.keys.listPanel.down, k.keys.listPanel.focusPreview},
-			{k.keys.listPanel.newNote, k.keys.listPanel.renameNote, k.keys.listPanel.deleteNote, k.keys.listPanel.editNote, k.keys.listPanel.search},
+			{k.keys.listPanel.newNote, k.keys.listPanel.openTab, k.keys.listPanel.renameNote, k.keys.listPanel.deleteNote, k.keys.listPanel.editNote, k.keys.listPanel.search},
 			{k.keys.toggleHelp, k.keys.quit},
 		}
 	case onPreviewer:
 		return [][]key.Binding{
-			{k.keys.previewer.up, k.keys.previewer.down},
+			{k.keys.previewer.up, k.keys.previewer.down, k.keys.previewer.openTab},
 			{k.keys.previewer.halfPageUp, k.keys.previewer.halfPageDown},
 			{k.keys.previewer.focusList, k.keys.previewer.editNote},
 			{k.keys.toggleHelp, k.keys.quit},
