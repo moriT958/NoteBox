@@ -3,6 +3,9 @@ package tui
 import (
 	"notebox/internal/config"
 	"notebox/internal/note"
+	"notebox/internal/tui/styles"
+	"slices"
+	"strings"
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -233,7 +236,6 @@ func (m model) viewPreviewer() string {
 		frameStyle lipgloss.Style
 		border     lipgloss.Style
 	)
-
 	if m.focus == onPreviewer {
 		tabStyles = m.styles.TabBarFocused
 		frameStyle = m.styles.ActiveColor
@@ -251,33 +253,183 @@ func (m model) viewPreviewer() string {
 	return lipgloss.JoinVertical(lipgloss.Left, tabBar, viewPort)
 }
 
-func (p previewer) calcLastTabWidth() int {
-	tabCount := len(p.tabs)
-	tabBarWidth := tabCount * maxTabWidth
-	if tabBarWidth > p.width {
-		truncateWidth := tabBarWidth - p.width
-		return maxTabWidth - truncateWidth
+// TODO: Refactor this function.
+// renderTabBar draws a 3-row tab bar.
+// The bottom row (connector) doubles as the viewport's top edge:
+// it uses ┻/┣/┫ where non-active tab edges meet the frame, and ┛/┗ around the active tab so its bottom opens into the viewport.
+func (p previewer) renderTabBar(tabStyles styles.TabBarStyles, frameStyle lipgloss.Style) string {
+	// Total visual width includes the viewport's left/right borders, because
+	// the connector row spans the full frame width.
+	W := p.width + 2
+	if W < 2 {
+		return ""
 	}
-	return maxTabWidth
+
+	emptyBar := func() string {
+		blank := strings.Repeat(" ", W)
+		top := frameStyle.Render("┏" + strings.Repeat("━", W-2) + "┓")
+		return strings.Join([]string{blank, blank, top}, "\n")
+	}
+
+	if len(p.tabs) == 0 {
+		return emptyBar()
+	}
+
+	type layout struct {
+		start, width    int
+		active, preview bool
+		label           string
+	}
+
+	// Pass 1: figure out which tabs are visible and where they sit.
+	// Tabs are flush so adjacent borders read as ┓┏ / ┃┃ / ┻┻ (or ┗┻ etc.
+	// around the active tab).
+	var visible []layout
+	pos := 0
+	for i := p.offset; i < len(p.tabs); i++ {
+		t := p.tabs[i]
+		rem := W - pos
+		if rem < minTabWidth {
+			break
+		}
+		tabW := min(maxTabWidth, rem)
+		visible = append(visible, layout{
+			start:   pos,
+			width:   tabW,
+			active:  i == p.activeTab,
+			preview: t.isPreviewTab,
+			label:   t.note.Title,
+		})
+		pos += tabW
+	}
+
+	if len(visible) == 0 {
+		return emptyBar()
+	}
+
+	var top, lab, conn strings.Builder
+	cursor := 0
+
+	for vi, b := range visible {
+		// Fill gap (rendered with frame color since the connector is frame).
+		if b.start > cursor {
+			gapW := b.start - cursor
+			top.WriteString(strings.Repeat(" ", gapW))
+			lab.WriteString(strings.Repeat(" ", gapW))
+			conn.WriteString(frameStyle.Render(strings.Repeat("━", gapW)))
+		}
+
+		var ts lipgloss.Style
+		switch {
+		case b.active && b.preview:
+			ts = tabStyles.ActivePreview
+		case b.active:
+			ts = tabStyles.Active
+		case b.preview:
+			ts = tabStyles.InactivePreview
+		default:
+			ts = tabStyles.Inactive
+		}
+
+		// Row 0: ┏━...━┓
+		top.WriteString(ts.Render("┏" + strings.Repeat("━", b.width-2) + "┓"))
+
+		// Row 1: ┃ <label padded> ┃
+		innerW := b.width - 2
+		labelText := " " + truncateTabLabel(b.label, innerW-1)
+		if lw := runewidth.StringWidth(labelText); lw < innerW {
+			labelText += strings.Repeat(" ", innerW-lw)
+		}
+		lab.WriteString(ts.Render("┃" + labelText + "┃"))
+
+		// Row 2: connector — corners depend on adjacency to outer frame.
+		isFirst := vi == 0
+		isLast := vi == len(visible)-1
+		atLeft := b.start == 0
+		atRight := b.start+b.width == W
+
+		var left, right, inside string
+		if b.active {
+			inside = strings.Repeat(" ", b.width-2)
+			if isFirst && atLeft {
+				// active tab shares the outer left frame
+				left = "┃"
+			} else {
+				left = "┛"
+			}
+			if isLast && atRight {
+				right = "┃"
+			} else {
+				right = "┗"
+			}
+		} else {
+			inside = strings.Repeat("━", b.width-2)
+			if isFirst && atLeft {
+				left = "┣"
+			} else {
+				left = "┻"
+			}
+			if isLast && atRight {
+				right = "┫"
+			} else {
+				right = "┻"
+			}
+		}
+		// The connector row is logically the viewport's top edge, so colour it
+		// with the frame style regardless of the tab's own colour.
+		conn.WriteString(frameStyle.Render(left + inside + right))
+
+		cursor = b.start + b.width
+	}
+
+	// Fill remainder to the right of the last tab. The very last column closes
+	// the viewport's top-right corner with ┓.
+	if cursor < W {
+		remW := W - cursor
+		top.WriteString(strings.Repeat(" ", remW))
+		lab.WriteString(strings.Repeat(" ", remW))
+		if remW == 1 {
+			conn.WriteString(frameStyle.Render("┓"))
+		} else {
+			conn.WriteString(frameStyle.Render(strings.Repeat("━", remW-1) + "┓"))
+		}
+	}
+
+	return strings.Join([]string{top.String(), lab.String(), conn.String()}, "\n")
 }
 
-func (p previewer) isActive(t tab) bool { return t == *p.tabs[p.activeTab] }
-
-func (p previewer) renderTabBar(style styles.TabBarStyles) string {
-}
-
+// truncateTabLabel returns a string whose visual width does not exceed max tab width.
 func truncateTabLabel(label string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+
+	if runewidth.StringWidth(label) <= max {
+		return label
+	}
+
+	const ellipsis = ".."
+	const ellipsisWidth = 2
+
+	// not enough space to append ".."
+	if max < ellipsisWidth {
+		return truncateString(label, max)
+	}
+
+	return truncateString(label, max-ellipsisWidth) + ellipsis
+}
+
+// truncateString truncates to the specified width
+func truncateString(str string, limit int) string {
 	width := 0
 	result := []rune{}
-
-	for _, r := range label {
+	for _, r := range str {
 		rw := runewidth.RuneWidth(r)
-		if width+rw > max {
-			return string(result) + ".."
+		if width+rw > limit {
+			break
 		}
 		width += rw
 		result = append(result, r)
 	}
-
-	return label
+	return string(result)
 }
