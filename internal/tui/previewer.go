@@ -18,6 +18,8 @@ type previewer struct {
 	tabs []*tab
 	// currently active tab index
 	activeTab int
+	// tab scroll offset: index of the first visible tab
+	offset int
 }
 
 type tab struct {
@@ -44,13 +46,14 @@ func newPreviewer(cfg *config.Config) (*previewer, error) {
 		renderer:  r,
 		tabs:      []*tab{},
 		activeTab: 0,
+		offset:    0,
 	}, nil
 }
 
 const (
-	// this all includes border size
-	// tabBarHeight = border_top(1) + border_bottom(0) + inner(1)
-	tabBarHeight = 2
+	// tabBarHeight = top_border(1) + label(1) + connector_border(1)
+	// the connector row also serves as the viewport's top border
+	tabBarHeight = 3
 	// maxTabWidth = border_side(2) + inner(18)
 	maxTabWidth = 20
 	// minTabWidth = border_side(2) + inner(4)
@@ -58,11 +61,11 @@ const (
 )
 
 func (m *model) updatePreviewerSize(msg tea.WindowSizeMsg) {
-	borderH, borderV := m.styles.BorderPassive.GetFrameSize()
+	borderH, _ := m.styles.BorderPassive.GetFrameSize()
 
 	sidePanelWidth := msg.Width / layoutListPanelRatio
 	contentWidth := msg.Width - sidePanelWidth - borderH*2
-	contentHeight := msg.Height - borderV - helpGuideHeight - tabBarHeight
+	contentHeight := msg.Height - helpGuideHeight - tabBarHeight - 1 // 1 is the connector height
 
 	m.previewer.width = contentWidth
 	m.previewer.height = max(1, contentHeight)
@@ -105,7 +108,7 @@ func (p *previewer) setPreviewTab(prevTab *tab) {
 
 // previewNote sets rendered note content on previewer.
 func (p *previewer) previewNote(note note.Note) tea.Cmd {
-	// If already exist	in tabs cache, activate it.
+	// If already exist in tabs cache, activate it.
 	for i, t := range p.tabs {
 		if !t.isPreviewTab && t.note.Path == note.Path {
 			p.activeTab = i
@@ -114,38 +117,137 @@ func (p *previewer) previewNote(note note.Note) tea.Cmd {
 			return nil
 		}
 	}
-	// If not exsist in tabs cache, then fire rendering job.
+	// If not exist in tabs cache, then fire rendering job.
 	return renderPreviewCmd(p.renderer, note)
 }
 
-// openTab opens selected note on previewer.
+// openTab promotes the current preview tab (or adds) to a normal tab.
 func (p *previewer) openTab(msg openNormalTabMsg) {
 	msg.isPreviewTab = false
 	p.tabs[p.activeTab] = (*tab)(&msg)
 }
 
-/*
- * TODO: ↓ All WIP
- */
+// updateViewportContent updates the viewport content to match the active tab.
+func (p *previewer) updateViewportContent() {
+	if len(p.tabs) == 0 {
+		return
+	}
+	p.vp.SetContent(p.tabs[p.activeTab].rendered)
+	p.vp.GotoTop()
+}
+
+// closeTab removes the currently active tab and updates activeTab/offset.
+// At least one tab is always kept regardless of preview/normal status.
+func (p *previewer) closeTab() {
+	if len(p.tabs) <= 1 {
+		return
+	}
+	p.tabs = slices.Delete(p.tabs, p.activeTab, p.activeTab+1)
+	if p.activeTab >= len(p.tabs) {
+		p.activeTab = len(p.tabs) - 1
+	}
+	p.adjustOffset()
+	p.updateViewportContent()
+}
+
+// removeTabByPath removes a tab whose note matches the given path.
+func (p *previewer) removeTabByPath(path string) {
+	for i, t := range p.tabs {
+		if t.note.Path == path {
+			p.tabs = slices.Delete(p.tabs, i, i+1)
+			if p.activeTab >= len(p.tabs) && p.activeTab > 0 {
+				p.activeTab--
+			}
+			p.adjustOffset()
+			p.updateViewportContent()
+			return
+		}
+	}
+}
+
+// nextTab moves the active tab one step to the right (wraps around).
+func (p *previewer) nextTab() {
+	if len(p.tabs) == 0 {
+		return
+	}
+	p.activeTab = (p.activeTab + 1) % len(p.tabs)
+	p.adjustOffset()
+	p.updateViewportContent()
+}
+
+// prevTab moves the active tab one step to the left (wraps around).
+func (p *previewer) prevTab() {
+	if len(p.tabs) == 0 {
+		return
+	}
+	p.activeTab = (p.activeTab - 1 + len(p.tabs)) % len(p.tabs)
+	p.adjustOffset()
+	p.updateViewportContent()
+}
+
+// adjustOffset ensures the active tab is within the visible range.
+func (p *previewer) adjustOffset() {
+	n := len(p.tabs)
+	if n == 0 || p.width == 0 {
+		p.offset = 0
+		return
+	}
+
+	if p.activeTab < p.offset {
+		p.offset = p.activeTab
+		return
+	}
+
+	// Find the last visible tab index from current offset.
+	usedW := 0
+	lastVisible := p.offset
+	for i := p.offset; i < n; i++ {
+		rem := p.width - usedW
+		if rem < minTabWidth {
+			break
+		}
+		usedW += min(maxTabWidth, rem)
+		lastVisible = i
+	}
+
+	if p.activeTab <= lastVisible {
+		return
+	}
+
+	// Active tab is beyond visible range: find offset from the right.
+	usedW = 0
+	p.offset = p.activeTab
+	for j := p.activeTab; j >= 0; j-- {
+		usedW += maxTabWidth
+		if usedW > p.width {
+			p.offset = j + 1
+			break
+		}
+		p.offset = j
+	}
+}
 
 func (m model) viewPreviewer() string {
 	var (
-		tabBar   string
-		viewPort string
+		tabStyles  styles.TabBarStyles
+		frameStyle lipgloss.Style
+		border     lipgloss.Style
 	)
 
 	if m.focus == onPreviewer {
-		tabBar = m.previewer.renderTabBar(m.styles.TabBarFocused)
-		viewPort = m.styles.BorderActive.UnsetBorderTop().Render(
-			m.styles.Sized(m.previewer.width, m.previewer.height).Render(m.previewer.vp.View()),
-		)
+		tabStyles = m.styles.TabBarFocused
+		frameStyle = m.styles.ActiveColor
+		border = m.styles.BorderActive
 	} else {
-		tabBar = m.previewer.renderTabBar(m.styles.TabBarUnforcused)
-		viewPort = m.styles.BorderPassive.UnsetBorderTop().Render(
-			m.styles.Sized(m.previewer.width, m.previewer.height).Render(m.previewer.vp.View()),
-		)
+		tabStyles = m.styles.TabBarUnforcused
+		frameStyle = m.styles.PassiveColor
+		border = m.styles.BorderPassive
 	}
 
+	tabBar := m.previewer.renderTabBar(tabStyles, frameStyle)
+	viewPort := border.UnsetBorderTop().Render(
+		m.styles.Sized(m.previewer.width, m.previewer.height).Render(m.previewer.vp.View()),
+	)
 	return lipgloss.JoinVertical(lipgloss.Left, tabBar, viewPort)
 }
 

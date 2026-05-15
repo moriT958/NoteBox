@@ -175,8 +175,14 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 			m.focus = onListPanel
 		case key.Matches(msg, m.keys.previewer.editNote):
 			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
-		case key.Matches(msg, m.keys.listPanel.openTab):
+		case key.Matches(msg, m.keys.previewer.openTab):
 			return openNormalTabCmd(m.previewer.renderer, m.listPanel.selectedItem())
+		case key.Matches(msg, m.keys.previewer.closeTab):
+			m.previewer.closeTab()
+		case key.Matches(msg, m.keys.previewer.nextTab):
+			m.previewer.nextTab()
+		case key.Matches(msg, m.keys.previewer.prevTab):
+			m.previewer.prevTab()
 		default:
 			m.previewer.vp, cmd = m.previewer.vp.Update(msg)
 		}
@@ -189,8 +195,10 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 			// Do not change the execution order of deleteNotefileCmd, removeItem and renderPreviewCmd.
 			// Because the cursor value is modified within removeItem, and altering
 			// the order may lead to unexpected behavior.
-			cmds = append(cmds, deleteNoteFileCmd(m.listPanel.selectedItem().Path))
+			deletedPath := m.listPanel.selectedItem().Path
+			cmds = append(cmds, deleteNoteFileCmd(deletedPath))
 			m.listPanel.removeItem()
+			m.previewer.removeTabByPath(deletedPath)
 			cmds = append(cmds, renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem()))
 			cmd = tea.Batch(cmds...)
 		case key.Matches(msg, m.keys.warnModal.cancel):
