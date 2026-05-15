@@ -14,6 +14,13 @@ const (
 	LightTheme
 )
 
+type TabBarStyles struct {
+	Active          lipgloss.Style
+	Inactive        lipgloss.Style
+	ActivePreview   lipgloss.Style
+	InactivePreview lipgloss.Style
+}
+
 type Style struct {
 	Main          lipgloss.Style
 	BorderActive  lipgloss.Style
@@ -23,6 +30,9 @@ type Style struct {
 
 	ActiveColor  lipgloss.Style
 	PassiveColor lipgloss.Style
+
+	TabBarFocused    TabBarStyles
+	TabBarUnforcused TabBarStyles
 
 	Modal ModalStyle
 }
@@ -65,6 +75,20 @@ func New(theme Theme) *Style {
 		Help: lipgloss.NewStyle().
 			Align(lipgloss.Left).
 			PaddingLeft(1),
+
+		TabBarFocused: TabBarStyles{
+			Active:          lipgloss.NewStyle().Foreground(active).Bold(true),
+			Inactive:        lipgloss.NewStyle().Foreground(active),
+			ActivePreview:   lipgloss.NewStyle().Foreground(active).Bold(true).Italic(true),
+			InactivePreview: lipgloss.NewStyle().Foreground(active).Italic(true),
+		},
+
+		TabBarUnforcused: TabBarStyles{
+			Active:          lipgloss.NewStyle().Foreground(primary).Bold(true),
+			Inactive:        lipgloss.NewStyle().Foreground(primary),
+			ActivePreview:   lipgloss.NewStyle().Foreground(primary).Bold(true).Italic(true),
+			InactivePreview: lipgloss.NewStyle().Foreground(primary).Italic(true),
+		},
 
 		Modal: ModalStyle{
 			Centered: lipgloss.NewStyle().
