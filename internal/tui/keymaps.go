@@ -37,6 +37,9 @@ type previewerKeyMap struct {
 	up           key.Binding
 	down         key.Binding
 	openTab      key.Binding
+	closeTab     key.Binding
+	nextTab      key.Binding
+	prevTab      key.Binding
 	halfPageUp   key.Binding
 	halfPageDown key.Binding
 }
@@ -122,6 +125,18 @@ func defaultKeyMap() keyMap {
 			openTab: key.NewBinding(
 				key.WithKeys("enter"),
 				key.WithHelp("enter", "open tab"),
+			),
+			closeTab: key.NewBinding(
+				key.WithKeys("w"),
+				key.WithHelp("w", "close tab"),
+			),
+			nextTab: key.NewBinding(
+				key.WithKeys("tab"),
+				key.WithHelp("tab", "next tab"),
+			),
+			prevTab: key.NewBinding(
+				key.WithKeys("shift+tab"),
+				key.WithHelp("shift+tab", "prev tab"),
 			),
 			halfPageUp:   vpKeys.HalfPageUp,
 			halfPageDown: vpKeys.HalfPageDown,
