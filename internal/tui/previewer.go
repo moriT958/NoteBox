@@ -101,12 +101,14 @@ func (p *previewer) setPreviewTab(prevTab *tab) {
 		if t.isPreviewTab {
 			p.tabs[i] = prevTab
 			p.activeTab = i
+			p.adjustOffset()
 			return
 		}
 	}
 
 	p.tabs = append(p.tabs, prevTab)
 	p.activeTab = len(p.tabs) - 1
+	p.adjustOffset()
 }
 
 // previewNote sets rendered note content on previewer.
@@ -115,6 +117,7 @@ func (p *previewer) previewNote(note note.Note) tea.Cmd {
 	for i, t := range p.tabs {
 		if !t.isPreviewTab && t.note.Path == note.Path {
 			p.activeTab = i
+			p.adjustOffset()
 			p.vp.SetContent(p.tabs[i].rendered)
 			p.vp.GotoTop()
 			return nil
@@ -188,7 +191,9 @@ func (p *previewer) prevTab() {
 	p.updateViewportContent()
 }
 
-// adjustOffset ensures the active tab is within the visible range.
+// TODO: Refactor this.
+// adjustOffset ensures the active tab is within the visible range,
+// and reduces offset when tabs fit into a smaller window (e.g. after deletion).
 func (p *previewer) adjustOffset() {
 	n := len(p.tabs)
 	if n == 0 || p.width == 0 {
@@ -198,7 +203,6 @@ func (p *previewer) adjustOffset() {
 
 	if p.activeTab < p.offset {
 		p.offset = p.activeTab
-		return
 	}
 
 	// Find the last visible tab index from current offset.
@@ -213,20 +217,36 @@ func (p *previewer) adjustOffset() {
 		lastVisible = i
 	}
 
-	if p.activeTab <= lastVisible {
+	if p.activeTab > lastVisible {
+		// Active tab is beyond visible range: find offset from the right.
+		usedW = 0
+		p.offset = p.activeTab
+		for j := p.activeTab; j >= 0; j-- {
+			usedW += maxTabWidth
+			if usedW > p.width {
+				p.offset = j + 1
+				break
+			}
+			p.offset = j
+		}
 		return
 	}
 
-	// Active tab is beyond visible range: find offset from the right.
-	usedW = 0
-	p.offset = p.activeTab
-	for j := p.activeTab; j >= 0; j-- {
-		usedW += maxTabWidth
-		if usedW > p.width {
-			p.offset = j + 1
-			break
+	// Active tab is visible. Reclaim space on the left: find the minimum offset
+	// that still keeps the last tab visible (handles tab deletion shrinking the list).
+	if lastVisible == n-1 && p.offset > 0 {
+		usedW = 0
+		newOffset := n - 1
+		for j := n - 1; j >= 0; j-- {
+			if usedW+maxTabWidth > p.width {
+				break
+			}
+			usedW += maxTabWidth
+			newOffset = j
 		}
-		p.offset = j
+		if newOffset < p.offset {
+			p.offset = newOffset
+		}
 	}
 }
 
