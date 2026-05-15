@@ -44,7 +44,6 @@ func (m model) viewTypingModal() string {
 	modal = m.styles.BorderActive.Render(modal)
 
 	background := lipgloss.JoinVertical(lipgloss.Center,
-		m.viewHeader(),
 		lipgloss.JoinHorizontal(lipgloss.Left,
 			m.viewListPanel(),
 			m.viewPreviewer(),
