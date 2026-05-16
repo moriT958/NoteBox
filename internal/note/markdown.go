@@ -2,6 +2,7 @@ package note
 
 import (
 	"os"
+	"sync"
 
 	"charm.land/glamour/v2"
 	"charm.land/glamour/v2/styles"
@@ -12,10 +13,11 @@ type NoteRenderer interface {
 }
 
 type GlamourRenderer struct {
+	mu sync.Mutex
 	*glamour.TermRenderer
 }
 
-func NewGlamourRenderer(theme string) (GlamourRenderer, error) {
+func NewGlamourRenderer(theme string) (*GlamourRenderer, error) {
 	glamourTheme := styles.DarkStyle
 	if theme == "light" {
 		glamourTheme = styles.LightStyle
@@ -26,12 +28,12 @@ func NewGlamourRenderer(theme string) (GlamourRenderer, error) {
 		glamour.WithWordWrap(0),
 	)
 	if err != nil {
-		return GlamourRenderer{}, err
+		return nil, err
 	}
-	return GlamourRenderer{TermRenderer: r}, nil
+	return &GlamourRenderer{TermRenderer: r}, nil
 }
 
-func (g GlamourRenderer) RenderNote(n Note) (string, error) {
+func (g *GlamourRenderer) RenderNote(n Note) (string, error) {
 	if n == (Note{}) {
 		return "(( No Content ))", nil
 	}
@@ -41,5 +43,7 @@ func (g GlamourRenderer) RenderNote(n Note) (string, error) {
 		return "", err
 	}
 
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	return g.TermRenderer.Render(string(b))
 }
