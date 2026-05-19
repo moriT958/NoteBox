@@ -3,10 +3,9 @@
 version: "3"
 
 tasks:
-  run:
-    desc: Run the TUI
-    cmds:
-      - go run cmd/notebox/main.go
+  dev:
+    desc: Run the TUI app in development mode
+    cmd: APP_ENV=development go run ./cmd/notebox/
 
   build:
     desc: Build the TUI
