@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"context"
+	"fmt"
 	"notebox/internal/config"
 	"notebox/internal/note"
 	"notebox/internal/tui/styles"
@@ -31,6 +33,8 @@ type model struct {
 	cfg    *config.Config
 	styles *styles.Style
 
+	currentBox note.Box
+
 	// main model fields
 	width, height int
 	focus         focus
@@ -56,7 +60,7 @@ type model struct {
 	help help.Model
 }
 
-func NewModel(reg note.Registerer) (*model, error) {
+func NewModel(reg note.Registerer, br note.BoxRepository) (*model, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, err
@@ -67,7 +71,12 @@ func NewModel(reg note.Registerer) (*model, error) {
 		return nil, err
 	}
 
-	ch, err := reg.Register(cfg.NotesDir)
+	curBox, err := newBox(br)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize box: %w", err)
+	}
+
+	ch, err := reg.Register(curBox.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +89,7 @@ func NewModel(reg note.Registerer) (*model, error) {
 	m := &model{
 		cfg:         cfg,
 		styles:      styles.New(theme),
+		currentBox:  curBox,
 		width:       0,
 		height:      0,
 		modalWidth:  60,
@@ -99,6 +109,31 @@ func NewModel(reg note.Registerer) (*model, error) {
 		help: help.New(),
 	}
 	return m, nil
+}
+
+func newBox(br note.BoxRepository) (note.Box, error) {
+	ctx := context.Background()
+	boxes, err := br.FindAll(ctx)
+	if err != nil {
+		return note.Box{}, err
+	}
+
+	var b note.Box
+	if len(boxes) == 0 {
+		defaultPath, err := config.DefaultNotesDir()
+		if err != nil {
+			return note.Box{}, err
+		}
+
+		b, err = br.CreateBox(ctx, note.Box{Title: "Default", Path: defaultPath})
+		if err != nil {
+			return note.Box{}, err
+		}
+	} else {
+		b = boxes[0]
+	}
+
+	return b, nil
 }
 
 func (m model) Init() tea.Cmd {
@@ -163,7 +198,7 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 		switch {
 		case key.Matches(msg, m.keys.typingModal.confirm):
 			m.toggleTypingModal(shut)
-			cmd = createNewNoteCmd(m.cfg.NotesDir, m.input.Value())
+			cmd = createNewNoteCmd(m.currentBox.Path, m.input.Value())
 		case key.Matches(msg, m.keys.typingModal.cancel):
 			m.toggleTypingModal(shut)
 		default:

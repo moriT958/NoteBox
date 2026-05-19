@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"notebox/internal/cli"
 	"notebox/internal/config"
+	"notebox/internal/database"
 	"notebox/internal/logger"
 	"notebox/internal/note"
 	"notebox/internal/tui"
@@ -24,7 +25,17 @@ func main() {
 		}
 		defer reg.Close()
 
-		m, err := tui.NewModel(reg)
+		// initialize DB and run migrations
+		db, err := database.NewSQLiteDB()
+		if err != nil {
+			slog.Error("failed to initialize database", "error", err)
+			os.Exit(1)
+		}
+		defer db.Close()
+
+		boxRepo := database.NewBoxRepository(db)
+
+		m, err := tui.NewModel(reg, boxRepo)
 		if err != nil {
 			slog.Error("failed to initialize bubbletea model", "error", err)
 			os.Exit(1)

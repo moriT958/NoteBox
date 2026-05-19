@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +24,6 @@ var (
 
 type Config struct {
 	Editor       string `json:"editor"`
-	NotesDir     string `json:"notesdir"`
 	Theme        string `json:"theme"`
 	DummyNoteDir string `json:"-"`
 }
@@ -83,24 +81,13 @@ func loadConfig() (*Config, error) {
 }
 
 func defaultConfig() *Config {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		slog.Error("failed to load default config", slog.String("error", err.Error()))
-		return nil
-	}
-
 	return &Config{
-		Editor:   DefaultEditor,
-		NotesDir: filepath.Join(home, AppDirName, NotesDirName),
-		Theme:    defaultTheme,
+		Editor: DefaultEditor,
+		Theme:  defaultTheme,
 	}
 }
 
 func ensureDirectoriesAndFiles(cfg *Config) error {
-	if err := os.MkdirAll(cfg.NotesDir, 0755); err != nil {
-		return fmt.Errorf("failed to create notes dir: %v", err)
-	}
-
 	fp, err := os.Create(cfg.DummyNoteDir)
 	if err != nil {
 		return fmt.Errorf("failed to create dummy note: %v", err)
@@ -109,4 +96,17 @@ func ensureDirectoriesAndFiles(cfg *Config) error {
 	fmt.Fprint(fp, DummyNoteContent)
 
 	return nil
+}
+
+// DefaultNotesDir returns the default path for the notes directory.
+func DefaultNotesDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(home, AppDirName, NotesDirName)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create notes dir: %v", err)
+	}
+	return dir, nil
 }
