@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"notebox/internal/utils"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +38,11 @@ func GetConfig() (*Config, error) {
 }
 
 func loadConfig() (*Config, error) {
-	filename := filepath.Join(utils.HomeDir(), AppDirName, ConfigFileName)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	filename := filepath.Join(home, AppDirName, ConfigFileName)
 
 	// Create default setting file if not exist.
 	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
@@ -67,7 +71,7 @@ func loadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to decode config file: %v", err)
 	}
 
-	cfg.DummyNoteDir = filepath.Join(utils.HomeDir(), AppDirName, DummyFileName)
+	cfg.DummyNoteDir = filepath.Join(home, AppDirName, DummyFileName)
 
 	if err := ensureDirectoriesAndFiles(cfg); err != nil {
 		return nil, err
@@ -79,9 +83,15 @@ func loadConfig() (*Config, error) {
 }
 
 func defaultConfig() *Config {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		slog.Error("failed to load default config", slog.String("error", err.Error()))
+		return nil
+	}
+
 	return &Config{
 		Editor:   DefaultEditor,
-		NotesDir: filepath.Join(utils.HomeDir(), AppDirName, NotesDirName),
+		NotesDir: filepath.Join(home, AppDirName, NotesDirName),
 		Theme:    defaultTheme,
 	}
 }
