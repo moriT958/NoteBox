@@ -29,6 +29,10 @@ func NewSQLiteDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open sqlite3: %w", err)
 	}
 
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
+	}
+
 	goose.SetBaseFS(migrations)
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return nil, fmt.Errorf("failed to set goose dialect: %w", err)
