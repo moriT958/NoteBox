@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"notebox/internal/config"
 	"notebox/internal/note"
 	"notebox/internal/tui/styles"
@@ -23,6 +25,16 @@ const (
 	onWarnModal
 	onFuzzyModal
 	onRenaming
+	onBoxModal
+	onBoxCreateModal
+	onBoxRenaming
+)
+
+type warnAction int
+
+const (
+	warnDeleteNote warnAction = iota
+	warnDeleteBox
 )
 
 const (
@@ -30,10 +42,10 @@ const (
 )
 
 type model struct {
-	cfg    *config.Config
-	styles *styles.Style
-
+	cfg        *config.Config
+	styles     *styles.Style
 	currentBox note.Box
+	boxRepo    note.BoxRepository
 
 	// main model fields
 	width, height int
@@ -46,6 +58,10 @@ type model struct {
 	modalWidth  int
 	modalHeight int
 
+	// warn modal fields
+	warnMessage string
+	warnAction  warnAction
+
 	// typing modal fields
 	input textinput.Model
 
@@ -54,6 +70,9 @@ type model struct {
 
 	// fnsModal modal fields
 	fnsModal filenameSearchModal
+
+	// boxModal fields
+	boxModal boxModal
 
 	// key / help fields
 	keys keyMap
@@ -90,6 +109,7 @@ func NewModel(reg note.Registerer, br note.BoxRepository) (*model, error) {
 		cfg:         cfg,
 		styles:      styles.New(theme),
 		currentBox:  curBox,
+		boxRepo:     br,
 		width:       0,
 		height:      0,
 		modalWidth:  60,
@@ -105,9 +125,21 @@ func NewModel(reg note.Registerer, br note.BoxRepository) (*model, error) {
 		fnsModal: filenameSearchModal{
 			input: textinput.New(),
 		},
+		boxModal: boxModal{
+			titleInput:  textinput.New(),
+			pathInput:   textinput.New(),
+			renameInput: textinput.New(),
+		},
 		keys: defaultKeyMap(),
 		help: help.New(),
 	}
+	// These are static values that don't change after initialization;
+	// only SetWidth is called on resize in updateBoxCreateModalSize.
+	m.boxModal.titleInput.Placeholder = "Box name..."
+	m.boxModal.titleInput.CharLimit = 100
+	m.boxModal.pathInput.Placeholder = "Path (e.g. /path/to/dir)..."
+	m.boxModal.pathInput.CharLimit = 200
+	m.boxModal.renameInput.CharLimit = 100
 	return m, nil
 }
 
@@ -118,22 +150,38 @@ func newBox(br note.BoxRepository) (note.Box, error) {
 		return note.Box{}, err
 	}
 
-	var b note.Box
 	if len(boxes) == 0 {
 		defaultPath, err := config.DefaultNotesDir()
 		if err != nil {
 			return note.Box{}, err
 		}
-
-		b, err = br.CreateBox(ctx, note.Box{Title: "Default", Path: defaultPath})
-		if err != nil {
-			return note.Box{}, err
-		}
-	} else {
-		b = boxes[0]
+		return br.CreateBox(ctx, note.Box{Title: "Default", Path: defaultPath})
 	}
 
-	return b, nil
+	if lastID, err := config.LoadLastBoxID(); err == nil && lastID > 0 {
+		for _, b := range boxes {
+			if b.ID == lastID && pathExists(b.Path) {
+				return b, nil
+			}
+		}
+	}
+
+	for _, b := range boxes {
+		if pathExists(b.Path) {
+			return b, nil
+		}
+	}
+
+	defaultPath, err := config.DefaultNotesDir()
+	if err != nil {
+		return note.Box{}, err
+	}
+	return br.CreateBox(ctx, note.Box{Title: "Default", Path: defaultPath})
+}
+
+func pathExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func (m model) Init() tea.Cmd {
@@ -149,6 +197,13 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 	if key.Matches(msg, m.keys.toggleHelp) {
 		m.help.ShowAll = !m.help.ShowAll
 		return nil
+	}
+	if key.Matches(msg, m.keys.openBoxModal) {
+		if m.focus == onBoxModal {
+			m.toggleBoxModal(shut)
+			return nil
+		}
+		return loadBoxesCmd(m.boxRepo)
 	}
 
 	switch m.focus {
@@ -168,6 +223,8 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 		case key.Matches(msg, m.keys.listPanel.focusPreview):
 			m.focus = onPreviewer
 		case key.Matches(msg, m.keys.listPanel.deleteNote):
+			m.warnMessage = "Are you sure you want to remove?"
+			m.warnAction = warnDeleteNote
 			m.toggleWarnModal(open)
 		case key.Matches(msg, m.keys.listPanel.editNote):
 			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
@@ -224,20 +281,32 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 	case onWarnModal:
 		switch {
 		case key.Matches(msg, m.keys.warnModal.confirm):
-			var cmds []tea.Cmd
-			m.toggleWarnModal(shut)
-			// WARN:
-			// Do not change the execution order of deleteNotefileCmd, removeItem and renderPreviewCmd.
-			// Because the cursor value is modified within removeItem, and altering
-			// the order may lead to unexpected behavior.
-			deletedPath := m.listPanel.selectedItem().Path
-			cmds = append(cmds, deleteNoteFileCmd(deletedPath))
-			m.listPanel.removeItem()
-			m.previewer.removeTabByPath(deletedPath)
-			cmds = append(cmds, renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem()))
-			cmd = tea.Batch(cmds...)
+			switch m.warnAction {
+			case warnDeleteNote:
+				var cmds []tea.Cmd
+				m.focus = onListPanel
+				// WARN:
+				// Do not change the execution order of deleteNotefileCmd, removeItem and renderPreviewCmd.
+				// Because the cursor value is modified within removeItem, and altering
+				// the order may lead to unexpected behavior.
+				deletedPath := m.listPanel.selectedItem().Path
+				cmds = append(cmds, deleteNoteFileCmd(deletedPath))
+				m.listPanel.removeItem()
+				m.previewer.removeTabByPath(deletedPath)
+				cmds = append(cmds, renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem()))
+				cmd = tea.Batch(cmds...)
+			case warnDeleteBox:
+				selected := m.boxModal.selectedItem()
+				m.focus = onBoxModal
+				cmd = deleteBoxCmd(m.boxRepo, selected)
+			}
 		case key.Matches(msg, m.keys.warnModal.cancel):
-			m.toggleWarnModal(shut)
+			switch m.warnAction {
+			case warnDeleteNote:
+				m.focus = onListPanel
+			case warnDeleteBox:
+				m.focus = onBoxModal
+			}
 		}
 	case onFuzzyModal:
 		switch {
@@ -255,6 +324,77 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 			m.fnsModal.input, cmd = m.fnsModal.input.Update(msg)
 			m.fnsModal.filter(m.fnsModal.input.Value())
 		}
+	case onBoxModal:
+		switch {
+		case key.Matches(msg, m.keys.boxModal.confirm):
+			selected := m.boxModal.selectedItem()
+			m.toggleBoxModal(shut)
+			if selected.ID != 0 && selected.ID != m.currentBox.ID {
+				return m.switchBox(selected)
+			}
+		case key.Matches(msg, m.keys.boxModal.cancel):
+			m.toggleBoxModal(shut)
+		case key.Matches(msg, m.keys.boxModal.down):
+			m.boxModal.cursorDown()
+		case key.Matches(msg, m.keys.boxModal.up):
+			m.boxModal.cursorUp()
+		case key.Matches(msg, m.keys.boxModal.newBox):
+			m.toggleBoxFormModal(open, modeNewBox)
+		case key.Matches(msg, m.keys.boxModal.openFolderAsBox):
+			m.toggleBoxFormModal(open, modeOpenFolder)
+		case key.Matches(msg, m.keys.boxModal.deleteBox):
+			selected := m.boxModal.selectedItem()
+			if selected.ID != 0 && selected.ID != m.currentBox.ID {
+				m.warnMessage = fmt.Sprintf("Delete box '%s'?", selected.Title)
+				m.warnAction = warnDeleteBox
+				m.focus = onWarnModal
+			}
+		case key.Matches(msg, m.keys.boxModal.renameBox):
+			selected := m.boxModal.selectedItem()
+			if selected.ID != 0 {
+				m.boxModal.renameInput.Reset()
+				m.boxModal.renameInput.SetValue(selected.Title)
+				m.boxModal.renameInput.Focus()
+				m.focus = onBoxRenaming
+			}
+		}
+	case onBoxRenaming:
+		switch {
+		case key.Matches(msg, m.keys.renameInput.confirm):
+			newTitle := m.boxModal.renameInput.Value()
+			m.boxModal.renameInput.Blur()
+			m.focus = onBoxModal
+			selected := m.boxModal.selectedItem()
+			if newTitle != "" && newTitle != selected.Title {
+				cmd = renameBoxCmd(m.boxRepo, note.Box{ID: selected.ID, Title: newTitle, Path: selected.Path})
+			}
+		case key.Matches(msg, m.keys.renameInput.cancel):
+			m.boxModal.renameInput.Blur()
+			m.focus = onBoxModal
+		default:
+			m.boxModal.renameInput, cmd = m.boxModal.renameInput.Update(msg)
+		}
+	case onBoxCreateModal:
+		switch {
+		case key.Matches(msg, m.keys.typingModal.confirm):
+			cmd = m.handleBoxFormConfirm()
+		case key.Matches(msg, m.keys.typingModal.cancel):
+			m.toggleBoxFormModal(shut, m.boxModal.mode)
+		case key.Matches(msg, m.keys.boxModal.down):
+			m.boxModal.titleInput.Blur()
+			m.boxModal.pathInput.Focus()
+			m.boxModal.activeField = pathField
+		case key.Matches(msg, m.keys.boxModal.up):
+			m.boxModal.pathInput.Blur()
+			m.boxModal.titleInput.Focus()
+			m.boxModal.activeField = titleField
+		default:
+			if m.boxModal.activeField == titleField {
+				m.boxModal.titleInput, cmd = m.boxModal.titleInput.Update(msg)
+			} else {
+				m.boxModal.pathInput, cmd = m.boxModal.pathInput.Update(msg)
+			}
+		}
 	}
 	return cmd
 }
@@ -269,6 +409,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updatePreviewerSize(msg)
 		m.updateTypingModalSize(msg)
 		m.updateFuzzyModalSize(msg)
+		m.updateBoxModalSize(msg)
+		m.updateBoxCreateModalSize(msg)
 		m.help.SetWidth(msg.Width)
 		cmd = renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem())
 	case tea.KeyPressMsg:
@@ -280,6 +422,43 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem())
 	case openNormalTabMsg:
 		m.previewer.openTab(msg)
+	case boxesLoadedMsg:
+		boxes := []note.Box(msg)
+		m.boxModal.items = boxes
+		m.boxModal.cursor = 0
+		m.boxModal.offset = 0
+		for i, b := range boxes {
+			if b.ID == m.currentBox.ID {
+				m.boxModal.cursor = i
+				break
+			}
+		}
+		m.focus = onBoxModal
+	case boxCreatedMsg:
+		m.boxModal.items = append(m.boxModal.items, note.Box(msg))
+		m.focus = onBoxModal
+	case boxDeletedMsg:
+		deletedID := int(msg)
+		for i, b := range m.boxModal.items {
+			if b.ID == deletedID {
+				m.boxModal.items = append(m.boxModal.items[:i], m.boxModal.items[i+1:]...)
+				if m.boxModal.cursor >= len(m.boxModal.items) && m.boxModal.cursor > 0 {
+					m.boxModal.cursor--
+				}
+				break
+			}
+		}
+	case boxRenamedMsg:
+		updated := note.Box(msg)
+		for i, b := range m.boxModal.items {
+			if b.ID == updated.ID {
+				m.boxModal.items[i] = updated
+				break
+			}
+		}
+		if m.currentBox.ID == updated.ID {
+			m.currentBox.Title = updated.Title
+		}
 	case notesChangedMsg:
 		m.reloadAllNotes([]note.Note(msg))
 		if m.focus == onFuzzyModal {
@@ -302,6 +481,10 @@ func (m model) View() tea.View {
 		content = m.viewWarnModal()
 	case onFuzzyModal:
 		content = m.viewFuzzyModal()
+	case onBoxModal, onBoxRenaming:
+		content = m.viewBoxModal()
+	case onBoxCreateModal:
+		content = m.viewBoxCreateModal()
 	default:
 		content = m.styles.Main.Render(
 			lipgloss.JoinVertical(lipgloss.Center,
@@ -325,4 +508,19 @@ func (m model) View() tea.View {
 	view.AltScreen = true
 	view.WindowTitle = "Note Box"
 	return view
+}
+
+func (m model) renderOverlay(modal string, x, y int) string {
+	background := lipgloss.JoinVertical(lipgloss.Center,
+		lipgloss.JoinHorizontal(lipgloss.Left,
+			m.viewListPanel(),
+			m.viewPreviewer(),
+		),
+		m.viewHelp(),
+	)
+	fgLayer := lipgloss.NewLayer(modal).X(x).Y(y).Z(1)
+	bgLayer := lipgloss.NewLayer(background).X(0).Y(0).Z(0)
+	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
+	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
+	return m.styles.Main.Render(canvas.Render())
 }

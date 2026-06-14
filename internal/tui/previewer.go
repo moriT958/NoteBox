@@ -156,6 +156,14 @@ func (p *previewer) closeTab() {
 	p.updateViewportContent()
 }
 
+// clearAllTabs resets the tab list and viewport content.
+func (p *previewer) clearAllTabs() {
+	p.tabs = []*tab{}
+	p.activeTab = 0
+	p.offset = 0
+	p.vp.SetContent("")
+}
+
 // removeTabByPath removes a tab whose note matches the given path.
 func (p *previewer) removeTabByPath(path string) {
 	for i, t := range p.tabs {

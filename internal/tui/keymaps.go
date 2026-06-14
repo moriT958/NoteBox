@@ -8,8 +8,9 @@ import (
 
 type keyMap struct {
 	// Global Key Maps
-	quit       key.Binding
-	toggleHelp key.Binding
+	quit         key.Binding
+	toggleHelp   key.Binding
+	openBoxModal key.Binding
 
 	listPanel   listPanelKeyMap
 	previewer   previewerKeyMap
@@ -17,6 +18,18 @@ type keyMap struct {
 	warnModal   modalKeyMap
 	fuzzyModal  fuzzyModalKeyMap
 	renameInput modalKeyMap
+	boxModal    boxModalKeyMap
+}
+
+type boxModalKeyMap struct {
+	confirm         key.Binding
+	cancel          key.Binding
+	up              key.Binding
+	down            key.Binding
+	newBox          key.Binding
+	openFolderAsBox key.Binding
+	deleteBox       key.Binding
+	renameBox       key.Binding
 }
 
 type listPanelKeyMap struct {
@@ -72,6 +85,10 @@ func defaultKeyMap() keyMap {
 		toggleHelp: key.NewBinding(
 			key.WithKeys("?"),
 			key.WithHelp("?", "more/less help"),
+		),
+		openBoxModal: key.NewBinding(
+			key.WithKeys("ctrl+b"),
+			key.WithHelp("ctrl+b", "boxes"),
 		),
 		listPanel: listPanelKeyMap{
 			up: key.NewBinding(
@@ -181,6 +198,38 @@ func defaultKeyMap() keyMap {
 				key.WithHelp("esc", "cancel"),
 			),
 		},
+		boxModal: boxModalKeyMap{
+			confirm: key.NewBinding(
+				key.WithKeys(selectionModalConfirmKey),
+				key.WithHelp("enter", "select"),
+			),
+			cancel: key.NewBinding(
+				key.WithKeys(selectionModalCancelKey),
+				key.WithHelp("esc", "cancel"),
+			),
+			up: key.NewBinding(
+				key.WithKeys("ctrl+p", "up"),
+			),
+			down: key.NewBinding(
+				key.WithKeys("ctrl+n", "down"),
+			),
+			newBox: key.NewBinding(
+				key.WithKeys("n"),
+				key.WithHelp("n", "new"),
+			),
+			openFolderAsBox: key.NewBinding(
+				key.WithKeys("o"),
+				key.WithHelp("o", "open folder"),
+			),
+			deleteBox: key.NewBinding(
+				key.WithKeys("d"),
+				key.WithHelp("d", "delete"),
+			),
+			renameBox: key.NewBinding(
+				key.WithKeys("r"),
+				key.WithHelp("r", "rename"),
+			),
+		},
 	}
 }
 
@@ -206,6 +255,7 @@ func (k focusedKeyMap) ShortHelp() []key.Binding {
 			k.keys.listPanel.renameNote,
 			k.keys.listPanel.deleteNote,
 			k.keys.listPanel.search,
+			k.keys.openBoxModal,
 			k.keys.toggleHelp,
 			k.keys.quit,
 		}

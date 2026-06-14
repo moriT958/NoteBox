@@ -1,9 +1,5 @@
 package tui
 
-import (
-	"charm.land/lipgloss/v2"
-)
-
 func (m *model) toggleWarnModal(ac modalAction) {
 	switch ac {
 	case open:
@@ -14,7 +10,7 @@ func (m *model) toggleWarnModal(ac modalAction) {
 }
 
 func (m model) viewWarnModal() string {
-	message := "Are you sure you want to remove?"
+	message := m.warnMessage
 	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") Yes ")
 	cancel := m.styles.Modal.Cancel.Render(" (" + selectionModalCancelKey + ") No ")
 	tip := confirm + "           " + cancel
@@ -27,19 +23,5 @@ func (m model) viewWarnModal() string {
 	overlayX := m.width/2 - m.modalWidth/2
 	overlayY := m.height/2 - m.modalHeight/2
 
-	background := lipgloss.JoinVertical(lipgloss.Center,
-		lipgloss.JoinHorizontal(lipgloss.Left,
-			m.viewListPanel(),
-			m.viewPreviewer(),
-		),
-		m.viewHelp(),
-	)
-
-	fgLayer := lipgloss.NewLayer(modal).X(overlayX).Y(overlayY).Z(1)
-	bgLayer := lipgloss.NewLayer(background).X(0).Y(0).Z(0)
-
-	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
-	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
-
-	return m.styles.Main.Render(canvas.Render())
+	return m.renderOverlay(modal, overlayX, overlayY)
 }
