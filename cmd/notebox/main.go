@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"notebox/internal/cli"
 	"notebox/internal/config"
+	"notebox/internal/database"
 	"notebox/internal/logger"
 	"notebox/internal/note"
 	"notebox/internal/tui"
-	"notebox/internal/utils"
 	"os"
 	"path/filepath"
 
@@ -25,7 +25,17 @@ func main() {
 		}
 		defer reg.Close()
 
-		m, err := tui.NewModel(reg)
+		// initialize DB and run migrations
+		db, err := database.NewSQLiteDB()
+		if err != nil {
+			slog.Error("failed to initialize database", "error", err)
+			os.Exit(1)
+		}
+		defer db.Close()
+
+		boxRepo := database.NewBoxRepository(db)
+
+		m, err := tui.NewModel(reg, boxRepo)
 		if err != nil {
 			slog.Error("failed to initialize bubbletea model", "error", err)
 			os.Exit(1)
@@ -42,8 +52,14 @@ func main() {
 }
 
 func init() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to get home dir: %v", err)
+		os.Exit(1)
+	}
+
 	// ensure .notebox dir exits.
-	noteboxPath := filepath.Join(utils.HomeDir(), config.AppDirName)
+	noteboxPath := filepath.Join(home, config.AppDirName)
 	if err := os.MkdirAll(noteboxPath, 0755); err != nil {
 		fmt.Fprintln(os.Stderr, "failed to make notebox dir:", err)
 		os.Exit(1)

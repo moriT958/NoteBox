@@ -127,24 +127,10 @@ func (m model) viewFuzzyModal() string {
 		Render(content + "\n\n" + tip)
 	modal = m.styles.BorderActive.Render(modal)
 
-	background := lipgloss.JoinVertical(lipgloss.Center,
-		lipgloss.JoinHorizontal(lipgloss.Left,
-			m.viewListPanel(),
-			m.viewPreviewer(),
-		),
-		m.viewHelp(),
-	)
-
 	overlayX := m.width/2 - m.fnsModal.width/2
 	overlayY := m.height/2 - modalHeight/2
 
-	fgLayer := lipgloss.NewLayer(modal).X(overlayX).Y(overlayY).Z(1)
-	bgLayer := lipgloss.NewLayer(background).X(0).Y(0).Z(0)
-
-	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
-	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
-
-	return m.styles.Main.Render(canvas.Render())
+	return m.renderOverlay(modal, overlayX, overlayY)
 }
 
 func (m *model) renderFuzzyFilterdList() string {

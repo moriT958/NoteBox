@@ -2,7 +2,6 @@ package tui
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 type modalAction int
@@ -43,19 +42,5 @@ func (m model) viewTypingModal() string {
 	modalY := (m.height - m.modalHeight) / 2
 	modal = m.styles.BorderActive.Render(modal)
 
-	background := lipgloss.JoinVertical(lipgloss.Center,
-		lipgloss.JoinHorizontal(lipgloss.Left,
-			m.viewListPanel(),
-			m.viewPreviewer(),
-		),
-		m.viewHelp(),
-	)
-
-	fgLayer := lipgloss.NewLayer(modal).X(modalX).Y(modalY).Z(1)
-	bgLayer := lipgloss.NewLayer(background).X(0).Y(0).Z(0)
-
-	compositor := lipgloss.NewCompositor(bgLayer, fgLayer)
-	canvas := lipgloss.NewCanvas(m.width, m.height).Compose(compositor)
-
-	return m.styles.Main.Render(canvas.Render())
+	return m.renderOverlay(modal, modalX, modalY)
 }
