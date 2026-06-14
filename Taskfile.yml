@@ -23,6 +23,10 @@ tasks:
       - goreleaser check
       - goreleaser release --snapshot --clean
 
+  fmt:
+    desc: go fmt
+    cmd: go fmt ./...
+
   test:
     desc: Run all tests
     cmds:
