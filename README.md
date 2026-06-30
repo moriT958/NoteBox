@@ -4,6 +4,15 @@ A terminal-based note-taking app.
 
 ![](/assets/overview.png)
 
+## Features
+
+- 高速で見やすい TUI
+- ターミナル上でサクッとメモが取れる
+- Markdown の見やすい表示
+- FuzzyFinder で高速検索
+- Box 機能によるノート管理
+  - (Obsidian Vault みたいな感じの機能)
+
 ## Installation
 
 **Using cURL**
