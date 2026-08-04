@@ -78,6 +78,8 @@ func New(theme Theme) *Style {
 			PaddingLeft(1),
 
 		Header: lipgloss.NewStyle().
+			Border(lipgloss.DoubleBorder(), false, false, true, false).
+			BorderForeground(primary).
 			Foreground(active).
 			Bold(true).
 			Align(lipgloss.Center),

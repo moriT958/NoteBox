@@ -39,7 +39,7 @@ const (
 
 const (
 	helpGuideHeight = 1
-	headerHeight    = 1
+	headerHeight    = 2 // header text line + bottom border
 )
 
 type model struct {
