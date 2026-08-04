@@ -1,5 +1,11 @@
 package tui
 
+func (m model) viewHeader() string {
+	return m.styles.Header.
+		Width(m.width).
+		Render(m.currentBox.Title)
+}
+
 func (m model) viewHelp() string {
 	if m.help.ShowAll {
 		return ""
