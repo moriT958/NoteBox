@@ -156,7 +156,7 @@ func (m *model) updateListPanelSize(msg tea.WindowSizeMsg) {
 	m.listPanel.width = msg.Width / layoutListPanelRatio
 
 	_, borderV := m.styles.BorderPassive.GetFrameSize()
-	contentHeight := msg.Height - borderV - helpGuideHeight
+	contentHeight := msg.Height - borderV - helpGuideHeight - headerHeight
 
 	m.listPanel.height = max(1, contentHeight)
 	m.listPanel.renameInput.SetWidth(m.listPanel.width - 4)

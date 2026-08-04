@@ -27,6 +27,7 @@ type Style struct {
 	BorderPassive lipgloss.Style
 	Cursor        lipgloss.Style
 	Help          lipgloss.Style
+	Header        lipgloss.Style
 
 	ActiveColor  lipgloss.Style
 	PassiveColor lipgloss.Style
@@ -75,6 +76,13 @@ func New(theme Theme) *Style {
 		Help: lipgloss.NewStyle().
 			Align(lipgloss.Left).
 			PaddingLeft(1),
+
+		Header: lipgloss.NewStyle().
+			Border(lipgloss.DoubleBorder(), false, false, true, false).
+			BorderForeground(primary).
+			Foreground(active).
+			Bold(true).
+			Align(lipgloss.Center),
 
 		TabBarFocused: TabBarStyles{
 			Active:          lipgloss.NewStyle().Foreground(active).Bold(true),

@@ -68,7 +68,7 @@ func (m *model) updatePreviewerSize(msg tea.WindowSizeMsg) {
 
 	sidePanelWidth := msg.Width / layoutListPanelRatio
 	contentWidth := msg.Width - sidePanelWidth - borderH*2
-	contentHeight := msg.Height - helpGuideHeight - tabBarHeight - 1 // 1 is the connector height
+	contentHeight := msg.Height - helpGuideHeight - headerHeight - tabBarHeight - 1 // 1 is the connector height
 
 	m.previewer.width = contentWidth
 	m.previewer.height = max(1, contentHeight)

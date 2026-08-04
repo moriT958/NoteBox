@@ -39,6 +39,7 @@ const (
 
 const (
 	helpGuideHeight = 1
+	headerHeight    = 2 // header text line + bottom border
 )
 
 type model struct {
@@ -488,6 +489,7 @@ func (m model) View() tea.View {
 	default:
 		content = m.styles.Main.Render(
 			lipgloss.JoinVertical(lipgloss.Center,
+				m.viewHeader(),
 				lipgloss.JoinHorizontal(lipgloss.Top,
 					m.viewListPanel(),
 					m.viewPreviewer(),
@@ -512,6 +514,7 @@ func (m model) View() tea.View {
 
 func (m model) renderOverlay(modal string, x, y int) string {
 	background := lipgloss.JoinVertical(lipgloss.Center,
+		m.viewHeader(),
 		lipgloss.JoinHorizontal(lipgloss.Left,
 			m.viewListPanel(),
 			m.viewPreviewer(),
