@@ -141,6 +141,14 @@ func NewModel(reg note.Registerer, br note.BoxRepository) (*model, error) {
 	m.boxModal.pathInput.Placeholder = "Path (e.g. /path/to/dir)..."
 	m.boxModal.pathInput.CharLimit = 200
 	m.boxModal.renameInput.CharLimit = 100
+
+	m.input.SetVirtualCursor(false)
+	m.listPanel.renameInput.SetVirtualCursor(false)
+	m.fnsModal.input.SetVirtualCursor(false)
+	m.boxModal.titleInput.SetVirtualCursor(false)
+	m.boxModal.pathInput.SetVirtualCursor(false)
+	m.boxModal.renameInput.SetVirtualCursor(false)
+
 	return m, nil
 }
 
@@ -509,7 +517,25 @@ func (m model) View() tea.View {
 	view := tea.NewView(content)
 	view.AltScreen = true
 	view.WindowTitle = "Note Box"
+	view.Cursor = m.cursorForFocus()
 	return view
+}
+
+func (m model) cursorForFocus() *tea.Cursor {
+	switch m.focus {
+	case onTypingModal:
+		return m.typingModalCursor()
+	case onBoxCreateModal:
+		return m.boxCreateModalCursor()
+	case onFuzzyModal:
+		return m.fuzzyModalCursor()
+	case onBoxRenaming:
+		return m.boxRenameCursor()
+	case onRenaming:
+		return m.listRenameCursor()
+	default:
+		return nil
+	}
 }
 
 func (m model) renderOverlay(modal string, x, y int) string {

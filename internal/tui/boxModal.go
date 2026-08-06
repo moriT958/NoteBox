@@ -21,6 +21,12 @@ const (
 	pathField  = 1
 )
 
+const (
+	boxCreateNameLabel = "Name:  "
+	boxCreatePathLabel = "Path:  "
+	boxRenameRowPrefix = "  "
+)
+
 type boxModalMode int
 
 const (
@@ -91,6 +97,20 @@ func (m *model) switchBox(newBox note.Box) tea.Cmd {
 	return tea.Batch(waitNoteChangeCmd(ch), saveLastBoxCmd(newBox.ID))
 }
 
+// boxModalListToTipGap/boxModalTipLines are the fixed lines below boxList in
+// viewBoxModal's content: one blank separator line, then the tip line.
+const (
+	boxModalListToTipGap = 1
+	boxModalTipLines     = 1
+)
+
+// boxModalHeight is the Height() passed to Modal.Fuzzy in viewBoxModal,
+// shared with boxRenameCursor so the two never drift apart.
+func (m model) boxModalHeight() int {
+	return m.boxModal.height + m.styles.Modal.Fuzzy.GetVerticalPadding() +
+		boxModalListToTipGap + boxModalTipLines
+}
+
 func (m model) viewBoxModal() string {
 	boxList := m.renderBoxList()
 	guide := m.help.ShortHelpView([]key.Binding{
@@ -105,7 +125,7 @@ func (m model) viewBoxModal() string {
 		Width(m.boxModal.width - 4).
 		Render(guide)
 
-	modalHeight := m.boxModal.height + 4
+	modalHeight := m.boxModalHeight()
 	modal := m.styles.Modal.Fuzzy.
 		Width(m.boxModal.width).
 		Height(modalHeight).
@@ -211,14 +231,19 @@ func (m *model) toggleBoxFormModal(ac modalAction, mode boxModalMode) {
 
 func (m *model) updateBoxCreateModalSize(msg tea.WindowSizeMsg) {
 	h, _ := m.styles.Main.GetFrameSize()
-	inputWidth := (msg.Width - h) / 3
+	inputWidth := min((msg.Width-h)/3, m.modalWidth/2-7)
 	m.boxModal.titleInput.SetWidth(inputWidth)
 	m.boxModal.pathInput.SetWidth(inputWidth)
 }
 
 const boxCreateModalHeight = 12
 
-func (m model) viewBoxCreateModal() string {
+const (
+	boxCreateModalTitleLine = 2
+	boxCreateModalPathLine  = 4
+)
+
+func (m model) boxCreateModalLines() []string {
 	var header, actionLabel string
 	switch m.boxModal.mode {
 	case modeNewBox:
@@ -238,16 +263,20 @@ func (m model) viewBoxCreateModal() string {
 		errLine = m.styles.Modal.Cancel.Render("  " + m.boxModal.validationErr)
 	}
 
-	content := lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		"",
-		"Name:  "+m.boxModal.titleInput.View(),
-		"",
-		"Path:  "+m.boxModal.pathInput.View(),
-		errLine,
-		"",
-		tip,
-	)
+	lines := make([]string, 8)
+	lines[0] = header
+	lines[1] = ""
+	lines[boxCreateModalTitleLine] = boxCreateNameLabel + m.boxModal.titleInput.View()
+	lines[3] = ""
+	lines[boxCreateModalPathLine] = boxCreatePathLabel + m.boxModal.pathInput.View()
+	lines[5] = errLine
+	lines[6] = ""
+	lines[7] = tip
+	return lines
+}
+
+func (m model) viewBoxCreateModal() string {
+	content := lipgloss.JoinVertical(lipgloss.Left, m.boxCreateModalLines()...)
 
 	modal := m.styles.Modal.Centered.
 		Width(m.modalWidth).
@@ -259,6 +288,68 @@ func (m model) viewBoxCreateModal() string {
 	modal = m.styles.BorderActive.Render(modal)
 
 	return m.renderOverlay(modal, modalX, modalY)
+}
+
+func (m model) boxCreateModalCursor() *tea.Cursor {
+	var cur *tea.Cursor
+	var lineIdx int
+	var prefixWidth int
+	switch m.boxModal.activeField {
+	case titleField:
+		cur = m.boxModal.titleInput.Cursor()
+		if cur != nil {
+			cur.Position.X = realCursorX(m.boxModal.titleInput)
+		}
+		lineIdx = boxCreateModalTitleLine
+		prefixWidth = lipgloss.Width(boxCreateNameLabel)
+	case pathField:
+		cur = m.boxModal.pathInput.Cursor()
+		if cur != nil {
+			cur.Position.X = realCursorX(m.boxModal.pathInput)
+		}
+		lineIdx = boxCreateModalPathLine
+		prefixWidth = lipgloss.Width(boxCreatePathLabel)
+	}
+	if cur == nil {
+		return nil
+	}
+
+	// viewBoxCreateModal joins these lines with lipgloss.JoinVertical(Left, ...),
+	// which right-pads every line to the widest one before centering, so all
+	// lines share the same left offset based on the widest line, not their own.
+	lines := m.boxCreateModalLines()
+	widest := lines[0]
+	for _, l := range lines {
+		if lipgloss.Width(l) > lipgloss.Width(widest) {
+			widest = l
+		}
+	}
+	x, y := centeredLinePos(m.modalWidth, boxCreateModalHeight, len(lines), lineIdx, widest)
+
+	modalX := (m.width - m.modalWidth) / 2
+	modalY := (m.height - boxCreateModalHeight) / 2
+	borderX, borderY := borderSize(m.styles.BorderActive)
+	cur.Position.X += modalX + borderX + x + prefixWidth
+	cur.Position.Y += modalY + borderY + y
+	return cur
+}
+
+func (m model) boxRenameCursor() *tea.Cursor {
+	cur := m.boxModal.renameInput.Cursor()
+	if cur == nil {
+		return nil
+	}
+	cur.Position.X = realCursorX(m.boxModal.renameInput)
+	modalHeight := m.boxModalHeight()
+	overlayX := m.width/2 - m.boxModal.width/2
+	overlayY := m.height/2 - modalHeight/2
+	rowIdx := m.boxModal.cursor - m.boxModal.offset
+
+	borderX, borderY := borderSize(m.styles.BorderActive)
+	padX, padY := paddingSize(m.styles.Modal.Fuzzy)
+	cur.Position.X += overlayX + borderX + padX + lipgloss.Width(boxRenameRowPrefix)
+	cur.Position.Y += overlayY + borderY + padY + rowIdx
+	return cur
 }
 
 func (m model) renderBoxList() string {
@@ -275,7 +366,7 @@ func (m model) renderBoxList() string {
 		b := m.boxModal.items[i]
 		var line string
 		if i == m.boxModal.cursor && m.focus == onBoxRenaming {
-			line = "  " + m.boxModal.renameInput.View()
+			line = boxRenameRowPrefix + m.boxModal.renameInput.View()
 		} else {
 			title := b.Title
 			if _, err := os.Stat(b.Path); os.IsNotExist(err) {

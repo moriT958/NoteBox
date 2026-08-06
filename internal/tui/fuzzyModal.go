@@ -106,6 +106,24 @@ func (m *model) selectFromFuzzy() {
 	}
 }
 
+// Fixed lines in viewFuzzyModal's content around the filtered list: the
+// input line, a blank line before the list, a blank line before the tip
+// line, and the tip line itself.
+const (
+	fuzzyModalInputLines     = 1
+	fuzzyModalInputToListGap = 1
+	fuzzyModalListToTipGap   = 1
+	fuzzyModalTipLines       = 1
+)
+
+// fuzzyModalHeight is the Height() passed to Modal.Fuzzy in viewFuzzyModal,
+// shared with fuzzyModalCursor so the two never drift apart.
+func (m model) fuzzyModalHeight() int {
+	return m.fnsModal.height + m.styles.Modal.Fuzzy.GetVerticalPadding() +
+		fuzzyModalInputLines + fuzzyModalInputToListGap +
+		fuzzyModalListToTipGap + fuzzyModalTipLines
+}
+
 func (m model) viewFuzzyModal() string {
 	filteredList := m.renderFuzzyFilterdList()
 	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") Select ")
@@ -120,7 +138,7 @@ func (m model) viewFuzzyModal() string {
 		filteredList,
 	)
 
-	modalHeight := m.fnsModal.height + 6
+	modalHeight := m.fuzzyModalHeight()
 	modal := m.styles.Modal.Fuzzy.
 		Width(m.fnsModal.width).
 		Height(modalHeight).
@@ -131,6 +149,24 @@ func (m model) viewFuzzyModal() string {
 	overlayY := m.height/2 - modalHeight/2
 
 	return m.renderOverlay(modal, overlayX, overlayY)
+}
+
+func (m model) fuzzyModalCursor() *tea.Cursor {
+	cur := m.fnsModal.input.Cursor()
+	if cur == nil {
+		return nil
+	}
+	cur.Position.X = realCursorX(m.fnsModal.input)
+	modalHeight := m.fuzzyModalHeight()
+	overlayX := m.width/2 - m.fnsModal.width/2
+	overlayY := m.height/2 - modalHeight/2
+
+	// input.View() is content line 0.
+	borderX, borderY := borderSize(m.styles.BorderActive)
+	padX, padY := paddingSize(m.styles.Modal.Fuzzy)
+	cur.Position.X += overlayX + borderX + padX
+	cur.Position.Y += overlayY + borderY + padY
+	return cur
 }
 
 func (m *model) renderFuzzyFilterdList() string {
