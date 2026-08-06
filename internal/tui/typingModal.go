@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -26,21 +28,45 @@ func (m *model) updateTypingModalSize(msg tea.WindowSizeMsg) {
 	m.input.Placeholder = "Enter note name..."
 	m.input.Focus()
 	m.input.CharLimit = 50
-	m.input.SetWidth((msg.Width - h) / 3)
+	m.input.SetWidth(min((msg.Width-h)/3, m.modalWidth/2))
 }
 
-func (m model) viewTypingModal() string {
+const typingModalInputLine = 1
+
+func (m model) typingModalLines() []string {
 	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") Create ")
 	cancel := m.styles.Modal.Cancel.Render(" (" + selectionModalCancelKey + ") Cancel ")
 	tip := confirm + "           " + cancel
+	return []string{"", m.input.View(), "", tip}
+}
+
+func (m model) viewTypingModal() string {
+	lines := m.typingModalLines()
 	modal := m.styles.Modal.Centered.
 		Width(m.modalWidth).
 		Height(m.modalHeight).
-		Render("\n" + m.input.View() + "\n\n" + tip)
+		Render(strings.Join(lines, "\n"))
 
 	modalX := (m.width - m.modalWidth) / 2
 	modalY := (m.height - m.modalHeight) / 2
 	modal = m.styles.BorderActive.Render(modal)
 
 	return m.renderOverlay(modal, modalX, modalY)
+}
+
+func (m model) typingModalCursor() *tea.Cursor {
+	cur := m.input.Cursor()
+	if cur == nil {
+		return nil
+	}
+	cur.Position.X = realCursorX(m.input)
+	lines := m.typingModalLines()
+	x, y := centeredLinePos(m.modalWidth, m.modalHeight, len(lines), typingModalInputLine, lines[typingModalInputLine])
+
+	modalX := (m.width - m.modalWidth) / 2
+	modalY := (m.height - m.modalHeight) / 2
+	borderX, borderY := borderSize(m.styles.BorderActive)
+	cur.Position.X += modalX + borderX + x
+	cur.Position.Y += modalY + borderY + y
+	return cur
 }

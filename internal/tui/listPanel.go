@@ -7,6 +7,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/muesli/reflow/truncate"
 )
 
@@ -189,9 +190,11 @@ func (m model) viewListPanel() string {
 	return m.renderListPanelWithBorder(view.String())
 }
 
+const renameRowPrefix = "  "
+
 func (m model) renderNoteItemLine(n note.Note) string {
 	if m.focus == onRenaming && n == m.listPanel.selectedItem() {
-		return "  " + m.listPanel.renameInput.View()
+		return renameRowPrefix + m.listPanel.renameInput.View()
 	}
 
 	if n == m.listPanel.selectedItem() {
@@ -204,6 +207,21 @@ func (m model) renderNoteItemLine(n note.Note) string {
 	item := "   " + n.Title
 	item = truncate.StringWithTail(item, uint(m.listPanel.width), "…   ")
 	return item
+}
+
+func (m model) listRenameCursor() *tea.Cursor {
+	cur := m.listPanel.renameInput.Cursor()
+	if cur == nil {
+		return nil
+	}
+	cur.Position.X = realCursorX(m.listPanel.renameInput)
+	rowIdx := m.listPanel.cursor - m.listPanel.offset
+
+	// list panel sits at x=0 in the header/list/help stack.
+	borderX, borderY := borderSize(m.styles.BorderActive)
+	cur.Position.X += borderX + lipgloss.Width(renameRowPrefix)
+	cur.Position.Y += headerHeight + borderY + rowIdx
+	return cur
 }
 
 func (m model) renderListPanelWithBorder(content string) string {
