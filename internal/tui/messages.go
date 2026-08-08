@@ -91,7 +91,7 @@ type boxesLoadedMsg []note.Box
 
 func loadBoxesCmd(repo note.BoxRepository) tea.Cmd {
 	return func() tea.Msg {
-		boxes, err := repo.FindAll(context.Background())
+		boxes, err := repo.FindAllActive(context.Background())
 		if err != nil {
 			return errMsg(err)
 		}

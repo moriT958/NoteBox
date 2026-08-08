@@ -1,0 +1,74 @@
+package cli
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/google/subcommands"
+	"github.com/mattn/go-runewidth"
+
+	"notebox/internal/database"
+)
+
+type listCmd struct{}
+
+var _ subcommands.Command = (*listCmd)(nil)
+
+func (*listCmd) Name() string { return "list" }
+
+func (*listCmd) Synopsis() string { return "list all boxes" }
+
+func (*listCmd) Usage() string {
+	return `notebox list:
+show all boxes. deleted boxes are shown dimmed.
+`
+}
+
+func (*listCmd) SetFlags(f *flag.FlagSet) {}
+
+func (c *listCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	db, err := database.NewSQLiteDB()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to open database:", err)
+		return subcommands.ExitFailure
+	}
+	defer db.Close()
+
+	boxes, err := database.NewBoxRepository(db).FindAll(ctx)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to list boxes:", err)
+		return subcommands.ExitFailure
+	}
+
+	const (
+		dim    = "\x1b[2m"
+		header = "\x1b[1;36m"
+		reset  = "\x1b[0m"
+	)
+
+	titleHeader := "Box"
+	width := runewidth.StringWidth(titleHeader)
+	for _, b := range boxes {
+		if l := runewidth.StringWidth(b.Title); l > width {
+			width = l
+		}
+	}
+
+	pad := func(s string) string {
+		return s + strings.Repeat(" ", width-runewidth.StringWidth(s)+2)
+	}
+
+	fmt.Println(header + pad(titleHeader) + "Path" + reset)
+	for _, b := range boxes {
+		line := pad(b.Title) + shortenHomePath(b.Path)
+		if !b.Active {
+			line = dim + line + reset
+		}
+		fmt.Println(line)
+	}
+
+	return subcommands.ExitSuccess
+}

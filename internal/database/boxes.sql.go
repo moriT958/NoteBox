@@ -12,7 +12,10 @@ import (
 const createBox = `-- name: CreateBox :one
 INSERT INTO boxes (title, path)
 VALUES (?, ?)
-RETURNING id, title, path
+ON CONFLICT (path) DO UPDATE
+SET title = excluded.title, deleted_at = NULL
+WHERE boxes.deleted_at IS NOT NULL
+RETURNING id, title, path, deleted_at
 `
 
 type CreateBoxParams struct {
@@ -23,12 +26,18 @@ type CreateBoxParams struct {
 func (q *Queries) CreateBox(ctx context.Context, arg CreateBoxParams) (Box, error) {
 	row := q.db.QueryRowContext(ctx, createBox, arg.Title, arg.Path)
 	var i Box
-	err := row.Scan(&i.ID, &i.Title, &i.Path)
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Path,
+		&i.DeletedAt,
+	)
 	return i, err
 }
 
 const deleteBox = `-- name: DeleteBox :exec
-DELETE FROM boxes
+UPDATE boxes
+SET deleted_at = CURRENT_TIMESTAMP
 WHERE id = ?
 `
 
@@ -37,12 +46,12 @@ func (q *Queries) DeleteBox(ctx context.Context, id int64) error {
 	return err
 }
 
-const listBoxes = `-- name: ListBoxes :many
-SELECT id, title, path FROM boxes ORDER BY id
+const listActiveBoxes = `-- name: ListActiveBoxes :many
+SELECT id, title, path, deleted_at FROM boxes WHERE deleted_at IS NULL ORDER BY id
 `
 
-func (q *Queries) ListBoxes(ctx context.Context) ([]Box, error) {
-	rows, err := q.db.QueryContext(ctx, listBoxes)
+func (q *Queries) ListActiveBoxes(ctx context.Context) ([]Box, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveBoxes)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +59,12 @@ func (q *Queries) ListBoxes(ctx context.Context) ([]Box, error) {
 	var items []Box
 	for rows.Next() {
 		var i Box
-		if err := rows.Scan(&i.ID, &i.Title, &i.Path); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Path,
+			&i.DeletedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -64,11 +78,85 @@ func (q *Queries) ListBoxes(ctx context.Context) ([]Box, error) {
 	return items, nil
 }
 
+const listAllBoxes = `-- name: ListAllBoxes :many
+SELECT id, title, path, deleted_at FROM boxes ORDER BY id
+`
+
+func (q *Queries) ListAllBoxes(ctx context.Context) ([]Box, error) {
+	rows, err := q.db.QueryContext(ctx, listAllBoxes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Box
+	for rows.Next() {
+		var i Box
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Path,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listInactiveBoxes = `-- name: ListInactiveBoxes :many
+SELECT id, title, path, deleted_at FROM boxes WHERE deleted_at IS NOT NULL ORDER BY id
+`
+
+func (q *Queries) ListInactiveBoxes(ctx context.Context) ([]Box, error) {
+	rows, err := q.db.QueryContext(ctx, listInactiveBoxes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Box
+	for rows.Next() {
+		var i Box
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Path,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pruneBoxes = `-- name: PruneBoxes :exec
+DELETE FROM boxes
+WHERE deleted_at IS NOT NULL
+`
+
+func (q *Queries) PruneBoxes(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, pruneBoxes)
+	return err
+}
+
 const updateBox = `-- name: UpdateBox :one
 UPDATE boxes
 SET title = ?, path = ?
 WHERE id = ?
-RETURNING id, title, path
+RETURNING id, title, path, deleted_at
 `
 
 type UpdateBoxParams struct {
@@ -80,6 +168,11 @@ type UpdateBoxParams struct {
 func (q *Queries) UpdateBox(ctx context.Context, arg UpdateBoxParams) (Box, error) {
 	row := q.db.QueryRowContext(ctx, updateBox, arg.Title, arg.Path, arg.ID)
 	var i Box
-	err := row.Scan(&i.ID, &i.Title, &i.Path)
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Path,
+		&i.DeletedAt,
+	)
 	return i, err
 }

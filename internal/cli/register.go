@@ -10,6 +10,8 @@ import (
 func InitCommands(ctx context.Context) int {
 
 	subcommands.Register(&versionCmd{}, "")
+	subcommands.Register(&listCmd{}, "")
+	subcommands.Register(&pruneCmd{}, "")
 
 	flag.Parse()
 
