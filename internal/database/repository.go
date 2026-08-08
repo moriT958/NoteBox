@@ -41,6 +41,22 @@ func (r *BoxRepository) FindAllActive(ctx context.Context) ([]note.Box, error) {
 	return result, nil
 }
 
+func (r *BoxRepository) FindInactiveBoxes(ctx context.Context) ([]note.Box, error) {
+	boxes, err := r.q.ListInactiveBoxes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]note.Box, len(boxes))
+	for i, b := range boxes {
+		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Active: false}
+	}
+	return result, nil
+}
+
+func (r *BoxRepository) PruneBoxes(ctx context.Context) error {
+	return r.q.PruneBoxes(ctx)
+}
+
 func (r *BoxRepository) CreateBox(ctx context.Context, box note.Box) (note.Box, error) {
 	b, err := r.q.CreateBox(ctx, CreateBoxParams{Title: box.Title, Path: box.Path})
 	if err != nil {

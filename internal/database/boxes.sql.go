@@ -110,6 +110,48 @@ func (q *Queries) ListAllBoxes(ctx context.Context) ([]Box, error) {
 	return items, nil
 }
 
+const listInactiveBoxes = `-- name: ListInactiveBoxes :many
+SELECT id, title, path, deleted_at FROM boxes WHERE deleted_at IS NOT NULL ORDER BY id
+`
+
+func (q *Queries) ListInactiveBoxes(ctx context.Context) ([]Box, error) {
+	rows, err := q.db.QueryContext(ctx, listInactiveBoxes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Box
+	for rows.Next() {
+		var i Box
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Path,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const pruneBoxes = `-- name: PruneBoxes :exec
+DELETE FROM boxes
+WHERE deleted_at IS NOT NULL
+`
+
+func (q *Queries) PruneBoxes(ctx context.Context) error {
+	_, err := q.db.ExecContext(ctx, pruneBoxes)
+	return err
+}
+
 const updateBox = `-- name: UpdateBox :one
 UPDATE boxes
 SET title = ?, path = ?

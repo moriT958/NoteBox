@@ -62,13 +62,8 @@ func (c *listCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) sub
 	}
 
 	fmt.Println(header + pad(titleHeader) + "Path" + reset)
-	home, _ := os.UserHomeDir()
 	for _, b := range boxes {
-		path := b.Path
-		if home != "" && strings.HasPrefix(path, home) {
-			path = "~" + strings.TrimPrefix(path, home)
-		}
-		line := pad(b.Title) + path
+		line := pad(b.Title) + shortenHomePath(b.Path)
 		if !b.Active {
 			line = dim + line + reset
 		}

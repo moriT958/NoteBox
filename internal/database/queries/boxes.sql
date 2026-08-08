@@ -4,6 +4,13 @@ SELECT * FROM boxes WHERE deleted_at IS NULL ORDER BY id;
 -- name: ListAllBoxes :many
 SELECT * FROM boxes ORDER BY id;
 
+-- name: ListInactiveBoxes :many
+SELECT * FROM boxes WHERE deleted_at IS NOT NULL ORDER BY id;
+
+-- name: PruneBoxes :exec
+DELETE FROM boxes
+WHERE deleted_at IS NOT NULL;
+
 -- name: CreateBox :one
 INSERT INTO boxes (title, path)
 VALUES (?, ?)
