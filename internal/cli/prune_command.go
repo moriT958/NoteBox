@@ -25,7 +25,7 @@ func (*pruneCmd) Synopsis() string { return "remove deleted boxes and their dire
 
 func (*pruneCmd) Usage() string {
 	return `notebox prune [-force]:
-remove directories of deleted boxes and clean them up from the database.
+cleanup directories of inactive boxes.
 `
 }
 
