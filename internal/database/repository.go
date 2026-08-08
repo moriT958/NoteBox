@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 
 	"notebox/internal/note"
 )
@@ -16,13 +18,25 @@ func NewBoxRepository(db *sql.DB) *BoxRepository {
 }
 
 func (r *BoxRepository) FindAll(ctx context.Context) ([]note.Box, error) {
-	boxes, err := r.q.ListBoxes(ctx)
+	boxes, err := r.q.ListAllBoxes(ctx)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]note.Box, len(boxes))
 	for i, b := range boxes {
-		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path}
+		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Active: !b.DeletedAt.Valid}
+	}
+	return result, nil
+}
+
+func (r *BoxRepository) FindAllActive(ctx context.Context) ([]note.Box, error) {
+	boxes, err := r.q.ListActiveBoxes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]note.Box, len(boxes))
+	for i, b := range boxes {
+		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Active: true}
 	}
 	return result, nil
 }
@@ -30,9 +44,13 @@ func (r *BoxRepository) FindAll(ctx context.Context) ([]note.Box, error) {
 func (r *BoxRepository) CreateBox(ctx context.Context, box note.Box) (note.Box, error) {
 	b, err := r.q.CreateBox(ctx, CreateBoxParams{Title: box.Title, Path: box.Path})
 	if err != nil {
+		// the upsert returns no row when the path conflicts with an active box
+		if errors.Is(err, sql.ErrNoRows) {
+			return note.Box{}, fmt.Errorf("box already exists: %s", box.Path)
+		}
 		return note.Box{}, err
 	}
-	return note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path}, nil
+	return note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Active: true}, nil
 }
 
 func (r *BoxRepository) UpdateBox(ctx context.Context, box note.Box) (note.Box, error) {
@@ -40,7 +58,7 @@ func (r *BoxRepository) UpdateBox(ctx context.Context, box note.Box) (note.Box, 
 	if err != nil {
 		return note.Box{}, err
 	}
-	return note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path}, nil
+	return note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Active: !b.DeletedAt.Valid}, nil
 }
 
 func (r *BoxRepository) DeleteBox(ctx context.Context, box note.Box) error {

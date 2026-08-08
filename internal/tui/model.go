@@ -154,7 +154,7 @@ func NewModel(reg note.Registerer, br note.BoxRepository) (*model, error) {
 
 func newBox(br note.BoxRepository) (note.Box, error) {
 	ctx := context.Background()
-	boxes, err := br.FindAll(ctx)
+	boxes, err := br.FindAllActive(ctx)
 	if err != nil {
 		return note.Box{}, err
 	}
