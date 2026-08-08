@@ -44,8 +44,9 @@ func (c *listCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) sub
 	}
 
 	const (
-		dim   = "\x1b[2m"
-		reset = "\x1b[0m"
+		dim    = "\x1b[2m"
+		header = "\x1b[1;36m"
+		reset  = "\x1b[0m"
 	)
 
 	titleHeader := "Box"
@@ -60,7 +61,7 @@ func (c *listCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) sub
 		return s + strings.Repeat(" ", width-utf8.RuneCountInString(s)+2)
 	}
 
-	fmt.Println(pad(titleHeader) + "Path")
+	fmt.Println(header + pad(titleHeader) + "Path" + reset)
 	home, _ := os.UserHomeDir()
 	for _, b := range boxes {
 		path := b.Path
