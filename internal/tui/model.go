@@ -408,6 +408,29 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 	return cmd
 }
 
+func (m *model) handlePasteMsg(msg tea.PasteMsg) tea.Cmd {
+	var cmd tea.Cmd
+
+	switch m.focus {
+	case onTypingModal:
+		m.input, cmd = m.input.Update(msg)
+	case onRenaming:
+		m.listPanel.renameInput, cmd = m.listPanel.renameInput.Update(msg)
+	case onFuzzyModal:
+		m.fnsModal.input, cmd = m.fnsModal.input.Update(msg)
+		m.fnsModal.filter(m.fnsModal.input.Value())
+	case onBoxRenaming:
+		m.boxModal.renameInput, cmd = m.boxModal.renameInput.Update(msg)
+	case onBoxCreateModal:
+		if m.boxModal.activeField == titleField {
+			m.boxModal.titleInput, cmd = m.boxModal.titleInput.Update(msg)
+		} else {
+			m.boxModal.pathInput, cmd = m.boxModal.pathInput.Update(msg)
+		}
+	}
+	return cmd
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -424,6 +447,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem())
 	case tea.KeyPressMsg:
 		cmd = m.handleKeyMsg(msg)
+	case tea.PasteMsg:
+		cmd = m.handlePasteMsg(msg)
 	case renderPreviewMsg:
 		m.updatePreviewerContent(msg)
 	case newNoteCreatedMsg:
