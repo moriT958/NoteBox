@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/google/subcommands"
+	"github.com/mattn/go-runewidth"
 
 	"notebox/internal/database"
 )
@@ -50,15 +50,15 @@ func (c *listCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) sub
 	)
 
 	titleHeader := "Box"
-	width := utf8.RuneCountInString(titleHeader)
+	width := runewidth.StringWidth(titleHeader)
 	for _, b := range boxes {
-		if l := utf8.RuneCountInString(b.Title); l > width {
+		if l := runewidth.StringWidth(b.Title); l > width {
 			width = l
 		}
 	}
 
 	pad := func(s string) string {
-		return s + strings.Repeat(" ", width-utf8.RuneCountInString(s)+2)
+		return s + strings.Repeat(" ", width-runewidth.StringWidth(s)+2)
 	}
 
 	fmt.Println(header + pad(titleHeader) + "Path" + reset)
