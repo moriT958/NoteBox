@@ -13,7 +13,9 @@ import (
 	"notebox/internal/database"
 )
 
-type pruneCmd struct{}
+type pruneCmd struct {
+	force bool
+}
 
 var _ subcommands.Command = (*pruneCmd)(nil)
 
@@ -22,12 +24,14 @@ func (*pruneCmd) Name() string { return "prune" }
 func (*pruneCmd) Synopsis() string { return "remove deleted boxes and their directories" }
 
 func (*pruneCmd) Usage() string {
-	return `notebox prune:
+	return `notebox prune [-force]:
 remove directories of deleted boxes and clean them up from the database.
 `
 }
 
-func (*pruneCmd) SetFlags(f *flag.FlagSet) {}
+func (c *pruneCmd) SetFlags(f *flag.FlagSet) {
+	f.BoolVar(&c.force, "force", false, "skip confirmation prompt")
+}
 
 func (c *pruneCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
 	db, err := database.NewSQLiteDB()
@@ -54,15 +58,17 @@ func (c *pruneCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) su
 		fmt.Printf("  %s\t%s\n", b.Title, shortenHomePath(b.Path))
 	}
 
-	fmt.Print("continue? [y/N]: ")
-	answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "failed to read input:", err)
-		return subcommands.ExitFailure
-	}
-	if a := strings.ToLower(strings.TrimSpace(answer)); a != "y" && a != "yes" {
-		fmt.Println("aborted")
-		return subcommands.ExitSuccess
+	if !c.force {
+		fmt.Print("continue? [y/N]: ")
+		answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "failed to read input:", err)
+			return subcommands.ExitFailure
+		}
+		if a := strings.ToLower(strings.TrimSpace(answer)); a != "y" && a != "yes" {
+			fmt.Println("aborted")
+			return subcommands.ExitSuccess
+		}
 	}
 
 	for _, b := range boxes {
