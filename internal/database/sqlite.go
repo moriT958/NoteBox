@@ -33,6 +33,10 @@ func NewSQLiteDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
 	}
 
+	if _, err := db.Exec("PRAGMA foreign_keys=ON"); err != nil {
+		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	}
+
 	goose.SetBaseFS(migrations)
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return nil, fmt.Errorf("failed to set goose dialect: %w", err)

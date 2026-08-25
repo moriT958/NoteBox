@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -32,6 +33,7 @@ type boxModalMode int
 const (
 	modeNewBox boxModalMode = iota
 	modeOpenFolder
+	modeMergeFolder
 )
 
 type boxModal struct {
@@ -45,6 +47,18 @@ type boxModal struct {
 	renameInput   textinput.Model
 	activeField   int
 	validationErr string
+	// mergeTargetID is the box a modeMergeFolder form will add a path to.
+	mergeTargetID int
+}
+
+// findBoxByID returns the box with the given ID, or the zero value if absent.
+func findBoxByID(boxes []note.Box, id int) note.Box {
+	for _, b := range boxes {
+		if b.ID == id {
+			return b
+		}
+	}
+	return note.Box{}
 }
 
 func (m *boxModal) cursorUp() {
@@ -77,13 +91,13 @@ func (m *model) updateBoxModalSize(msg tea.WindowSizeMsg) {
 }
 
 func (m *model) switchBox(newBox note.Box) tea.Cmd {
-	if err := m.listPanel.registerer.Unregister(m.currentBox.Path); err != nil {
-		slog.Error("failed to unregister path", "path", m.currentBox.Path, "error", err)
+	if err := m.listPanel.registerer.Unregister(m.currentBox.AllPaths()); err != nil {
+		slog.Error("failed to unregister paths", "paths", m.currentBox.AllPaths(), "error", err)
 	}
 
-	ch, err := m.listPanel.registerer.Register(newBox.Path)
+	ch, err := m.listPanel.registerer.Register(newBox.AllPaths())
 	if err != nil {
-		slog.Error("failed to register new box path", "path", newBox.Path, "error", err)
+		slog.Error("failed to register new box paths", "paths", newBox.AllPaths(), "error", err)
 		return nil
 	}
 
@@ -95,6 +109,26 @@ func (m *model) switchBox(newBox note.Box) tea.Cmd {
 	m.previewer.clearAllTabs()
 
 	return tea.Batch(waitNoteChangeCmd(ch), saveLastBoxCmd(newBox.ID))
+}
+
+// rebindCurrentBox re-registers the currently open box's file watches after
+// its set of merged paths has changed, so notes from the newly added
+// directory show up immediately without switching boxes.
+func (m *model) rebindCurrentBox(newBox note.Box) tea.Cmd {
+	if err := m.listPanel.registerer.Unregister(m.currentBox.AllPaths()); err != nil {
+		slog.Error("failed to unregister paths", "paths", m.currentBox.AllPaths(), "error", err)
+	}
+
+	ch, err := m.listPanel.registerer.Register(newBox.AllPaths())
+	if err != nil {
+		slog.Error("failed to register box paths", "paths", newBox.AllPaths(), "error", err)
+		m.currentBox = newBox
+		return nil
+	}
+
+	m.currentBox = newBox
+	m.listPanel.notesUpdates = ch
+	return waitNoteChangeCmd(ch)
 }
 
 // boxModalListToTipGap/boxModalTipLines are the fixed lines below boxList in
@@ -118,6 +152,7 @@ func (m model) viewBoxModal() string {
 		m.keys.boxModal.cancel,
 		m.keys.boxModal.newBox,
 		m.keys.boxModal.openFolderAsBox,
+		m.keys.boxModal.mergeBox,
 		m.keys.boxModal.renameBox,
 		m.keys.boxModal.deleteBox,
 	})
@@ -142,7 +177,7 @@ func (m *model) handleBoxFormConfirm() tea.Cmd {
 	title := m.boxModal.titleInput.Value()
 	rawPath := m.boxModal.pathInput.Value()
 
-	if title == "" {
+	if title == "" && m.boxModal.mode != modeMergeFolder {
 		m.boxModal.validationErr = "name is required"
 		return nil
 	}
@@ -198,6 +233,36 @@ func (m *model) handleBoxFormConfirm() tea.Cmd {
 		m.boxModal.pathInput.Blur()
 		m.focus = onListPanel
 		return openFolderAsBoxCmd(m.boxRepo, title, resolved)
+
+	case modeMergeFolder:
+		if rawPath == "" {
+			m.boxModal.validationErr = "path is required"
+			return nil
+		}
+		cwd, err := os.Getwd()
+		if err != nil {
+			m.boxModal.validationErr = "failed to get current directory"
+			return nil
+		}
+		resolved := resolveBoxPath(rawPath, cwd, home)
+		info, statErr := os.Stat(resolved)
+		if statErr != nil || !info.IsDir() {
+			m.boxModal.validationErr = "path must be an existing directory"
+			return nil
+		}
+		if isDuplicatePath(resolved, m.boxModal.items) {
+			m.boxModal.validationErr = "a box with this path already exists"
+			return nil
+		}
+		target := findBoxByID(m.boxModal.items, m.boxModal.mergeTargetID)
+		if target.ID == 0 {
+			m.boxModal.validationErr = "target box not found"
+			return nil
+		}
+		m.boxModal.titleInput.Blur()
+		m.boxModal.pathInput.Blur()
+		m.focus = onBoxModal
+		return addBoxPathCmd(m.boxRepo, target, resolved)
 	}
 
 	return nil
@@ -218,9 +283,19 @@ func (m *model) toggleBoxFormModal(ac modalAction, mode boxModalMode) {
 		case modeOpenFolder:
 			m.boxModal.titleInput.Placeholder = "Display name..."
 			m.boxModal.pathInput.Placeholder = "Existing folder path (e.g. ~/projects/work)..."
+		case modeMergeFolder:
+			m.boxModal.pathInput.Placeholder = "Folder path to merge (e.g. ~/projects/team)..."
 		}
-		m.boxModal.titleInput.Focus()
-		m.boxModal.pathInput.Blur()
+		if mode == modeMergeFolder {
+			// The merge form only takes a path; the title field stays
+			// unused and unfocused so tabbing has nowhere else to go.
+			m.boxModal.activeField = pathField
+			m.boxModal.titleInput.Blur()
+			m.boxModal.pathInput.Focus()
+		} else {
+			m.boxModal.titleInput.Focus()
+			m.boxModal.pathInput.Blur()
+		}
 		m.focus = onBoxCreateModal
 	case shut:
 		m.boxModal.titleInput.Blur()
@@ -252,6 +327,9 @@ func (m model) boxCreateModalLines() []string {
 	case modeOpenFolder:
 		header = "Open Folder as Box"
 		actionLabel = "Open"
+	case modeMergeFolder:
+		header = "Merge Folder into Box"
+		actionLabel = "Merge"
 	}
 
 	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") " + actionLabel + " ")
@@ -266,7 +344,12 @@ func (m model) boxCreateModalLines() []string {
 	lines := make([]string, 8)
 	lines[0] = header
 	lines[1] = ""
-	lines[boxCreateModalTitleLine] = boxCreateNameLabel + m.boxModal.titleInput.View()
+	if m.boxModal.mode == modeMergeFolder {
+		target := findBoxByID(m.boxModal.items, m.boxModal.mergeTargetID)
+		lines[boxCreateModalTitleLine] = boxCreateNameLabel + target.Title
+	} else {
+		lines[boxCreateModalTitleLine] = boxCreateNameLabel + m.boxModal.titleInput.View()
+	}
 	lines[3] = ""
 	lines[boxCreateModalPathLine] = boxCreatePathLabel + m.boxModal.pathInput.View()
 	lines[5] = errLine
@@ -369,6 +452,9 @@ func (m model) renderBoxList() string {
 			line = boxRenameRowPrefix + m.boxModal.renameInput.View()
 		} else {
 			title := b.Title
+			if len(b.Paths) > 0 {
+				title = fmt.Sprintf("%s (+%d)", title, len(b.Paths))
+			}
 			if _, err := os.Stat(b.Path); os.IsNotExist(err) {
 				title = strikethrough.Render(title)
 			}

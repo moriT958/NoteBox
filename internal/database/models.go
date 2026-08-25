@@ -14,3 +14,9 @@ type Box struct {
 	Path      string
 	DeletedAt sql.NullTime
 }
+
+type BoxPath struct {
+	ID    int64
+	BoxID int64
+	Path  string
+}

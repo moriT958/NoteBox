@@ -124,11 +124,14 @@ func newBoxFinalPath(title, resolvedBase, configDir string) string {
 	return filepath.Join(resolvedBase, title)
 }
 
-// isDuplicatePath reports whether path is already used by one of boxes.
+// isDuplicatePath reports whether path is already used by one of boxes,
+// checking every directory merged into each box.
 func isDuplicatePath(path string, boxes []note.Box) bool {
 	for _, b := range boxes {
-		if b.Path == path {
-			return true
+		for _, p := range b.AllPaths() {
+			if p == path {
+				return true
+			}
 		}
 	}
 	return false
@@ -179,6 +182,20 @@ func renameBoxCmd(repo note.BoxRepository, box note.Box) tea.Cmd {
 			return errMsg(err)
 		}
 		return boxRenamedMsg(updated)
+	}
+}
+
+type boxPathAddedMsg note.Box
+
+// addBoxPathCmd merges an additional directory into box, so it behaves as
+// one more root of that box's notes.
+func addBoxPathCmd(repo note.BoxRepository, box note.Box, path string) tea.Cmd {
+	return func() tea.Msg {
+		updated, err := repo.AddBoxPath(context.Background(), box, path)
+		if err != nil {
+			return errMsg(err)
+		}
+		return boxPathAddedMsg(updated)
 	}
 }
 

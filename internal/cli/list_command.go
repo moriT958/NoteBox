@@ -63,7 +63,12 @@ func (c *listCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) sub
 
 	fmt.Println(header + pad(titleHeader) + "Path" + reset)
 	for _, b := range boxes {
-		line := pad(b.Title) + shortenHomePath(b.Path)
+		paths := make([]string, 0, 1+len(b.Paths))
+		paths = append(paths, shortenHomePath(b.Path))
+		for _, p := range b.Paths {
+			paths = append(paths, shortenHomePath(p))
+		}
+		line := pad(b.Title) + strings.Join(paths, ", ")
 		if !b.Active {
 			line = dim + line + reset
 		}
