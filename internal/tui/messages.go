@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -128,10 +129,8 @@ func newBoxFinalPath(title, resolvedBase, configDir string) string {
 // checking every directory merged into each box.
 func isDuplicatePath(path string, boxes []note.Box) bool {
 	for _, b := range boxes {
-		for _, p := range b.AllPaths() {
-			if p == path {
-				return true
-			}
+		if slices.Contains(b.AllPaths(), path) {
+			return true
 		}
 	}
 	return false
