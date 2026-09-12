@@ -31,3 +31,7 @@ tasks:
     desc: Run all tests
     cmds:
       - go test -v ./internal/...
+
+  fix:
+    desc: Run go fix
+    cmd: go fix ./...

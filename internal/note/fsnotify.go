@@ -10,14 +10,21 @@ import (
 )
 
 type Registerer interface {
-	Register(path string) (<-chan []Note, error)
-	Unregister(path string) error
+	// Register watches all of the given paths as a single unit (e.g. the
+	// directories merged into one box) and returns a channel of their
+	// combined notes.
+	Register(paths []string) (<-chan []Note, error)
+	Unregister(paths []string) error
 }
 
 type FSNotifyRegisterer struct {
 	*fsnotify.Watcher
-	mu      sync.Mutex
-	cancels map[string]context.CancelFunc
+	mu sync.Mutex
+	// cancel stops the watch goroutine of the currently registered path
+	// group. Only one group (i.e. one box's directories) is ever registered
+	// at a time — switchBox and rebindCurrentBox always call Unregister
+	// before Register — so a single cancel func is enough to track it.
+	cancel context.CancelFunc
 }
 
 func NewFSNotifyRegisterer() (*FSNotifyRegisterer, error) {
@@ -27,49 +34,55 @@ func NewFSNotifyRegisterer() (*FSNotifyRegisterer, error) {
 	}
 	return &FSNotifyRegisterer{
 		Watcher: w,
-		cancels: make(map[string]context.CancelFunc),
 	}, nil
 }
 
 var _ Registerer = (*FSNotifyRegisterer)(nil)
 
-func (r *FSNotifyRegisterer) Register(path string) (<-chan []Note, error) {
-	notes, err := LoadNoteFiles(path)
+func (r *FSNotifyRegisterer) Register(paths []string) (<-chan []Note, error) {
+	notes, err := LoadNoteFiles(paths...)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := r.Add(path, fsnotify.Create|fsnotify.Remove|fsnotify.Rename|fsnotify.Write); err != nil {
-		return nil, err
+	for _, path := range paths {
+		if err := r.Add(path, fsnotify.Create|fsnotify.Remove|fsnotify.Rename|fsnotify.Write); err != nil {
+			return nil, err
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	// NOTE: overwriting cancels[path] without calling the old cancel would leak the
-	// previous watch goroutine. However, Register is never called twice for the same
-	// path — switchBox always calls Unregister first — so this is not an issue in practice.
 	r.mu.Lock()
-	r.cancels[path] = cancel
+	r.cancel = cancel
 	r.mu.Unlock()
 
 	ch := make(chan []Note, 1)
 	ch <- notes
 
-	go r.watch(ctx, path, ch)
+	go r.watch(ctx, paths, ch)
 	return ch, nil
 }
 
-func (r *FSNotifyRegisterer) Unregister(path string) error {
+func (r *FSNotifyRegisterer) Unregister(paths []string) error {
 	r.mu.Lock()
-	if cancel, ok := r.cancels[path]; ok {
-		cancel()
-		delete(r.cancels, path)
-	}
+	cancel := r.cancel
+	r.cancel = nil
 	r.mu.Unlock()
 
-	return r.Watcher.Remove(path)
+	if cancel != nil {
+		cancel()
+	}
+
+	var firstErr error
+	for _, path := range paths {
+		if err := r.Watcher.Remove(path); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }
 
-func (r *FSNotifyRegisterer) watch(ctx context.Context, path string, ch chan<- []Note) {
+func (r *FSNotifyRegisterer) watch(ctx context.Context, paths []string, ch chan<- []Note) {
 	defer close(ch)
 
 	// Debounce rapid successive events caused by editor's atomic write
@@ -94,7 +107,7 @@ func (r *FSNotifyRegisterer) watch(ctx context.Context, path string, ch chan<- [
 			debounceTimer = time.NewTimer(debounceDelay)
 		case <-timerC(debounceTimer):
 			debounceTimer = nil
-			notes, err := LoadNoteFiles(path)
+			notes, err := LoadNoteFiles(paths...)
 			if err != nil {
 				slog.Error("reload notes", slog.String("error", err.Error()))
 				continue

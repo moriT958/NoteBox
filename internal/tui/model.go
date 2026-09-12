@@ -96,7 +96,7 @@ func NewModel(reg note.Registerer, br note.BoxRepository) (*model, error) {
 		return nil, fmt.Errorf("failed to initialize box: %w", err)
 	}
 
-	ch, err := reg.Register(curBox.Path)
+	ch, err := reg.Register(curBox.AllPaths())
 	if err != nil {
 		return nil, err
 	}
@@ -351,6 +351,12 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 			m.toggleBoxFormModal(open, modeNewBox)
 		case key.Matches(msg, m.keys.boxModal.openFolderAsBox):
 			m.toggleBoxFormModal(open, modeOpenFolder)
+		case key.Matches(msg, m.keys.boxModal.mergeBox):
+			selected := m.boxModal.selectedItem()
+			if selected.ID != 0 {
+				m.boxModal.mergeTargetID = selected.ID
+				m.toggleBoxFormModal(open, modeMergeFolder)
+			}
 		case key.Matches(msg, m.keys.boxModal.deleteBox):
 			selected := m.boxModal.selectedItem()
 			if selected.ID != 0 && selected.ID != m.currentBox.ID {
@@ -375,7 +381,7 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 			m.focus = onBoxModal
 			selected := m.boxModal.selectedItem()
 			if newTitle != "" && newTitle != selected.Title {
-				cmd = renameBoxCmd(m.boxRepo, note.Box{ID: selected.ID, Title: newTitle, Path: selected.Path})
+				cmd = renameBoxCmd(m.boxRepo, note.Box{ID: selected.ID, Title: newTitle, Path: selected.Path, Paths: selected.Paths})
 			}
 		case key.Matches(msg, m.keys.renameInput.cancel):
 			m.boxModal.renameInput.Blur()
@@ -390,13 +396,17 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 		case key.Matches(msg, m.keys.typingModal.cancel):
 			m.toggleBoxFormModal(shut, m.boxModal.mode)
 		case key.Matches(msg, m.keys.boxModal.down):
-			m.boxModal.titleInput.Blur()
-			m.boxModal.pathInput.Focus()
-			m.boxModal.activeField = pathField
+			if m.boxModal.mode != modeMergeFolder {
+				m.boxModal.titleInput.Blur()
+				m.boxModal.pathInput.Focus()
+				m.boxModal.activeField = pathField
+			}
 		case key.Matches(msg, m.keys.boxModal.up):
-			m.boxModal.pathInput.Blur()
-			m.boxModal.titleInput.Focus()
-			m.boxModal.activeField = titleField
+			if m.boxModal.mode != modeMergeFolder {
+				m.boxModal.pathInput.Blur()
+				m.boxModal.titleInput.Focus()
+				m.boxModal.activeField = titleField
+			}
 		default:
 			if m.boxModal.activeField == titleField {
 				m.boxModal.titleInput, cmd = m.boxModal.titleInput.Update(msg)
@@ -481,6 +491,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				break
 			}
+		}
+	case boxPathAddedMsg:
+		updated := note.Box(msg)
+		for i, b := range m.boxModal.items {
+			if b.ID == updated.ID {
+				m.boxModal.items[i] = updated
+				break
+			}
+		}
+		if m.currentBox.ID == updated.ID {
+			cmd = m.rebindCurrentBox(updated)
 		}
 	case boxRenamedMsg:
 		updated := note.Box(msg)

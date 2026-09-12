@@ -22,9 +22,13 @@ func (r *BoxRepository) FindAll(ctx context.Context) ([]note.Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	pathsByBox, err := r.mergedPathsByBox(ctx)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]note.Box, len(boxes))
 	for i, b := range boxes {
-		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Active: !b.DeletedAt.Valid}
+		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Paths: pathsByBox[b.ID], Active: !b.DeletedAt.Valid}
 	}
 	return result, nil
 }
@@ -34,9 +38,13 @@ func (r *BoxRepository) FindAllActive(ctx context.Context) ([]note.Box, error) {
 	if err != nil {
 		return nil, err
 	}
+	pathsByBox, err := r.mergedPathsByBox(ctx)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]note.Box, len(boxes))
 	for i, b := range boxes {
-		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Active: true}
+		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Paths: pathsByBox[b.ID], Active: true}
 	}
 	return result, nil
 }
@@ -46,9 +54,27 @@ func (r *BoxRepository) FindInactiveBoxes(ctx context.Context) ([]note.Box, erro
 	if err != nil {
 		return nil, err
 	}
+	pathsByBox, err := r.mergedPathsByBox(ctx)
+	if err != nil {
+		return nil, err
+	}
 	result := make([]note.Box, len(boxes))
 	for i, b := range boxes {
-		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Active: false}
+		result[i] = note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Paths: pathsByBox[b.ID], Active: false}
+	}
+	return result, nil
+}
+
+// mergedPathsByBox returns, for every box, the extra directories merged
+// into it (i.e. box_paths rows), keyed by box ID.
+func (r *BoxRepository) mergedPathsByBox(ctx context.Context) (map[int64][]string, error) {
+	rows, err := r.q.ListAllBoxPaths(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[int64][]string, len(rows))
+	for _, row := range rows {
+		result[row.BoxID] = append(result[row.BoxID], row.Path)
 	}
 	return result, nil
 }
@@ -74,9 +100,35 @@ func (r *BoxRepository) UpdateBox(ctx context.Context, box note.Box) (note.Box, 
 	if err != nil {
 		return note.Box{}, err
 	}
-	return note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Active: !b.DeletedAt.Valid}, nil
+	return note.Box{ID: int(b.ID), Title: b.Title, Path: b.Path, Paths: box.Paths, Active: !b.DeletedAt.Valid}, nil
 }
 
 func (r *BoxRepository) DeleteBox(ctx context.Context, box note.Box) error {
 	return r.q.DeleteBox(ctx, int64(box.ID))
+}
+
+// AddBoxPath merges an additional directory into an existing box, returning
+// the box with the new path appended.
+func (r *BoxRepository) AddBoxPath(ctx context.Context, box note.Box, path string) (note.Box, error) {
+	if _, err := r.q.AddBoxPath(ctx, AddBoxPathParams{BoxID: int64(box.ID), Path: path}); err != nil {
+		return note.Box{}, err
+	}
+	box.Paths = append(append([]string{}, box.Paths...), path)
+	return box, nil
+}
+
+// RemoveBoxPath un-merges a previously added directory from a box, returning
+// the box with that path removed. It cannot remove the box's primary Path.
+func (r *BoxRepository) RemoveBoxPath(ctx context.Context, box note.Box, path string) (note.Box, error) {
+	if err := r.q.RemoveBoxPathByPath(ctx, RemoveBoxPathByPathParams{BoxID: int64(box.ID), Path: path}); err != nil {
+		return note.Box{}, err
+	}
+	remaining := make([]string, 0, len(box.Paths))
+	for _, p := range box.Paths {
+		if p != path {
+			remaining = append(remaining, p)
+		}
+	}
+	box.Paths = remaining
+	return box, nil
 }

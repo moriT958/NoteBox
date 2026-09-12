@@ -28,6 +28,7 @@ type boxModalKeyMap struct {
 	down            key.Binding
 	newBox          key.Binding
 	openFolderAsBox key.Binding
+	mergeBox        key.Binding
 	deleteBox       key.Binding
 	renameBox       key.Binding
 }
@@ -220,6 +221,10 @@ func defaultKeyMap() keyMap {
 			openFolderAsBox: key.NewBinding(
 				key.WithKeys("o"),
 				key.WithHelp("o", "open folder"),
+			),
+			mergeBox: key.NewBinding(
+				key.WithKeys("m"),
+				key.WithHelp("m", "merge folder"),
 			),
 			deleteBox: key.NewBinding(
 				key.WithKeys("d"),
