@@ -197,9 +197,11 @@ func (m model) Init() tea.Cmd {
 	return waitNoteChangeCmd(m.listPanel.notesUpdates)
 }
 
+// handleKeyMsg handles the few keys that apply regardless of focus, then
+// dispatches to the handler for the current focus state. Each handler owns
+// its own key bindings and invariants and can be driven directly in tests
+// without going through this dispatcher.
 func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
-	var cmd tea.Cmd
-
 	if key.Matches(msg, m.keys.quit) {
 		return tea.Quit
 	}
@@ -217,192 +219,246 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 
 	switch m.focus {
 	case onListPanel:
-		switch {
-		case key.Matches(msg, m.keys.listPanel.down):
-			m.listPanel.cursorDown()
-			return m.previewer.OpenTab(m.listPanel.selectedItem(), false)
-		case key.Matches(msg, m.keys.listPanel.up):
-			m.listPanel.cursorUp()
-			return m.previewer.OpenTab(m.listPanel.selectedItem(), false)
-		case key.Matches(msg, m.keys.listPanel.newNote):
-			m.toggleTypingModal(open)
-		case key.Matches(msg, m.keys.listPanel.openTab):
-			m.focus = onPreviewer
-			return m.previewer.OpenTab(m.listPanel.selectedItem(), true)
-		case key.Matches(msg, m.keys.listPanel.focusPreview):
-			m.focus = onPreviewer
-		case key.Matches(msg, m.keys.listPanel.deleteNote):
-			m.warnMessage = "Are you sure you want to remove?"
-			m.warnAction = warnDeleteNote
-			m.toggleWarnModal(open)
-		case key.Matches(msg, m.keys.listPanel.editNote):
-			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
-		case key.Matches(msg, m.keys.listPanel.search):
-			m.toggleFuzzyModal(open)
-		case key.Matches(msg, m.keys.listPanel.renameNote):
-			if m.listPanel.selectedItem().Path != "" {
-				m.listPanel.renameInput.Reset()
-				m.listPanel.renameInput.SetValue(m.listPanel.selectedItem().Title)
-				m.listPanel.renameInput.Focus()
-				m.focus = onRenaming
-			}
-		}
+		return m.handleListPanelKeys(msg)
 	case onRenaming:
-		switch {
-		case key.Matches(msg, m.keys.renameInput.confirm):
-			newTitle := m.listPanel.renameInput.Value()
-			m.listPanel.renameInput.Blur()
-			m.focus = onListPanel
-			cmd = renameNoteCmd(m.listPanel.selectedItem(), newTitle)
-		case key.Matches(msg, m.keys.renameInput.cancel):
-			m.listPanel.renameInput.Blur()
-			m.focus = onListPanel
-		default:
-			m.listPanel.renameInput, cmd = m.listPanel.renameInput.Update(msg)
-		}
+		return m.handleRenamingKeys(msg)
 	case onTypingModal:
-		switch {
-		case key.Matches(msg, m.keys.typingModal.confirm):
-			m.toggleTypingModal(shut)
-			cmd = createNewNoteCmd(m.currentBox.Path, m.input.Value())
-		case key.Matches(msg, m.keys.typingModal.cancel):
-			m.toggleTypingModal(shut)
-		default:
-			m.input, cmd = m.input.Update(msg)
-		}
+		return m.handleTypingModalKeys(msg)
 	case onPreviewer:
-		switch {
-		case key.Matches(msg, m.keys.previewer.focusList):
-			m.focus = onListPanel
-		case key.Matches(msg, m.keys.previewer.editNote):
-			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
-		case key.Matches(msg, m.keys.previewer.openTab):
-			return m.previewer.OpenTab(m.listPanel.selectedItem(), true)
-		case key.Matches(msg, m.keys.previewer.closeTab):
-			m.previewer.closeTab()
-		case key.Matches(msg, m.keys.previewer.nextTab):
-			m.previewer.nextTab()
-		case key.Matches(msg, m.keys.previewer.prevTab):
-			m.previewer.prevTab()
-		default:
-			m.previewer.vp, cmd = m.previewer.vp.Update(msg)
-		}
+		return m.handlePreviewerKeys(msg)
 	case onWarnModal:
-		switch {
-		case key.Matches(msg, m.keys.warnModal.confirm):
-			switch m.warnAction {
-			case warnDeleteNote:
-				var cmds []tea.Cmd
-				m.focus = onListPanel
-				// WARN:
-				// Do not change the execution order of deleteNotefileCmd, removeItem and renderPreviewCmd.
-				// Because the cursor value is modified within removeItem, and altering
-				// the order may lead to unexpected behavior.
-				deletedPath := m.listPanel.selectedItem().Path
-				cmds = append(cmds, deleteNoteFileCmd(deletedPath))
-				m.listPanel.removeItem()
-				m.previewer.removeTabByPath(deletedPath)
-				cmds = append(cmds, renderTabCmd(m.previewer.renderer, m.listPanel.selectedItem(), false))
-				cmd = tea.Batch(cmds...)
-			case warnDeleteBox:
-				selected := m.boxModal.selectedItem()
-				m.focus = onBoxModal
-				cmd = deleteBoxCmd(m.boxRepo, selected)
-			}
-		case key.Matches(msg, m.keys.warnModal.cancel):
-			switch m.warnAction {
-			case warnDeleteNote:
-				m.focus = onListPanel
-			case warnDeleteBox:
-				m.focus = onBoxModal
-			}
-		}
+		return m.handleWarnModalKeys(msg)
 	case onFuzzyModal:
-		switch {
-		case key.Matches(msg, m.keys.fuzzyModal.confirm):
-			m.selectFromFuzzy()
-			m.toggleFuzzyModal(shut)
-			return m.previewer.OpenTab(m.listPanel.selectedItem(), false)
-		case key.Matches(msg, m.keys.fuzzyModal.cancel):
-			m.toggleFuzzyModal(shut)
-		case key.Matches(msg, m.keys.fuzzyModal.down):
-			m.fnsModal.cursorDown()
-		case key.Matches(msg, m.keys.fuzzyModal.up):
-			m.fnsModal.cursorUp()
-		default:
-			m.fnsModal.input, cmd = m.fnsModal.input.Update(msg)
-			m.fnsModal.filter(m.fnsModal.input.Value())
-		}
+		return m.handleFuzzyModalKeys(msg)
 	case onBoxModal:
-		switch {
-		case key.Matches(msg, m.keys.boxModal.confirm):
-			selected := m.boxModal.selectedItem()
-			m.toggleBoxModal(shut)
-			if selected.ID != 0 && selected.ID != m.currentBox.ID {
-				return m.switchBox(selected)
-			}
-		case key.Matches(msg, m.keys.boxModal.cancel):
-			m.toggleBoxModal(shut)
-		case key.Matches(msg, m.keys.boxModal.down):
-			m.boxModal.cursorDown()
-		case key.Matches(msg, m.keys.boxModal.up):
-			m.boxModal.cursorUp()
-		case key.Matches(msg, m.keys.boxModal.newBox):
-			m.toggleBoxFormModal(open, modeNewBox)
-		case key.Matches(msg, m.keys.boxModal.openFolderAsBox):
-			m.toggleBoxFormModal(open, modeOpenFolder)
-		case key.Matches(msg, m.keys.boxModal.deleteBox):
-			selected := m.boxModal.selectedItem()
-			if selected.ID != 0 && selected.ID != m.currentBox.ID {
-				m.warnMessage = fmt.Sprintf("Delete box '%s'?", selected.Title)
-				m.warnAction = warnDeleteBox
-				m.focus = onWarnModal
-			}
-		case key.Matches(msg, m.keys.boxModal.renameBox):
-			selected := m.boxModal.selectedItem()
-			if selected.ID != 0 {
-				m.boxModal.renameInput.Reset()
-				m.boxModal.renameInput.SetValue(selected.Title)
-				m.boxModal.renameInput.Focus()
-				m.focus = onBoxRenaming
-			}
-		}
+		return m.handleBoxModalKeys(msg)
 	case onBoxRenaming:
-		switch {
-		case key.Matches(msg, m.keys.renameInput.confirm):
-			newTitle := m.boxModal.renameInput.Value()
-			m.boxModal.renameInput.Blur()
-			m.focus = onBoxModal
-			selected := m.boxModal.selectedItem()
-			if newTitle != "" && newTitle != selected.Title {
-				cmd = renameBoxCmd(m.boxRepo, note.Box{ID: selected.ID, Title: newTitle, Path: selected.Path})
-			}
-		case key.Matches(msg, m.keys.renameInput.cancel):
-			m.boxModal.renameInput.Blur()
-			m.focus = onBoxModal
-		default:
-			m.boxModal.renameInput, cmd = m.boxModal.renameInput.Update(msg)
-		}
+		return m.handleBoxRenamingKeys(msg)
 	case onBoxCreateModal:
-		switch {
-		case key.Matches(msg, m.keys.typingModal.confirm):
-			cmd = m.handleBoxFormConfirm()
-		case key.Matches(msg, m.keys.typingModal.cancel):
-			m.toggleBoxFormModal(shut, m.boxModal.mode)
-		case key.Matches(msg, m.keys.boxModal.down):
-			m.boxModal.titleInput.Blur()
-			m.boxModal.pathInput.Focus()
-			m.boxModal.activeField = pathField
-		case key.Matches(msg, m.keys.boxModal.up):
-			m.boxModal.pathInput.Blur()
-			m.boxModal.titleInput.Focus()
-			m.boxModal.activeField = titleField
-		default:
-			if m.boxModal.activeField == titleField {
-				m.boxModal.titleInput, cmd = m.boxModal.titleInput.Update(msg)
-			} else {
-				m.boxModal.pathInput, cmd = m.boxModal.pathInput.Update(msg)
-			}
+		return m.handleBoxCreateModalKeys(msg)
+	}
+	return nil
+}
+
+func (m *model) handleListPanelKeys(msg tea.KeyPressMsg) tea.Cmd {
+	var cmd tea.Cmd
+	switch {
+	case key.Matches(msg, m.keys.listPanel.down):
+		m.listPanel.cursorDown()
+		return m.previewer.OpenTab(m.listPanel.selectedItem(), false)
+	case key.Matches(msg, m.keys.listPanel.up):
+		m.listPanel.cursorUp()
+		return m.previewer.OpenTab(m.listPanel.selectedItem(), false)
+	case key.Matches(msg, m.keys.listPanel.newNote):
+		m.toggleTypingModal(open)
+	case key.Matches(msg, m.keys.listPanel.openTab):
+		m.focus = onPreviewer
+		return m.previewer.OpenTab(m.listPanel.selectedItem(), true)
+	case key.Matches(msg, m.keys.listPanel.focusPreview):
+		m.focus = onPreviewer
+	case key.Matches(msg, m.keys.listPanel.deleteNote):
+		m.warnMessage = "Are you sure you want to remove?"
+		m.warnAction = warnDeleteNote
+		m.toggleWarnModal(open)
+	case key.Matches(msg, m.keys.listPanel.editNote):
+		cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
+	case key.Matches(msg, m.keys.listPanel.search):
+		m.toggleFuzzyModal(open)
+	case key.Matches(msg, m.keys.listPanel.renameNote):
+		if m.listPanel.selectedItem().Path != "" {
+			m.listPanel.renameInput.Reset()
+			m.listPanel.renameInput.SetValue(m.listPanel.selectedItem().Title)
+			m.listPanel.renameInput.Focus()
+			m.focus = onRenaming
+		}
+	}
+	return cmd
+}
+
+func (m *model) handleRenamingKeys(msg tea.KeyPressMsg) tea.Cmd {
+	var cmd tea.Cmd
+	switch {
+	case key.Matches(msg, m.keys.renameInput.confirm):
+		newTitle := m.listPanel.renameInput.Value()
+		m.listPanel.renameInput.Blur()
+		m.focus = onListPanel
+		cmd = renameNoteCmd(m.listPanel.selectedItem(), newTitle)
+	case key.Matches(msg, m.keys.renameInput.cancel):
+		m.listPanel.renameInput.Blur()
+		m.focus = onListPanel
+	default:
+		m.listPanel.renameInput, cmd = m.listPanel.renameInput.Update(msg)
+	}
+	return cmd
+}
+
+func (m *model) handleTypingModalKeys(msg tea.KeyPressMsg) tea.Cmd {
+	var cmd tea.Cmd
+	switch {
+	case key.Matches(msg, m.keys.typingModal.confirm):
+		m.toggleTypingModal(shut)
+		cmd = createNewNoteCmd(m.currentBox.Path, m.input.Value())
+	case key.Matches(msg, m.keys.typingModal.cancel):
+		m.toggleTypingModal(shut)
+	default:
+		m.input, cmd = m.input.Update(msg)
+	}
+	return cmd
+}
+
+func (m *model) handlePreviewerKeys(msg tea.KeyPressMsg) tea.Cmd {
+	var cmd tea.Cmd
+	switch {
+	case key.Matches(msg, m.keys.previewer.focusList):
+		m.focus = onListPanel
+	case key.Matches(msg, m.keys.previewer.editNote):
+		cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
+	case key.Matches(msg, m.keys.previewer.openTab):
+		return m.previewer.OpenTab(m.listPanel.selectedItem(), true)
+	case key.Matches(msg, m.keys.previewer.closeTab):
+		m.previewer.closeTab()
+	case key.Matches(msg, m.keys.previewer.nextTab):
+		m.previewer.nextTab()
+	case key.Matches(msg, m.keys.previewer.prevTab):
+		m.previewer.prevTab()
+	default:
+		m.previewer.vp, cmd = m.previewer.vp.Update(msg)
+	}
+	return cmd
+}
+
+func (m *model) handleWarnModalKeys(msg tea.KeyPressMsg) tea.Cmd {
+	var cmd tea.Cmd
+	switch {
+	case key.Matches(msg, m.keys.warnModal.confirm):
+		switch m.warnAction {
+		case warnDeleteNote:
+			var cmds []tea.Cmd
+			m.focus = onListPanel
+			// WARN:
+			// Do not change the execution order of deleteNotefileCmd, removeItem and renderTabCmd.
+			// Because the cursor value is modified within removeItem, and altering
+			// the order may lead to unexpected behavior.
+			deletedPath := m.listPanel.selectedItem().Path
+			cmds = append(cmds, deleteNoteFileCmd(deletedPath))
+			m.listPanel.removeItem()
+			m.previewer.removeTabByPath(deletedPath)
+			cmds = append(cmds, renderTabCmd(m.previewer.renderer, m.listPanel.selectedItem(), false))
+			cmd = tea.Batch(cmds...)
+		case warnDeleteBox:
+			selected := m.boxModal.selectedItem()
+			m.focus = onBoxModal
+			cmd = deleteBoxCmd(m.boxRepo, selected)
+		}
+	case key.Matches(msg, m.keys.warnModal.cancel):
+		switch m.warnAction {
+		case warnDeleteNote:
+			m.focus = onListPanel
+		case warnDeleteBox:
+			m.focus = onBoxModal
+		}
+	}
+	return cmd
+}
+
+func (m *model) handleFuzzyModalKeys(msg tea.KeyPressMsg) tea.Cmd {
+	var cmd tea.Cmd
+	switch {
+	case key.Matches(msg, m.keys.fuzzyModal.confirm):
+		m.selectFromFuzzy()
+		m.toggleFuzzyModal(shut)
+		return m.previewer.OpenTab(m.listPanel.selectedItem(), false)
+	case key.Matches(msg, m.keys.fuzzyModal.cancel):
+		m.toggleFuzzyModal(shut)
+	case key.Matches(msg, m.keys.fuzzyModal.down):
+		m.fnsModal.cursorDown()
+	case key.Matches(msg, m.keys.fuzzyModal.up):
+		m.fnsModal.cursorUp()
+	default:
+		m.fnsModal.input, cmd = m.fnsModal.input.Update(msg)
+		m.fnsModal.filter(m.fnsModal.input.Value())
+	}
+	return cmd
+}
+
+func (m *model) handleBoxModalKeys(msg tea.KeyPressMsg) tea.Cmd {
+	var cmd tea.Cmd
+	switch {
+	case key.Matches(msg, m.keys.boxModal.confirm):
+		selected := m.boxModal.selectedItem()
+		m.toggleBoxModal(shut)
+		if selected.ID != 0 && selected.ID != m.currentBox.ID {
+			return m.switchBox(selected)
+		}
+	case key.Matches(msg, m.keys.boxModal.cancel):
+		m.toggleBoxModal(shut)
+	case key.Matches(msg, m.keys.boxModal.down):
+		m.boxModal.cursorDown()
+	case key.Matches(msg, m.keys.boxModal.up):
+		m.boxModal.cursorUp()
+	case key.Matches(msg, m.keys.boxModal.newBox):
+		m.toggleBoxFormModal(open, modeNewBox)
+	case key.Matches(msg, m.keys.boxModal.openFolderAsBox):
+		m.toggleBoxFormModal(open, modeOpenFolder)
+	case key.Matches(msg, m.keys.boxModal.deleteBox):
+		selected := m.boxModal.selectedItem()
+		if selected.ID != 0 && selected.ID != m.currentBox.ID {
+			m.warnMessage = fmt.Sprintf("Delete box '%s'?", selected.Title)
+			m.warnAction = warnDeleteBox
+			m.focus = onWarnModal
+		}
+	case key.Matches(msg, m.keys.boxModal.renameBox):
+		selected := m.boxModal.selectedItem()
+		if selected.ID != 0 {
+			m.boxModal.renameInput.Reset()
+			m.boxModal.renameInput.SetValue(selected.Title)
+			m.boxModal.renameInput.Focus()
+			m.focus = onBoxRenaming
+		}
+	}
+	return cmd
+}
+
+func (m *model) handleBoxRenamingKeys(msg tea.KeyPressMsg) tea.Cmd {
+	var cmd tea.Cmd
+	switch {
+	case key.Matches(msg, m.keys.renameInput.confirm):
+		newTitle := m.boxModal.renameInput.Value()
+		m.boxModal.renameInput.Blur()
+		m.focus = onBoxModal
+		selected := m.boxModal.selectedItem()
+		if newTitle != "" && newTitle != selected.Title {
+			cmd = renameBoxCmd(m.boxRepo, note.Box{ID: selected.ID, Title: newTitle, Path: selected.Path})
+		}
+	case key.Matches(msg, m.keys.renameInput.cancel):
+		m.boxModal.renameInput.Blur()
+		m.focus = onBoxModal
+	default:
+		m.boxModal.renameInput, cmd = m.boxModal.renameInput.Update(msg)
+	}
+	return cmd
+}
+
+func (m *model) handleBoxCreateModalKeys(msg tea.KeyPressMsg) tea.Cmd {
+	var cmd tea.Cmd
+	switch {
+	case key.Matches(msg, m.keys.typingModal.confirm):
+		cmd = m.handleBoxFormConfirm()
+	case key.Matches(msg, m.keys.typingModal.cancel):
+		m.toggleBoxFormModal(shut, m.boxModal.mode)
+	case key.Matches(msg, m.keys.boxModal.down):
+		m.boxModal.titleInput.Blur()
+		m.boxModal.pathInput.Focus()
+		m.boxModal.activeField = pathField
+	case key.Matches(msg, m.keys.boxModal.up):
+		m.boxModal.pathInput.Blur()
+		m.boxModal.titleInput.Focus()
+		m.boxModal.activeField = titleField
+	default:
+		if m.boxModal.activeField == titleField {
+			m.boxModal.titleInput, cmd = m.boxModal.titleInput.Update(msg)
+		} else {
+			m.boxModal.pathInput, cmd = m.boxModal.pathInput.Update(msg)
 		}
 	}
 	return cmd
