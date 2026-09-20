@@ -118,6 +118,22 @@ func (m *listPanel) cursorDown() {
 	m.cursor, m.offset = calcCursorDown(m.cursor, len(m.items), m.offset, m.height)
 }
 
+// SelectByIndex jumps the cursor to item index i and repositions the
+// viewport window to it. This is the "select this exact item" seam other
+// modals (fuzzy search, box switch) go through instead of recomputing
+// cursor/offset positioning themselves.
+func (m *listPanel) SelectByIndex(i int) {
+	if i < 0 || i >= len(m.items) {
+		return
+	}
+	m.cursor = i
+	if m.cursor >= m.height {
+		m.offset = m.cursor - m.height + 1
+	} else {
+		m.offset = 0
+	}
+}
+
 // Get selected item in the list
 func (m listPanel) selectedItem() note.Note {
 	if m.cursor < 0 || len(m.items) == 0 || len(m.items) <= m.cursor {

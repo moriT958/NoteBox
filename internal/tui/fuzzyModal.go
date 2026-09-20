@@ -95,12 +95,7 @@ func (m *model) selectFromFuzzy() {
 
 	for i, item := range m.listPanel.items {
 		if item.Path == selected.Path {
-			m.listPanel.cursor = i
-			if m.listPanel.cursor >= m.listPanel.height {
-				m.listPanel.offset = m.listPanel.cursor - m.listPanel.height + 1
-			} else {
-				m.listPanel.offset = 0
-			}
+			m.listPanel.SelectByIndex(i)
 			break
 		}
 	}
