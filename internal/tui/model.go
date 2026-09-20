@@ -220,15 +220,15 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 		switch {
 		case key.Matches(msg, m.keys.listPanel.down):
 			m.listPanel.cursorDown()
-			return m.previewer.previewNote(m.listPanel.selectedItem())
+			return m.previewer.OpenTab(m.listPanel.selectedItem(), false)
 		case key.Matches(msg, m.keys.listPanel.up):
 			m.listPanel.cursorUp()
-			return m.previewer.previewNote(m.listPanel.selectedItem())
+			return m.previewer.OpenTab(m.listPanel.selectedItem(), false)
 		case key.Matches(msg, m.keys.listPanel.newNote):
 			m.toggleTypingModal(open)
 		case key.Matches(msg, m.keys.listPanel.openTab):
 			m.focus = onPreviewer
-			return openNormalTabCmd(m.previewer.renderer, m.listPanel.selectedItem())
+			return m.previewer.OpenTab(m.listPanel.selectedItem(), true)
 		case key.Matches(msg, m.keys.listPanel.focusPreview):
 			m.focus = onPreviewer
 		case key.Matches(msg, m.keys.listPanel.deleteNote):
@@ -277,7 +277,7 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 		case key.Matches(msg, m.keys.previewer.editNote):
 			cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.selectedItem().Path)
 		case key.Matches(msg, m.keys.previewer.openTab):
-			return openNormalTabCmd(m.previewer.renderer, m.listPanel.selectedItem())
+			return m.previewer.OpenTab(m.listPanel.selectedItem(), true)
 		case key.Matches(msg, m.keys.previewer.closeTab):
 			m.previewer.closeTab()
 		case key.Matches(msg, m.keys.previewer.nextTab):
@@ -302,7 +302,7 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 				cmds = append(cmds, deleteNoteFileCmd(deletedPath))
 				m.listPanel.removeItem()
 				m.previewer.removeTabByPath(deletedPath)
-				cmds = append(cmds, renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem()))
+				cmds = append(cmds, renderTabCmd(m.previewer.renderer, m.listPanel.selectedItem(), false))
 				cmd = tea.Batch(cmds...)
 			case warnDeleteBox:
 				selected := m.boxModal.selectedItem()
@@ -322,7 +322,7 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 		case key.Matches(msg, m.keys.fuzzyModal.confirm):
 			m.selectFromFuzzy()
 			m.toggleFuzzyModal(shut)
-			return m.previewer.previewNote(m.listPanel.selectedItem())
+			return m.previewer.OpenTab(m.listPanel.selectedItem(), false)
 		case key.Matches(msg, m.keys.fuzzyModal.cancel):
 			m.toggleFuzzyModal(shut)
 		case key.Matches(msg, m.keys.fuzzyModal.down):
@@ -444,18 +444,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateBoxModalSize(msg)
 		m.updateBoxCreateModalSize(msg)
 		m.help.SetWidth(msg.Width)
-		cmd = renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem())
+		cmd = renderTabCmd(m.previewer.renderer, m.listPanel.selectedItem(), false)
 	case tea.KeyPressMsg:
 		cmd = m.handleKeyMsg(msg)
 	case tea.PasteMsg:
 		cmd = m.handlePasteMsg(msg)
-	case renderPreviewMsg:
-		m.updatePreviewerContent(msg)
+	case tabRenderedMsg:
+		m.previewer.applyRendered(msg)
 	case newNoteCreatedMsg:
 		m.listPanel.addItem(note.Note(msg))
-		cmd = renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem())
-	case openNormalTabMsg:
-		m.previewer.openTab(msg)
+		cmd = renderTabCmd(m.previewer.renderer, m.listPanel.selectedItem(), false)
 	case boxesLoadedMsg:
 		boxes := []note.Box(msg)
 		m.boxModal.items = boxes
@@ -499,7 +497,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.fnsModal.allItems = m.listPanel.items
 			m.fnsModal.filter(m.fnsModal.input.Value())
 		}
-		cmd = tea.Batch(waitNoteChangeCmd(m.listPanel.notesUpdates), renderPreviewCmd(m.previewer.renderer, m.listPanel.selectedItem()))
+		cmd = tea.Batch(waitNoteChangeCmd(m.listPanel.notesUpdates), renderTabCmd(m.previewer.renderer, m.listPanel.selectedItem(), false))
 	}
 
 	return m, cmd

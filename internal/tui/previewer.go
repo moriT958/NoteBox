@@ -76,18 +76,16 @@ func (m *model) updatePreviewerSize(msg tea.WindowSizeMsg) {
 	m.previewer.vp.SetHeight(max(1, contentHeight))
 }
 
-func (m *model) updatePreviewerContent(msg renderPreviewMsg) {
-	// Update preview tab
-	newPreviewTab := &tab{
-		note:         m.listPanel.selectedItem(),
-		rendered:     string(msg),
-		isPreviewTab: true,
+// applyRendered installs the result of a renderTabCmd job as either an
+// ephemeral preview tab or a pinned normal tab, and refreshes the viewport.
+func (p *previewer) applyRendered(msg tabRenderedMsg) {
+	newTab := &tab{note: msg.note, rendered: msg.rendered, isPreviewTab: !msg.pin}
+	if newTab.isPreviewTab {
+		p.setPreviewTab(newTab)
+	} else {
+		p.setNormalTab(newTab)
 	}
-	m.previewer.setPreviewTab(newPreviewTab)
-
-	// Update viewport content
-	m.previewer.vp.SetContent(string(msg))
-	m.previewer.vp.GotoTop()
+	p.updateViewportContent()
 }
 
 func (p *previewer) setPreviewTab(prevTab *tab) {
@@ -110,26 +108,40 @@ func (p *previewer) setPreviewTab(prevTab *tab) {
 	p.adjustOffset()
 }
 
-// previewNote sets rendered note content on previewer.
-func (p *previewer) previewNote(note note.Note) tea.Cmd {
-	// If already exist in tabs cache, activate it.
+// setNormalTab installs newTab as a pinned tab, replacing an existing
+// preview-tab slot if one exists, or appending otherwise.
+func (p *previewer) setNormalTab(newTab *tab) {
 	for i, t := range p.tabs {
-		if !t.isPreviewTab && t.note.Path == note.Path {
+		if t.isPreviewTab {
+			p.tabs[i] = newTab
 			p.activeTab = i
 			p.adjustOffset()
-			p.vp.SetContent(p.tabs[i].rendered)
-			p.vp.GotoTop()
+			return
+		}
+	}
+	p.tabs = append(p.tabs, newTab)
+	p.activeTab = len(p.tabs) - 1
+	p.adjustOffset()
+}
+
+// OpenTab is the previewer's single entry point for showing a note: cursor
+// movement (pin=false, ephemeral preview) and the "open tab" key (pin=true,
+// pinned normal tab) both go through here. An already-cached tab for n is
+// activated in place (promoted to pinned if requested); otherwise a render
+// job is fired and applyRendered installs the result on completion.
+func (p *previewer) OpenTab(n note.Note, pin bool) tea.Cmd {
+	for i, t := range p.tabs {
+		if t.note.Path == n.Path {
+			if pin && t.isPreviewTab {
+				t.isPreviewTab = false
+			}
+			p.activeTab = i
+			p.adjustOffset()
+			p.updateViewportContent()
 			return nil
 		}
 	}
-	// If not exist in tabs cache, then fire rendering job.
-	return renderPreviewCmd(p.renderer, note)
-}
-
-// openTab promotes the current preview tab (or adds) to a normal tab.
-func (p *previewer) openTab(msg openNormalTabMsg) {
-	msg.isPreviewTab = false
-	p.tabs[p.activeTab] = (*tab)(&msg)
+	return renderTabCmd(p.renderer, n, pin)
 }
 
 // updateViewportContent updates the viewport content to match the active tab.
