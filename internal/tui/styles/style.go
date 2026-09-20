@@ -56,6 +56,8 @@ func New(theme Theme) *Style {
 	cursorMuted := lipgloss.LightDark(isDark)(lipgloss.Color("#b58c7e"), lipgloss.Color("#c7a89e"))
 	muted := lipgloss.LightDark(isDark)(lipgloss.Color("#8c8fa1"), lipgloss.Color("#51576d"))
 
+	tabBarBg := lipgloss.Color("#232634")
+
 	confirmFg := lipgloss.LightDark(isDark)(lipgloss.Color("#eff1f5"), lipgloss.Color("#414559"))
 	confirmBg := lipgloss.LightDark(isDark)(lipgloss.Color("#40a02b"), lipgloss.Color("#99d1db"))
 	cancelFg := lipgloss.LightDark(isDark)(lipgloss.Color("#eff1f5"), lipgloss.Color("#414559"))
@@ -91,9 +93,9 @@ func New(theme Theme) *Style {
 			Align(lipgloss.Center),
 
 		TabBarFocused: TabBarStyles{
-			Active:          lipgloss.NewStyle().Foreground(active).Bold(true),
+			Active:          lipgloss.NewStyle().Foreground(active).Background(tabBarBg).Bold(true),
 			Inactive:        lipgloss.NewStyle().Foreground(active),
-			ActivePreview:   lipgloss.NewStyle().Foreground(active).Bold(true).Italic(true),
+			ActivePreview:   lipgloss.NewStyle().Foreground(active).Background(tabBarBg).Bold(true).Italic(true),
 			InactivePreview: lipgloss.NewStyle().Foreground(active).Italic(true),
 		},
 
