@@ -31,6 +31,8 @@ type Style struct {
 
 	ActiveColor  lipgloss.Style
 	PassiveColor lipgloss.Style
+	NotePath     lipgloss.Style
+	CursorPath   lipgloss.Style
 
 	TabBarFocused    TabBarStyles
 	TabBarUnforcused TabBarStyles
@@ -51,6 +53,8 @@ func New(theme Theme) *Style {
 	primary := lipgloss.LightDark(isDark)(lipgloss.Color("#b89988"), lipgloss.Color("#737994"))
 	active := lipgloss.LightDark(isDark)(lipgloss.Color("#fe640b"), lipgloss.Color("#babbf1"))
 	cursor := lipgloss.LightDark(isDark)(lipgloss.Color("#dc8a78"), lipgloss.Color("#f2d5cf"))
+	cursorMuted := lipgloss.LightDark(isDark)(lipgloss.Color("#b58c7e"), lipgloss.Color("#c7a89e"))
+	muted := lipgloss.LightDark(isDark)(lipgloss.Color("#8c8fa1"), lipgloss.Color("#51576d"))
 
 	confirmFg := lipgloss.LightDark(isDark)(lipgloss.Color("#eff1f5"), lipgloss.Color("#414559"))
 	confirmBg := lipgloss.LightDark(isDark)(lipgloss.Color("#40a02b"), lipgloss.Color("#99d1db"))
@@ -62,6 +66,8 @@ func New(theme Theme) *Style {
 
 		ActiveColor:  lipgloss.NewStyle().Foreground(active),
 		PassiveColor: lipgloss.NewStyle().Foreground(primary),
+		NotePath:     lipgloss.NewStyle().Foreground(muted),
+		CursorPath:   lipgloss.NewStyle().Foreground(cursorMuted),
 
 		BorderActive: lipgloss.NewStyle().
 			Border(lipgloss.ThickBorder(), true, true, true, true).
