@@ -2,6 +2,8 @@ package tui
 
 import (
 	"notebox/internal/note"
+	"notebox/internal/tui/listpanel"
+	"notebox/internal/tui/previewer"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,10 +11,18 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+type fakeRenderer struct {
+	rendered string
+}
+
+func (f *fakeRenderer) RenderNote(note.Note) (string, error) {
+	return f.rendered, nil
+}
+
 // TestHandleWarnModalKeysDeleteNoteOrder guards the invariant documented at
 // the deleteNoteFileCmd call site: the selected path must be captured before
 // removeItem runs, since removeItem mutates the list cursor that
-// selectedItem() depends on. Driving the handler directly (no tea.Program,
+// SelectedItem() depends on. Driving the handler directly (no tea.Program,
 // no full model) is exactly the win the per-focus split is for.
 func TestHandleWarnModalKeysDeleteNoteOrder(t *testing.T) {
 	dir := t.TempDir()
@@ -29,11 +39,11 @@ func TestHandleWarnModalKeysDeleteNoteOrder(t *testing.T) {
 		focus:      onWarnModal,
 		warnAction: warnDeleteNote,
 		keys:       defaultKeyMap(),
-		listPanel: listPanel{
-			items:  []note.Note{{Title: "keep", Path: keep}, {Title: "gone", Path: gone}},
-			cursor: 1,
+		listPanel: listpanel.ListPanel{
+			Items:  []note.Note{{Title: "keep", Path: keep}, {Title: "gone", Path: gone}},
+			Cursor: 1,
 		},
-		previewer: previewer{renderer: &fakeRenderer{rendered: "ok"}},
+		previewer: previewer.Previewer{Renderer: &fakeRenderer{rendered: "ok"}},
 	}
 
 	cmd := m.handleWarnModalKeys(tea.KeyPressMsg{Code: tea.KeyEnter})
@@ -41,11 +51,11 @@ func TestHandleWarnModalKeysDeleteNoteOrder(t *testing.T) {
 		t.Fatal("expected a batched command")
 	}
 
-	if len(m.listPanel.items) != 1 || m.listPanel.items[0].Path != keep {
-		t.Fatalf("expected only %q to remain, got %+v", keep, m.listPanel.items)
+	if len(m.listPanel.Items) != 1 || m.listPanel.Items[0].Path != keep {
+		t.Fatalf("expected only %q to remain, got %+v", keep, m.listPanel.Items)
 	}
-	if m.listPanel.cursor != 0 {
-		t.Fatalf("cursor = %d, want 0 after removing the last item", m.listPanel.cursor)
+	if m.listPanel.Cursor != 0 {
+		t.Fatalf("cursor = %d, want 0 after removing the last item", m.listPanel.Cursor)
 	}
 	if m.focus != onListPanel {
 		t.Fatalf("focus = %v, want onListPanel", m.focus)
@@ -73,27 +83,27 @@ func TestHandleListPanelKeysCursorMovesPreview(t *testing.T) {
 	m := &model{
 		focus: onListPanel,
 		keys:  defaultKeyMap(),
-		listPanel: listPanel{
-			items:  []note.Note{{Title: "a", Path: "a.md"}, {Title: "b", Path: "b.md"}},
-			cursor: 0,
-			height: 10,
+		listPanel: listpanel.ListPanel{
+			Items:  []note.Note{{Title: "a", Path: "a.md"}, {Title: "b", Path: "b.md"}},
+			Cursor: 0,
+			Height: 10,
 		},
-		previewer: previewer{renderer: &fakeRenderer{rendered: "ok"}},
+		previewer: previewer.Previewer{Renderer: &fakeRenderer{rendered: "ok"}},
 	}
 
 	cmd := m.handleListPanelKeys(tea.KeyPressMsg{Code: 'j', Text: "j"})
 
-	if m.listPanel.cursor != 1 {
-		t.Fatalf("cursor = %d, want 1", m.listPanel.cursor)
+	if m.listPanel.Cursor != 1 {
+		t.Fatalf("cursor = %d, want 1", m.listPanel.Cursor)
 	}
 	if cmd == nil {
 		t.Fatal("expected OpenTab to return a render command for the newly selected item")
 	}
-	msg, ok := cmd().(tabRenderedMsg)
+	msg, ok := cmd().(previewer.TabRenderedMsg)
 	if !ok {
-		t.Fatalf("expected tabRenderedMsg, got %T", cmd())
+		t.Fatalf("expected previewer.TabRenderedMsg, got %T", cmd())
 	}
-	if msg.note.Path != "b.md" || msg.pin {
+	if msg.Note.Path != "b.md" || msg.Pin {
 		t.Fatalf("unexpected message: %+v", msg)
 	}
 }

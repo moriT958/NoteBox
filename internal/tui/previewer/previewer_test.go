@@ -1,4 +1,4 @@
-package tui
+package previewer
 
 import (
 	"errors"
@@ -22,15 +22,15 @@ func (f *fakeRenderer) RenderNote(note.Note) (string, error) {
 	return f.rendered, nil
 }
 
-func newTestPreviewer(width int, tabs ...*tab) *previewer {
-	return &previewer{width: width, tabs: tabs}
+func newTestPreviewer(width int, tabs ...*tab) *Previewer {
+	return &Previewer{Width: width, tabs: tabs}
 }
 
 func TestOpenTabCacheHit(t *testing.T) {
 	existing := &tab{note: note.Note{Path: "a.md"}, rendered: "cached", isPreviewTab: true}
 	p := newTestPreviewer(80, existing)
 	r := &fakeRenderer{}
-	p.renderer = r
+	p.Renderer = r
 
 	cmd := p.OpenTab(note.Note{Path: "a.md"}, false)
 
@@ -60,25 +60,25 @@ func TestOpenTabPromotesPreviewTabToPinned(t *testing.T) {
 func TestOpenTabCacheMissRenders(t *testing.T) {
 	p := newTestPreviewer(80)
 	r := &fakeRenderer{rendered: "hello"}
-	p.renderer = r
+	p.Renderer = r
 
 	cmd := p.OpenTab(note.Note{Path: "a.md"}, true)
 	if cmd == nil {
 		t.Fatalf("expected a render command on cache miss")
 	}
 
-	msg, ok := cmd().(tabRenderedMsg)
+	msg, ok := cmd().(TabRenderedMsg)
 	if !ok {
-		t.Fatalf("expected tabRenderedMsg, got %T", cmd())
+		t.Fatalf("expected TabRenderedMsg, got %T", cmd())
 	}
-	if msg.note.Path != "a.md" || msg.rendered != "hello" || !msg.pin {
+	if msg.Note.Path != "a.md" || msg.Rendered != "hello" || !msg.Pin {
 		t.Fatalf("unexpected message: %+v", msg)
 	}
 }
 
 func TestOpenTabCacheMissRenderError(t *testing.T) {
 	p := newTestPreviewer(80)
-	p.renderer = &fakeRenderer{err: errors.New("boom")}
+	p.Renderer = &fakeRenderer{err: errors.New("boom")}
 
 	cmd := p.OpenTab(note.Note{Path: "a.md"}, false)
 	if _, ok := cmd().(errMsg); !ok {
@@ -89,9 +89,9 @@ func TestOpenTabCacheMissRenderError(t *testing.T) {
 func TestApplyRenderedPreviewReplacesExistingPreviewTab(t *testing.T) {
 	old := &tab{note: note.Note{Path: "a.md"}, rendered: "old", isPreviewTab: true}
 	p := newTestPreviewer(80, old)
-	p.vp = viewport.New()
+	p.VP = viewport.New()
 
-	p.applyRendered(tabRenderedMsg{note: note.Note{Path: "b.md"}, rendered: "new", pin: false})
+	p.ApplyRendered(TabRenderedMsg{Note: note.Note{Path: "b.md"}, Rendered: "new", Pin: false})
 
 	if len(p.tabs) != 1 {
 		t.Fatalf("expected preview tab to be replaced in place, got %d tabs", len(p.tabs))
@@ -104,9 +104,9 @@ func TestApplyRenderedPreviewReplacesExistingPreviewTab(t *testing.T) {
 func TestApplyRenderedPinnedAppendsWhenNoPreviewTabExists(t *testing.T) {
 	pinned := &tab{note: note.Note{Path: "a.md"}, rendered: "a", isPreviewTab: false}
 	p := newTestPreviewer(80, pinned)
-	p.vp = viewport.New()
+	p.VP = viewport.New()
 
-	p.applyRendered(tabRenderedMsg{note: note.Note{Path: "b.md"}, rendered: "b", pin: true})
+	p.ApplyRendered(TabRenderedMsg{Note: note.Note{Path: "b.md"}, Rendered: "b", Pin: true})
 
 	if len(p.tabs) != 2 {
 		t.Fatalf("expected a new pinned tab to be appended, got %d tabs", len(p.tabs))

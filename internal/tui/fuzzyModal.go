@@ -3,75 +3,20 @@ package tui
 import (
 	"strings"
 
-	"notebox/internal/note"
-
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/muesli/reflow/truncate"
-	"github.com/sahilm/fuzzy"
 )
-
-type filenameSearchModal struct {
-	width, height int
-	input         textinput.Model
-	cursor        int
-	offset        int
-	filtered      []note.Note
-	allItems      []note.Note
-}
-
-// filterNotes filters notes by fuzzy matching query against titles.
-// Returns all items if query is empty.
-func filterNotes(query string, items []note.Note) []note.Note {
-	if query == "" {
-		return items
-	}
-
-	titles := make([]string, len(items))
-	for i, n := range items {
-		titles[i] = n.Title
-	}
-
-	matches := fuzzy.Find(query, titles)
-	result := make([]note.Note, len(matches))
-	for i, match := range matches {
-		result[i] = items[match.Index]
-	}
-
-	return result
-}
-
-func (m *filenameSearchModal) filter(query string) {
-	m.filtered = filterNotes(query, m.allItems)
-	m.cursor = 0
-	m.offset = 0
-}
-
-func (m *filenameSearchModal) cursorUp() {
-	m.cursor, m.offset = calcCursorUp(m.cursor, m.offset)
-}
-
-func (m *filenameSearchModal) cursorDown() {
-	m.cursor, m.offset = calcCursorDown(m.cursor, len(m.filtered), m.offset, m.height)
-}
-
-func (m filenameSearchModal) selectedItem() note.Note {
-	if len(m.filtered) == 0 {
-		return note.Note{}
-	}
-	return m.filtered[m.cursor]
-}
 
 func (m *model) toggleFuzzyModal(ac modalAction) {
 	switch ac {
 	case open:
-		m.fnsModal.input.Reset()
-		m.fnsModal.allItems = m.listPanel.items
-		m.fnsModal.filtered = m.listPanel.items
-		m.fnsModal.cursor = 0
-		m.fnsModal.offset = 0
-		m.fnsModal.input.Focus()
+		m.fnsModal.Input.Reset()
+		m.fnsModal.AllItems = m.listPanel.Items
+		m.fnsModal.Filtered = m.listPanel.Items
+		m.fnsModal.Cursor = 0
+		m.fnsModal.Offset = 0
+		m.fnsModal.Input.Focus()
 		m.focus = onFuzzyModal
 	case shut:
 		m.focus = onListPanel
@@ -80,20 +25,20 @@ func (m *model) toggleFuzzyModal(ac modalAction) {
 
 func (m *model) updateFuzzyModalSize(msg tea.WindowSizeMsg) {
 	_, v := m.styles.Main.GetFrameSize()
-	m.fnsModal.input.Placeholder = "Search notes..."
-	m.fnsModal.input.CharLimit = 50
-	m.fnsModal.input.SetWidth(m.modalWidth - 4)
-	m.fnsModal.width = m.modalWidth
-	m.fnsModal.height = (msg.Height - v) / 3
+	m.fnsModal.Input.Placeholder = "Search notes..."
+	m.fnsModal.Input.CharLimit = 50
+	m.fnsModal.Input.SetWidth(m.modalWidth - 4)
+	m.fnsModal.Width = m.modalWidth
+	m.fnsModal.Height = (msg.Height - v) / 3
 }
 
 func (m *model) selectFromFuzzy() {
-	selected := m.fnsModal.selectedItem()
+	selected := m.fnsModal.SelectedItem()
 	if selected.Path == "" {
 		return
 	}
 
-	for i, item := range m.listPanel.items {
+	for i, item := range m.listPanel.Items {
 		if item.Path == selected.Path {
 			m.listPanel.SelectByIndex(i)
 			break
@@ -114,7 +59,7 @@ const (
 // fuzzyModalHeight is the Height() passed to Modal.Fuzzy in viewFuzzyModal,
 // shared with fuzzyModalCursor so the two never drift apart.
 func (m model) fuzzyModalHeight() int {
-	return m.fnsModal.height + m.styles.Modal.Fuzzy.GetVerticalPadding() +
+	return m.fnsModal.Height + m.styles.Modal.Fuzzy.GetVerticalPadding() +
 		fuzzyModalInputLines + fuzzyModalInputToListGap +
 		fuzzyModalListToTipGap + fuzzyModalTipLines
 }
@@ -124,36 +69,36 @@ func (m model) viewFuzzyModal() string {
 	confirm := m.styles.Modal.Confirm.Render(" (" + selectionModalConfirmKey + ") Select ")
 	cancel := m.styles.Modal.Cancel.Render(" (" + selectionModalCancelKey + ") Cancel ")
 	tip := m.styles.Modal.Centered.
-		Width(m.fnsModal.width - 4).
+		Width(m.fnsModal.Width - 4).
 		Render(confirm + "           " + cancel)
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
-		m.fnsModal.input.View(),
+		m.fnsModal.Input.View(),
 		"",
 		filteredList,
 	)
 
 	modalHeight := m.fuzzyModalHeight()
 	modal := m.styles.Modal.Fuzzy.
-		Width(m.fnsModal.width).
+		Width(m.fnsModal.Width).
 		Height(modalHeight).
 		Render(content + "\n\n" + tip)
 	modal = m.styles.BorderActive.Render(modal)
 
-	overlayX := m.width/2 - m.fnsModal.width/2
+	overlayX := m.width/2 - m.fnsModal.Width/2
 	overlayY := m.height/2 - modalHeight/2
 
 	return m.renderOverlay(modal, overlayX, overlayY)
 }
 
 func (m model) fuzzyModalCursor() *tea.Cursor {
-	cur := m.fnsModal.input.Cursor()
+	cur := m.fnsModal.Input.Cursor()
 	if cur == nil {
 		return nil
 	}
-	cur.Position.X = realCursorX(m.fnsModal.input)
+	cur.Position.X = realCursorX(m.fnsModal.Input)
 	modalHeight := m.fuzzyModalHeight()
-	overlayX := m.width/2 - m.fnsModal.width/2
+	overlayX := m.width/2 - m.fnsModal.Width/2
 	overlayY := m.height/2 - modalHeight/2
 
 	// input.View() is content line 0.
@@ -167,19 +112,19 @@ func (m model) fuzzyModalCursor() *tea.Cursor {
 func (m *model) renderFuzzyFilterdList() string {
 	var listView strings.Builder
 
-	if len(m.fnsModal.filtered) == 0 {
+	if len(m.fnsModal.Filtered) == 0 {
 		listView.WriteString("  No matches found")
 	} else {
-		end := min(m.fnsModal.offset+m.fnsModal.height, len(m.fnsModal.filtered))
-		for i := m.fnsModal.offset; i < end; i++ {
+		end := min(m.fnsModal.Offset+m.fnsModal.Height, len(m.fnsModal.Filtered))
+		for i := m.fnsModal.Offset; i < end; i++ {
 			var title string
-			if i == m.fnsModal.cursor {
-				title = "  " + m.fnsModal.filtered[i].Title
+			if i == m.fnsModal.Cursor {
+				title = "  " + m.fnsModal.Filtered[i].Title
 				title = m.styles.Cursor.Render(title)
 			} else {
-				title = "   " + m.fnsModal.filtered[i].Title
+				title = "   " + m.fnsModal.Filtered[i].Title
 			}
-			title = truncate.StringWithTail(title, uint(m.fnsModal.width-4), "...")
+			title = truncate.StringWithTail(title, uint(m.fnsModal.Width-4), "...")
 			listView.WriteString(title)
 			if i != end-1 {
 				listView.WriteString("\n")

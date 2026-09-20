@@ -8,17 +8,12 @@ import (
 
 	"notebox/internal/config"
 	"notebox/internal/note"
+	"notebox/internal/tui/boxmodal"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/muesli/reflow/truncate"
-)
-
-const (
-	titleField = 0
-	pathField  = 1
 )
 
 const (
@@ -26,84 +21,6 @@ const (
 	boxCreatePathLabel = "Path:  "
 	boxRenameRowPrefix = "  "
 )
-
-type boxModalMode int
-
-const (
-	modeNewBox boxModalMode = iota
-	modeOpenFolder
-)
-
-type boxModal struct {
-	width, height int
-	cursor        int
-	offset        int
-	items         []note.Box
-	mode          boxModalMode
-	titleInput    textinput.Model
-	pathInput     textinput.Model
-	renameInput   textinput.Model
-	activeField   int
-	validationErr string
-}
-
-func (m *boxModal) cursorUp() {
-	m.cursor, m.offset = calcCursorUp(m.cursor, m.offset)
-}
-
-func (m *boxModal) cursorDown() {
-	m.cursor, m.offset = calcCursorDown(m.cursor, len(m.items), m.offset, m.height)
-}
-
-func (m boxModal) selectedItem() note.Box {
-	if len(m.items) == 0 || m.cursor >= len(m.items) {
-		return note.Box{}
-	}
-	return m.items[m.cursor]
-}
-
-// applyBoxesLoaded installs a freshly loaded box list and puts the cursor on
-// the currently active box.
-func (m *boxModal) applyBoxesLoaded(boxes []note.Box, currentBoxID int) {
-	m.items = boxes
-	m.cursor = 0
-	m.offset = 0
-	for i, b := range boxes {
-		if b.ID == currentBoxID {
-			m.cursor = i
-			break
-		}
-	}
-}
-
-// applyBoxCreated appends a newly created box to the cached list.
-func (m *boxModal) applyBoxCreated(box note.Box) {
-	m.items = append(m.items, box)
-}
-
-// applyBoxDeleted removes a box from the cached list by ID and keeps the
-// cursor within bounds.
-func (m *boxModal) applyBoxDeleted(id int) {
-	for i, b := range m.items {
-		if b.ID == id {
-			m.items = append(m.items[:i], m.items[i+1:]...)
-			if m.cursor >= len(m.items) && m.cursor > 0 {
-				m.cursor--
-			}
-			return
-		}
-	}
-}
-
-// applyBoxRenamed replaces a box in the cached list with its updated value.
-func (m *boxModal) applyBoxRenamed(box note.Box) {
-	for i, b := range m.items {
-		if b.ID == box.ID {
-			m.items[i] = box
-			return
-		}
-	}
-}
 
 func (m *model) toggleBoxModal(ac modalAction) {
 	switch ac {
@@ -114,28 +31,25 @@ func (m *model) toggleBoxModal(ac modalAction) {
 
 func (m *model) updateBoxModalSize(msg tea.WindowSizeMsg) {
 	_, v := m.styles.Main.GetFrameSize()
-	m.boxModal.width = m.modalWidth
-	m.boxModal.height = (msg.Height - v) / 3
-	m.boxModal.renameInput.SetWidth(m.boxModal.width - 6)
+	m.boxModal.Width = m.modalWidth
+	m.boxModal.Height = (msg.Height - v) / 3
+	m.boxModal.RenameInput.SetWidth(m.boxModal.Width - 6)
 }
 
 func (m *model) switchBox(newBox note.Box) tea.Cmd {
-	if err := m.listPanel.registerer.Unregister(m.currentBox.Path); err != nil {
+	if err := m.listPanel.Registerer.Unregister(m.currentBox.Path); err != nil {
 		slog.Error("failed to unregister path", "path", m.currentBox.Path, "error", err)
 	}
 
-	ch, err := m.listPanel.registerer.Register(newBox.Path)
+	ch, err := m.listPanel.Registerer.Register(newBox.Path)
 	if err != nil {
 		slog.Error("failed to register new box path", "path", newBox.Path, "error", err)
 		return nil
 	}
 
 	m.currentBox = newBox
-	m.listPanel.notesUpdates = ch
-	m.listPanel.items = []note.Note{}
-	m.listPanel.cursor = 0
-	m.listPanel.offset = 0
-	m.previewer.clearAllTabs()
+	m.listPanel.Reset(ch)
+	m.previewer.ClearAllTabs()
 
 	return tea.Batch(waitNoteChangeCmd(ch), saveLastBoxCmd(newBox.ID))
 }
@@ -150,7 +64,7 @@ const (
 // boxModalHeight is the Height() passed to Modal.Fuzzy in viewBoxModal,
 // shared with boxRenameCursor so the two never drift apart.
 func (m model) boxModalHeight() int {
-	return m.boxModal.height + m.styles.Modal.Fuzzy.GetVerticalPadding() +
+	return m.boxModal.Height + m.styles.Modal.Fuzzy.GetVerticalPadding() +
 		boxModalListToTipGap + boxModalTipLines
 }
 
@@ -165,80 +79,80 @@ func (m model) viewBoxModal() string {
 		m.keys.boxModal.deleteBox,
 	})
 	tip := m.styles.Help.
-		Width(m.boxModal.width - 4).
+		Width(m.boxModal.Width - 4).
 		Render(guide)
 
 	modalHeight := m.boxModalHeight()
 	modal := m.styles.Modal.Fuzzy.
-		Width(m.boxModal.width).
+		Width(m.boxModal.Width).
 		Height(modalHeight).
 		Render(boxList + "\n\n" + tip)
 	modal = m.styles.BorderActive.Render(modal)
 
-	overlayX := m.width/2 - m.boxModal.width/2
+	overlayX := m.width/2 - m.boxModal.Width/2
 	overlayY := m.height/2 - modalHeight/2
 
 	return m.renderOverlay(modal, overlayX, overlayY)
 }
 
 func (m *model) handleBoxFormConfirm() tea.Cmd {
-	title := m.boxModal.titleInput.Value()
-	rawPath := m.boxModal.pathInput.Value()
+	title := m.boxModal.TitleInput.Value()
+	rawPath := m.boxModal.PathInput.Value()
 
 	if title == "" {
-		m.boxModal.validationErr = "name is required"
+		m.boxModal.ValidationErr = "name is required"
 		return nil
 	}
 
 	home, err := os.UserHomeDir()
 	if err != nil {
-		m.boxModal.validationErr = "failed to get home directory"
+		m.boxModal.ValidationErr = "failed to get home directory"
 		return nil
 	}
 
-	switch m.boxModal.mode {
-	case modeNewBox:
+	switch m.boxModal.Mode {
+	case boxmodal.ModeNewBox:
 		var resolvedBase string
 		if rawPath != "" {
 			cwd, err := os.Getwd()
 			if err != nil {
-				m.boxModal.validationErr = "failed to get current directory"
+				m.boxModal.ValidationErr = "failed to get current directory"
 				return nil
 			}
 			resolvedBase = resolveBoxPath(rawPath, cwd, home)
 		}
 		finalPath := newBoxFinalPath(title, resolvedBase, filepath.Join(home, config.AppDirName))
-		if isDuplicatePath(finalPath, m.boxModal.items) {
-			m.boxModal.validationErr = "a box with this path already exists"
+		if isDuplicatePath(finalPath, m.boxModal.Items) {
+			m.boxModal.ValidationErr = "a box with this path already exists"
 			return nil
 		}
-		m.boxModal.titleInput.Blur()
-		m.boxModal.pathInput.Blur()
+		m.boxModal.TitleInput.Blur()
+		m.boxModal.PathInput.Blur()
 		m.focus = onListPanel
 		return newBoxCmd(m.boxRepo, title, finalPath)
 
-	case modeOpenFolder:
+	case boxmodal.ModeOpenFolder:
 		if rawPath == "" {
-			m.boxModal.validationErr = "path is required"
+			m.boxModal.ValidationErr = "path is required"
 			return nil
 		}
 		cwd, err := os.Getwd()
 		if err != nil {
-			m.boxModal.validationErr = "failed to get current directory"
+			m.boxModal.ValidationErr = "failed to get current directory"
 			return nil
 		}
 		resolved := resolveBoxPath(rawPath, cwd, home)
 		info, statErr := os.Stat(resolved)
 		if statErr != nil || !info.IsDir() {
-			m.boxModal.validationErr = "path must be an existing directory"
+			m.boxModal.ValidationErr = "path must be an existing directory"
 			return nil
 		}
-		if isDuplicatePath(resolved, m.boxModal.items) {
-			m.boxModal.validationErr = "a box with this path already exists"
+		if isDuplicatePath(resolved, m.boxModal.Items) {
+			m.boxModal.ValidationErr = "a box with this path already exists"
 			return nil
 		}
-		m.boxModal.titleInput.Blur()
-		m.boxModal.pathInput.Blur()
+		m.boxModal.TitleInput.Blur()
+		m.boxModal.PathInput.Blur()
 		m.focus = onListPanel
 		return openFolderAsBoxCmd(m.boxRepo, title, resolved)
 	}
@@ -246,28 +160,28 @@ func (m *model) handleBoxFormConfirm() tea.Cmd {
 	return nil
 }
 
-func (m *model) toggleBoxFormModal(ac modalAction, mode boxModalMode) {
+func (m *model) toggleBoxFormModal(ac modalAction, mode boxmodal.Mode) {
 	switch ac {
 	case open:
-		m.boxModal.mode = mode
-		m.boxModal.titleInput.Reset()
-		m.boxModal.pathInput.Reset()
-		m.boxModal.activeField = titleField
-		m.boxModal.validationErr = ""
+		m.boxModal.Mode = mode
+		m.boxModal.TitleInput.Reset()
+		m.boxModal.PathInput.Reset()
+		m.boxModal.ActiveField = boxmodal.TitleField
+		m.boxModal.ValidationErr = ""
 		switch mode {
-		case modeNewBox:
-			m.boxModal.titleInput.Placeholder = "Box name..."
-			m.boxModal.pathInput.Placeholder = "Base path (optional, e.g. ~/projects)..."
-		case modeOpenFolder:
-			m.boxModal.titleInput.Placeholder = "Display name..."
-			m.boxModal.pathInput.Placeholder = "Existing folder path (e.g. ~/projects/work)..."
+		case boxmodal.ModeNewBox:
+			m.boxModal.TitleInput.Placeholder = "Box name..."
+			m.boxModal.PathInput.Placeholder = "Base path (optional, e.g. ~/projects)..."
+		case boxmodal.ModeOpenFolder:
+			m.boxModal.TitleInput.Placeholder = "Display name..."
+			m.boxModal.PathInput.Placeholder = "Existing folder path (e.g. ~/projects/work)..."
 		}
-		m.boxModal.titleInput.Focus()
-		m.boxModal.pathInput.Blur()
+		m.boxModal.TitleInput.Focus()
+		m.boxModal.PathInput.Blur()
 		m.focus = onBoxCreateModal
 	case shut:
-		m.boxModal.titleInput.Blur()
-		m.boxModal.pathInput.Blur()
+		m.boxModal.TitleInput.Blur()
+		m.boxModal.PathInput.Blur()
 		m.focus = onBoxModal
 	}
 }
@@ -275,8 +189,8 @@ func (m *model) toggleBoxFormModal(ac modalAction, mode boxModalMode) {
 func (m *model) updateBoxCreateModalSize(msg tea.WindowSizeMsg) {
 	h, _ := m.styles.Main.GetFrameSize()
 	inputWidth := min((msg.Width-h)/3, m.modalWidth/2-7)
-	m.boxModal.titleInput.SetWidth(inputWidth)
-	m.boxModal.pathInput.SetWidth(inputWidth)
+	m.boxModal.TitleInput.SetWidth(inputWidth)
+	m.boxModal.PathInput.SetWidth(inputWidth)
 }
 
 const boxCreateModalHeight = 12
@@ -288,11 +202,11 @@ const (
 
 func (m model) boxCreateModalLines() []string {
 	var header, actionLabel string
-	switch m.boxModal.mode {
-	case modeNewBox:
+	switch m.boxModal.Mode {
+	case boxmodal.ModeNewBox:
 		header = "New Box"
 		actionLabel = "Create"
-	case modeOpenFolder:
+	case boxmodal.ModeOpenFolder:
 		header = "Open Folder as Box"
 		actionLabel = "Open"
 	}
@@ -302,16 +216,16 @@ func (m model) boxCreateModalLines() []string {
 	tip := confirm + "           " + cancel
 
 	errLine := ""
-	if m.boxModal.validationErr != "" {
-		errLine = m.styles.Modal.Cancel.Render("  " + m.boxModal.validationErr)
+	if m.boxModal.ValidationErr != "" {
+		errLine = m.styles.Modal.Cancel.Render("  " + m.boxModal.ValidationErr)
 	}
 
 	lines := make([]string, 8)
 	lines[0] = header
 	lines[1] = ""
-	lines[boxCreateModalTitleLine] = boxCreateNameLabel + m.boxModal.titleInput.View()
+	lines[boxCreateModalTitleLine] = boxCreateNameLabel + m.boxModal.TitleInput.View()
 	lines[3] = ""
-	lines[boxCreateModalPathLine] = boxCreatePathLabel + m.boxModal.pathInput.View()
+	lines[boxCreateModalPathLine] = boxCreatePathLabel + m.boxModal.PathInput.View()
 	lines[5] = errLine
 	lines[6] = ""
 	lines[7] = tip
@@ -337,18 +251,18 @@ func (m model) boxCreateModalCursor() *tea.Cursor {
 	var cur *tea.Cursor
 	var lineIdx int
 	var prefixWidth int
-	switch m.boxModal.activeField {
-	case titleField:
-		cur = m.boxModal.titleInput.Cursor()
+	switch m.boxModal.ActiveField {
+	case boxmodal.TitleField:
+		cur = m.boxModal.TitleInput.Cursor()
 		if cur != nil {
-			cur.Position.X = realCursorX(m.boxModal.titleInput)
+			cur.Position.X = realCursorX(m.boxModal.TitleInput)
 		}
 		lineIdx = boxCreateModalTitleLine
 		prefixWidth = lipgloss.Width(boxCreateNameLabel)
-	case pathField:
-		cur = m.boxModal.pathInput.Cursor()
+	case boxmodal.PathField:
+		cur = m.boxModal.PathInput.Cursor()
 		if cur != nil {
-			cur.Position.X = realCursorX(m.boxModal.pathInput)
+			cur.Position.X = realCursorX(m.boxModal.PathInput)
 		}
 		lineIdx = boxCreateModalPathLine
 		prefixWidth = lipgloss.Width(boxCreatePathLabel)
@@ -378,15 +292,15 @@ func (m model) boxCreateModalCursor() *tea.Cursor {
 }
 
 func (m model) boxRenameCursor() *tea.Cursor {
-	cur := m.boxModal.renameInput.Cursor()
+	cur := m.boxModal.RenameInput.Cursor()
 	if cur == nil {
 		return nil
 	}
-	cur.Position.X = realCursorX(m.boxModal.renameInput)
+	cur.Position.X = realCursorX(m.boxModal.RenameInput)
 	modalHeight := m.boxModalHeight()
-	overlayX := m.width/2 - m.boxModal.width/2
+	overlayX := m.width/2 - m.boxModal.Width/2
 	overlayY := m.height/2 - modalHeight/2
-	rowIdx := m.boxModal.cursor - m.boxModal.offset
+	rowIdx := m.boxModal.Cursor - m.boxModal.Offset
 
 	borderX, borderY := borderSize(m.styles.BorderActive)
 	padX, padY := paddingSize(m.styles.Modal.Fuzzy)
@@ -398,18 +312,18 @@ func (m model) boxRenameCursor() *tea.Cursor {
 func (m model) renderBoxList() string {
 	var view strings.Builder
 
-	if len(m.boxModal.items) == 0 {
+	if len(m.boxModal.Items) == 0 {
 		view.WriteString("  No boxes found")
 		return view.String()
 	}
 
 	strikethrough := lipgloss.NewStyle().Strikethrough(true)
-	end := min(m.boxModal.offset+m.boxModal.height, len(m.boxModal.items))
-	for i := m.boxModal.offset; i < end; i++ {
-		b := m.boxModal.items[i]
+	end := min(m.boxModal.Offset+m.boxModal.Height, len(m.boxModal.Items))
+	for i := m.boxModal.Offset; i < end; i++ {
+		b := m.boxModal.Items[i]
 		var line string
-		if i == m.boxModal.cursor && m.focus == onBoxRenaming {
-			line = boxRenameRowPrefix + m.boxModal.renameInput.View()
+		if i == m.boxModal.Cursor && m.focus == onBoxRenaming {
+			line = boxRenameRowPrefix + m.boxModal.RenameInput.View()
 		} else {
 			title := b.Title
 			if _, err := os.Stat(b.Path); os.IsNotExist(err) {
@@ -419,14 +333,14 @@ func (m model) renderBoxList() string {
 			if b.ID == m.currentBox.ID {
 				active = " *"
 			}
-			if i == m.boxModal.cursor {
+			if i == m.boxModal.Cursor {
 				line = m.styles.Cursor.Render("  " + title + active)
 			} else {
 				line = "   " + title + active
 			}
 		}
-		if m.focus != onBoxRenaming || i != m.boxModal.cursor {
-			line = truncate.StringWithTail(line, uint(m.boxModal.width-4), "...")
+		if m.focus != onBoxRenaming || i != m.boxModal.Cursor {
+			line = truncate.StringWithTail(line, uint(m.boxModal.Width-4), "...")
 		}
 		view.WriteString(line)
 		if i != end-1 {

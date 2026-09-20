@@ -1,4 +1,4 @@
-package tui
+package listpanel
 
 import (
 	"notebox/internal/note"
@@ -398,13 +398,13 @@ func TestSelectByIndex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			items := make([]note.Note, tt.items)
-			p := &listPanel{items: items, height: tt.height}
+			p := &ListPanel{Items: items, Height: tt.height}
 
 			p.SelectByIndex(tt.index)
 
-			if p.cursor != tt.wantCursor || p.offset != tt.wantOffset {
+			if p.Cursor != tt.wantCursor || p.Offset != tt.wantOffset {
 				t.Errorf("SelectByIndex(%d) = (cursor=%d, offset=%d), want (cursor=%d, offset=%d)",
-					tt.index, p.cursor, p.offset, tt.wantCursor, tt.wantOffset)
+					tt.index, p.Cursor, p.Offset, tt.wantCursor, tt.wantOffset)
 			}
 		})
 	}

@@ -20,28 +20,6 @@ func errCmd(err error) tea.Cmd {
 	}
 }
 
-// tabRenderedMsg carries the rendered content for a note the previewer asked
-// to be rendered. pin reports whether the result should become a pinned
-// (normal) tab or stay an ephemeral preview tab.
-type tabRenderedMsg struct {
-	note     note.Note
-	rendered string
-	pin      bool
-}
-
-// renderTabCmd is the previewer's single render entry point: every path that
-// needs a note rendered into a tab (cursor movement, opening a tab, resize,
-// note creation/rename/deletion) goes through this one command.
-func renderTabCmd(renderer note.NoteRenderer, n note.Note, pin bool) tea.Cmd {
-	return func() tea.Msg {
-		rendered, err := renderer.RenderNote(n)
-		if err != nil {
-			return errMsg(err)
-		}
-		return tabRenderedMsg{note: n, rendered: rendered, pin: pin}
-	}
-}
-
 // this inform tea of if note file succesessfull created.
 type newNoteCreatedMsg note.Note
 
@@ -197,4 +175,3 @@ func saveLastBoxCmd(id int) tea.Cmd {
 		return nil
 	}
 }
-
