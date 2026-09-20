@@ -62,6 +62,49 @@ func (m boxModal) selectedItem() note.Box {
 	return m.items[m.cursor]
 }
 
+// applyBoxesLoaded installs a freshly loaded box list and puts the cursor on
+// the currently active box.
+func (m *boxModal) applyBoxesLoaded(boxes []note.Box, currentBoxID int) {
+	m.items = boxes
+	m.cursor = 0
+	m.offset = 0
+	for i, b := range boxes {
+		if b.ID == currentBoxID {
+			m.cursor = i
+			break
+		}
+	}
+}
+
+// applyBoxCreated appends a newly created box to the cached list.
+func (m *boxModal) applyBoxCreated(box note.Box) {
+	m.items = append(m.items, box)
+}
+
+// applyBoxDeleted removes a box from the cached list by ID and keeps the
+// cursor within bounds.
+func (m *boxModal) applyBoxDeleted(id int) {
+	for i, b := range m.items {
+		if b.ID == id {
+			m.items = append(m.items[:i], m.items[i+1:]...)
+			if m.cursor >= len(m.items) && m.cursor > 0 {
+				m.cursor--
+			}
+			return
+		}
+	}
+}
+
+// applyBoxRenamed replaces a box in the cached list with its updated value.
+func (m *boxModal) applyBoxRenamed(box note.Box) {
+	for i, b := range m.items {
+		if b.ID == box.ID {
+			m.items[i] = box
+			return
+		}
+	}
+}
+
 func (m *model) toggleBoxModal(ac modalAction) {
 	switch ac {
 	case shut:

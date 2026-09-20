@@ -511,39 +511,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.listPanel.addItem(note.Note(msg))
 		cmd = renderTabCmd(m.previewer.renderer, m.listPanel.selectedItem(), false)
 	case boxesLoadedMsg:
-		boxes := []note.Box(msg)
-		m.boxModal.items = boxes
-		m.boxModal.cursor = 0
-		m.boxModal.offset = 0
-		for i, b := range boxes {
-			if b.ID == m.currentBox.ID {
-				m.boxModal.cursor = i
-				break
-			}
-		}
+		m.boxModal.applyBoxesLoaded([]note.Box(msg), m.currentBox.ID)
 		m.focus = onBoxModal
 	case boxCreatedMsg:
-		m.boxModal.items = append(m.boxModal.items, note.Box(msg))
+		m.boxModal.applyBoxCreated(note.Box(msg))
 		m.focus = onBoxModal
 	case boxDeletedMsg:
-		deletedID := int(msg)
-		for i, b := range m.boxModal.items {
-			if b.ID == deletedID {
-				m.boxModal.items = append(m.boxModal.items[:i], m.boxModal.items[i+1:]...)
-				if m.boxModal.cursor >= len(m.boxModal.items) && m.boxModal.cursor > 0 {
-					m.boxModal.cursor--
-				}
-				break
-			}
-		}
+		m.boxModal.applyBoxDeleted(int(msg))
 	case boxRenamedMsg:
 		updated := note.Box(msg)
-		for i, b := range m.boxModal.items {
-			if b.ID == updated.ID {
-				m.boxModal.items[i] = updated
-				break
-			}
-		}
+		m.boxModal.applyBoxRenamed(updated)
 		if m.currentBox.ID == updated.ID {
 			m.currentBox.Title = updated.Title
 		}
