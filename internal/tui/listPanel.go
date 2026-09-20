@@ -2,6 +2,7 @@ package tui
 
 import (
 	"notebox/internal/note"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -13,10 +14,15 @@ import (
 
 type listPanel struct {
 	width, height int
-	cursor        int
-	items         []note.Note
-	offset        int
-	renameInput   textinput.Model
+	// boxRows is the full available content height in terminal rows. It can
+	// exceed height*noteItemLines when the content height doesn't divide
+	// evenly, and is used to size the border box so it lines up with the
+	// previewer panel instead of coming up short.
+	boxRows     int
+	cursor      int
+	items       []note.Note
+	offset      int
+	renameInput textinput.Model
 
 	// notes dir change watcher
 	registerer   note.Registerer
@@ -153,13 +159,18 @@ func (m *model) reloadAllNotes(notes []note.Note) {
 
 const layoutListPanelRatio = 4
 
+// Each note item occupies three rows: the title, the path below it, and a
+// blank spacer row separating it from the next item.
+const noteItemLines = 3
+
 func (m *model) updateListPanelSize(msg tea.WindowSizeMsg) {
 	m.listPanel.width = msg.Width / layoutListPanelRatio
 
 	_, borderV := m.styles.BorderPassive.GetFrameSize()
 	contentHeight := msg.Height - borderV - helpGuideHeight - headerHeight
 
-	m.listPanel.height = max(1, contentHeight)
+	m.listPanel.boxRows = max(1, contentHeight)
+	m.listPanel.height = max(1, contentHeight/noteItemLines)
 	m.listPanel.renameInput.SetWidth(m.listPanel.width - 4)
 
 	m.listPanel.cursor, m.listPanel.offset = preserveSelectionPos(
@@ -190,23 +201,50 @@ func (m model) viewListPanel() string {
 	return m.renderListPanelWithBorder(view.String())
 }
 
-const renameRowPrefix = "  "
+// gutterBar is the glow-style marker shown on the selected row; renameRowPrefix
+// is its plain-width equivalent used only to line up the rename text cursor.
+// The bar is rendered in a single fixed color on both the title and path lines
+// so it doesn't change color between them; only the text next to it does.
+const (
+	gutterBar       = "│"
+	renameRowPrefix = gutterBar + " "
+	plainGutter     = "  "
+)
 
 func (m model) renderNoteItemLine(n note.Note) string {
-	if m.focus == onRenaming && n == m.listPanel.selectedItem() {
-		return renameRowPrefix + m.listPanel.renameInput.View()
+	if n != m.listPanel.selectedItem() {
+		titleLine := plainGutter + n.Title
+		titleLine = truncate.StringWithTail(titleLine, uint(m.listPanel.width), "…   ")
+		return titleLine + "\n" + m.renderNotePathLine(n, plainGutter, false) + "\n"
 	}
 
-	if n == m.listPanel.selectedItem() {
-		item := "  " + n.Title
-		item = m.styles.Cursor.Render(item)
-		item = truncate.StringWithTail(item, uint(m.listPanel.width), "…   ")
-		return item
+	gutter := m.styles.Cursor.Render(gutterBar) + " "
+
+	if m.focus == onRenaming {
+		titleLine := gutter + m.listPanel.renameInput.View()
+		return titleLine + "\n" + m.renderNotePathLine(n, gutter, true) + "\n"
 	}
 
-	item := "   " + n.Title
-	item = truncate.StringWithTail(item, uint(m.listPanel.width), "…   ")
-	return item
+	titleLine := gutter + m.styles.Cursor.Render(n.Title)
+	titleLine = truncate.StringWithTail(titleLine, uint(m.listPanel.width), "…   ")
+	return titleLine + "\n" + m.renderNotePathLine(n, gutter, true) + "\n"
+}
+
+// renderNotePathLine renders the note's path, relative to the current box, below
+// the title. Selected rows pick up the cursor highlight color; others stay dim.
+func (m model) renderNotePathLine(n note.Note, gutter string, selected bool) string {
+	path := n.Path
+	if rel, err := filepath.Rel(m.currentBox.Path, n.Path); err == nil {
+		path = rel
+	}
+
+	style := m.styles.NotePath
+	if selected {
+		style = m.styles.CursorPath
+	}
+
+	line := gutter + style.Render(path)
+	return truncate.StringWithTail(line, uint(m.listPanel.width), "…")
 }
 
 func (m model) listRenameCursor() *tea.Cursor {
@@ -215,7 +253,7 @@ func (m model) listRenameCursor() *tea.Cursor {
 		return nil
 	}
 	cur.Position.X = realCursorX(m.listPanel.renameInput)
-	rowIdx := m.listPanel.cursor - m.listPanel.offset
+	rowIdx := (m.listPanel.cursor - m.listPanel.offset) * noteItemLines
 
 	// list panel sits at x=0 in the header/list/help stack.
 	borderX, borderY := borderSize(m.styles.BorderActive)
@@ -225,12 +263,13 @@ func (m model) listRenameCursor() *tea.Cursor {
 }
 
 func (m model) renderListPanelWithBorder(content string) string {
+	rows := m.listPanel.boxRows
 	if m.focus == onListPanel {
 		return m.styles.BorderActive.Render(
-			m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(content),
+			m.styles.Sized(m.listPanel.width, rows).Render(content),
 		)
 	}
 	return m.styles.BorderPassive.Render(
-		m.styles.Sized(m.listPanel.width, m.listPanel.height).Render(content),
+		m.styles.Sized(m.listPanel.width, rows).Render(content),
 	)
 }
