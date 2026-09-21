@@ -10,10 +10,12 @@ import (
 	"github.com/google/subcommands"
 	"github.com/mattn/go-runewidth"
 
-	"notebox/internal/database"
+	"notebox/internal/note"
 )
 
-type listCmd struct{}
+type listCmd struct {
+	repo note.BoxRepository
+}
 
 var _ subcommands.Command = (*listCmd)(nil)
 
@@ -30,14 +32,7 @@ show all boxes. deleted boxes are shown dimmed.
 func (*listCmd) SetFlags(f *flag.FlagSet) {}
 
 func (c *listCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	db, err := database.NewSQLiteDB()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "failed to open database:", err)
-		return subcommands.ExitFailure
-	}
-	defer db.Close()
-
-	boxes, err := database.NewBoxRepository(db).FindAll(ctx)
+	boxes, err := c.repo.FindAll(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to list boxes:", err)
 		return subcommands.ExitFailure

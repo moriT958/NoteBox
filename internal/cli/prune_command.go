@@ -10,10 +10,11 @@ import (
 
 	"github.com/google/subcommands"
 
-	"notebox/internal/database"
+	"notebox/internal/note"
 )
 
 type pruneCmd struct {
+	repo  note.BoxRepository
 	force bool
 }
 
@@ -34,15 +35,7 @@ func (c *pruneCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (c *pruneCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	db, err := database.NewSQLiteDB()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "failed to open database:", err)
-		return subcommands.ExitFailure
-	}
-	defer db.Close()
-
-	repo := database.NewBoxRepository(db)
-	boxes, err := repo.FindInactiveBoxes(ctx)
+	boxes, err := c.repo.FindInactiveBoxes(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to find deleted boxes:", err)
 		return subcommands.ExitFailure
@@ -81,7 +74,7 @@ func (c *pruneCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) su
 		}
 	}
 
-	if err := repo.PruneBoxes(ctx); err != nil {
+	if err := c.repo.PruneBoxes(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, "failed to prune boxes:", err)
 		return subcommands.ExitFailure
 	}

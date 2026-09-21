@@ -1,4 +1,4 @@
-package tui
+package listpanel
 
 import (
 	"notebox/internal/note"
@@ -347,6 +347,64 @@ func TestPreserveSelectionPos(t *testing.T) {
 			if gotCursor != tt.wantCursor || gotOffset != tt.wantOffset {
 				t.Errorf("preserveSelectionPos() = (%d, %d), want (%d, %d)",
 					gotCursor, gotOffset, tt.wantCursor, tt.wantOffset)
+			}
+		})
+	}
+}
+
+func TestSelectByIndex(t *testing.T) {
+	tests := []struct {
+		name       string
+		items      int
+		height     int
+		index      int
+		wantCursor int
+		wantOffset int
+	}{
+		{
+			name:       "within the first page",
+			items:      10,
+			height:     5,
+			index:      2,
+			wantCursor: 2,
+			wantOffset: 0,
+		},
+		{
+			name:       "beyond the first page scrolls to it",
+			items:      10,
+			height:     5,
+			index:      7,
+			wantCursor: 7,
+			wantOffset: 3,
+		},
+		{
+			name:       "out of range index is ignored",
+			items:      3,
+			height:     5,
+			index:      9,
+			wantCursor: 0,
+			wantOffset: 0,
+		},
+		{
+			name:       "negative index is ignored",
+			items:      3,
+			height:     5,
+			index:      -1,
+			wantCursor: 0,
+			wantOffset: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			items := make([]note.Note, tt.items)
+			p := &ListPanel{Items: items, Height: tt.height}
+
+			p.SelectByIndex(tt.index)
+
+			if p.Cursor != tt.wantCursor || p.Offset != tt.wantOffset {
+				t.Errorf("SelectByIndex(%d) = (cursor=%d, offset=%d), want (cursor=%d, offset=%d)",
+					tt.index, p.Cursor, p.Offset, tt.wantCursor, tt.wantOffset)
 			}
 		})
 	}

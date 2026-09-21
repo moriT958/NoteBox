@@ -20,19 +20,6 @@ func errCmd(err error) tea.Cmd {
 	}
 }
 
-// renderPreviewMsg contains rendered content of the note.
-type renderPreviewMsg string
-
-func renderPreviewCmd(renderer note.NoteRenderer, n note.Note) tea.Cmd {
-	return func() tea.Msg {
-		rendered, err := renderer.RenderNote(n)
-		if err != nil {
-			return errMsg(err)
-		}
-		return renderPreviewMsg(rendered)
-	}
-}
-
 // this inform tea of if note file succesessfull created.
 type newNoteCreatedMsg note.Note
 
@@ -186,24 +173,5 @@ func saveLastBoxCmd(id int) tea.Cmd {
 	return func() tea.Msg {
 		_ = config.SaveLastBoxID(id)
 		return nil
-	}
-}
-
-type openNormalTabMsg tab
-
-func openNormalTabCmd(renderer note.NoteRenderer, n note.Note) tea.Cmd {
-	return func() tea.Msg {
-		rendered, err := renderer.RenderNote(n)
-		if err != nil {
-			return errMsg(err)
-		}
-
-		newTab := tab{
-			note:         n,
-			rendered:     rendered,
-			isPreviewTab: false,
-		}
-
-		return openNormalTabMsg(newTab)
 	}
 }

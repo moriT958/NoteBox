@@ -17,6 +17,16 @@ import (
 )
 
 func main() {
+	// initialize DB and run migrations; shared by the TUI and every CLI subcommand
+	db, err := database.NewSQLiteDB()
+	if err != nil {
+		slog.Error("failed to initialize database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	boxRepo := database.NewBoxRepository(db)
+
 	if len(os.Args) < 2 {
 		reg, err := note.NewFSNotifyRegisterer()
 		if err != nil {
@@ -24,16 +34,6 @@ func main() {
 			os.Exit(1)
 		}
 		defer reg.Close()
-
-		// initialize DB and run migrations
-		db, err := database.NewSQLiteDB()
-		if err != nil {
-			slog.Error("failed to initialize database", "error", err)
-			os.Exit(1)
-		}
-		defer db.Close()
-
-		boxRepo := database.NewBoxRepository(db)
 
 		m, err := tui.NewModel(reg, boxRepo)
 		if err != nil {
@@ -47,7 +47,7 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		os.Exit(cli.InitCommands(context.Background()))
+		os.Exit(cli.InitCommands(context.Background(), boxRepo))
 	}
 }
 
