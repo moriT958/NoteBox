@@ -201,6 +201,16 @@ func (m model) Init() tea.Cmd {
 	return waitNoteChangeCmd(m.listPanel.NotesUpdates)
 }
 
+func (m *model) updatePreviewerSize(msg tea.WindowSizeMsg) {
+	borderH, _ := m.styles.BorderPassive.GetFrameSize()
+
+	sidePanelWidth := msg.Width / layoutListPanelRatio
+	contentWidth := msg.Width - sidePanelWidth - borderH*2
+	contentHeight := msg.Height - helpGuideHeight - headerHeight - previewer.TabBarHeight - 1 // 1 is the connector height
+
+	m.previewer.SetSize(contentWidth, max(1, contentHeight))
+}
+
 // handleKeyMsg handles the few keys that apply regardless of focus, then
 // dispatches to the handler for the current focus state. Each handler owns
 // its own key bindings and invariants and can be driven directly in tests
@@ -229,7 +239,7 @@ func (m *model) handleKeyMsg(msg tea.KeyPressMsg) tea.Cmd {
 	case onTypingModal:
 		return m.handleTypingModalKeys(msg)
 	case onPreviewer:
-		return m.handlePreviewerKeys(msg)
+		return m.previewer.Update(msg)
 	case onWarnModal:
 		return m.handleWarnModalKeys(msg)
 	case onFuzzyModal:
@@ -306,27 +316,6 @@ func (m *model) handleTypingModalKeys(msg tea.KeyPressMsg) tea.Cmd {
 		m.toggleTypingModal(shut)
 	default:
 		m.input, cmd = m.input.Update(msg)
-	}
-	return cmd
-}
-
-func (m *model) handlePreviewerKeys(msg tea.KeyPressMsg) tea.Cmd {
-	var cmd tea.Cmd
-	switch {
-	case key.Matches(msg, m.keys.previewer.focusList):
-		m.focus = onListPanel
-	case key.Matches(msg, m.keys.previewer.editNote):
-		cmd = openNoteWithEditor(m.cfg.Editor, m.listPanel.SelectedItem().Path)
-	case key.Matches(msg, m.keys.previewer.openTab):
-		return m.previewer.OpenTab(m.listPanel.SelectedItem(), true)
-	case key.Matches(msg, m.keys.previewer.closeTab):
-		m.previewer.CloseTab()
-	case key.Matches(msg, m.keys.previewer.nextTab):
-		m.previewer.NextTab()
-	case key.Matches(msg, m.keys.previewer.prevTab):
-		m.previewer.PrevTab()
-	default:
-		m.previewer.VP, cmd = m.previewer.VP.Update(msg)
 	}
 	return cmd
 }
@@ -511,6 +500,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd = m.handlePasteMsg(msg)
 	case previewer.TabRenderedMsg:
 		m.previewer.ApplyRendered(msg)
+	case previewer.FocusListRequestedMsg:
+		m.focus = onListPanel
+	case previewer.EditRequestedMsg:
+		cmd = openNoteWithEditor(m.cfg.Editor, msg.Path)
 	case newNoteCreatedMsg:
 		m.listPanel.AddItem(note.Note(msg))
 		cmd = m.previewer.Refresh(m.listPanel.SelectedItem())
@@ -560,7 +553,7 @@ func (m model) View() tea.View {
 				m.viewHeader(),
 				lipgloss.JoinHorizontal(lipgloss.Top,
 					m.viewListPanel(),
-					m.viewPreviewer(),
+					m.previewer.View(m.styles, m.focus == onPreviewer),
 				),
 				m.viewHelp(),
 			))
@@ -603,7 +596,7 @@ func (m model) renderOverlay(modal string, x, y int) string {
 		m.viewHeader(),
 		lipgloss.JoinHorizontal(lipgloss.Left,
 			m.viewListPanel(),
-			m.viewPreviewer(),
+			m.previewer.View(m.styles, m.focus == onPreviewer),
 		),
 		m.viewHelp(),
 	)

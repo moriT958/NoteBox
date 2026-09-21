@@ -1,9 +1,10 @@
 package tui
 
 import (
+	"notebox/internal/tui/previewer"
+
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/viewport"
 )
 
 type keyMap struct {
@@ -13,7 +14,7 @@ type keyMap struct {
 	openBoxModal key.Binding
 
 	listPanel   listPanelKeyMap
-	previewer   previewerKeyMap
+	previewer   previewer.KeyMap
 	typingModal modalKeyMap
 	warnModal   modalKeyMap
 	fuzzyModal  fuzzyModalKeyMap
@@ -44,19 +45,6 @@ type listPanelKeyMap struct {
 	search       key.Binding
 }
 
-type previewerKeyMap struct {
-	focusList    key.Binding
-	editNote     key.Binding
-	up           key.Binding
-	down         key.Binding
-	openTab      key.Binding
-	closeTab     key.Binding
-	nextTab      key.Binding
-	prevTab      key.Binding
-	halfPageUp   key.Binding
-	halfPageDown key.Binding
-}
-
 type modalKeyMap struct {
 	confirm key.Binding
 	cancel  key.Binding
@@ -75,8 +63,6 @@ const (
 )
 
 func defaultKeyMap() keyMap {
-	vpKeys := viewport.DefaultKeyMap()
-
 	return keyMap{
 		quit: key.NewBinding(
 			key.WithKeys("ctrl+c"),
@@ -128,36 +114,7 @@ func defaultKeyMap() keyMap {
 				key.WithHelp("/", "search"),
 			),
 		},
-		previewer: previewerKeyMap{
-			focusList: key.NewBinding(
-				key.WithKeys("left", "h"),
-				key.WithHelp("←/h", "list"),
-			),
-			editNote: key.NewBinding(
-				key.WithKeys("e"),
-				key.WithHelp("e", "edit"),
-			),
-			up:   vpKeys.Up,
-			down: vpKeys.Down,
-			openTab: key.NewBinding(
-				key.WithKeys("enter"),
-				key.WithHelp("enter", "open tab"),
-			),
-			closeTab: key.NewBinding(
-				key.WithKeys("w"),
-				key.WithHelp("w", "close tab"),
-			),
-			nextTab: key.NewBinding(
-				key.WithKeys("tab"),
-				key.WithHelp("tab", "next tab"),
-			),
-			prevTab: key.NewBinding(
-				key.WithKeys("shift+tab"),
-				key.WithHelp("shift+tab", "prev tab"),
-			),
-			halfPageUp:   vpKeys.HalfPageUp,
-			halfPageDown: vpKeys.HalfPageDown,
-		},
+		previewer: previewer.DefaultKeyMap(),
 		typingModal: modalKeyMap{
 			confirm: key.NewBinding(
 				key.WithKeys(selectionModalConfirmKey),
@@ -261,12 +218,12 @@ func (k focusedKeyMap) ShortHelp() []key.Binding {
 		}
 	case onPreviewer:
 		return []key.Binding{
-			k.keys.previewer.up,
-			k.keys.previewer.down,
-			k.keys.previewer.halfPageUp,
-			k.keys.previewer.halfPageDown,
-			k.keys.previewer.focusList,
-			k.keys.previewer.editNote,
+			k.keys.previewer.Up,
+			k.keys.previewer.Down,
+			k.keys.previewer.HalfPageUp,
+			k.keys.previewer.HalfPageDown,
+			k.keys.previewer.FocusList,
+			k.keys.previewer.EditNote,
 			k.keys.toggleHelp,
 			k.keys.quit,
 		}
@@ -290,9 +247,9 @@ func (k focusedKeyMap) FullHelp() [][]key.Binding {
 		}
 	case onPreviewer:
 		return [][]key.Binding{
-			{k.keys.previewer.up, k.keys.previewer.down, k.keys.previewer.openTab},
-			{k.keys.previewer.halfPageUp, k.keys.previewer.halfPageDown},
-			{k.keys.previewer.focusList, k.keys.previewer.editNote},
+			{k.keys.previewer.Up, k.keys.previewer.Down, k.keys.previewer.OpenTab},
+			{k.keys.previewer.HalfPageUp, k.keys.previewer.HalfPageDown},
+			{k.keys.previewer.FocusList, k.keys.previewer.EditNote},
 			{k.keys.toggleHelp, k.keys.quit},
 		}
 	case onRenaming:

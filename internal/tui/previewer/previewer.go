@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -35,6 +36,67 @@ type Previewer struct {
 	activeTab int
 	// tab scroll offset: index of the first visible tab
 	offset int
+	keys   KeyMap
+}
+
+// KeyMap is the previewer's own key bindings. DefaultKeyMap is also used by
+// the root tui package to build help text, so its fields are exported.
+type KeyMap struct {
+	FocusList    key.Binding
+	EditNote     key.Binding
+	Up           key.Binding
+	Down         key.Binding
+	OpenTab      key.Binding
+	CloseTab     key.Binding
+	NextTab      key.Binding
+	PrevTab      key.Binding
+	HalfPageUp   key.Binding
+	HalfPageDown key.Binding
+}
+
+func DefaultKeyMap() KeyMap {
+	vpKeys := viewport.DefaultKeyMap()
+	return KeyMap{
+		FocusList: key.NewBinding(
+			key.WithKeys("left", "h"),
+			key.WithHelp("←/h", "list"),
+		),
+		EditNote: key.NewBinding(
+			key.WithKeys("e"),
+			key.WithHelp("e", "edit"),
+		),
+		Up:   vpKeys.Up,
+		Down: vpKeys.Down,
+		OpenTab: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "open tab"),
+		),
+		CloseTab: key.NewBinding(
+			key.WithKeys("w"),
+			key.WithHelp("w", "close tab"),
+		),
+		NextTab: key.NewBinding(
+			key.WithKeys("tab"),
+			key.WithHelp("tab", "next tab"),
+		),
+		PrevTab: key.NewBinding(
+			key.WithKeys("shift+tab"),
+			key.WithHelp("shift+tab", "prev tab"),
+		),
+		HalfPageUp:   vpKeys.HalfPageUp,
+		HalfPageDown: vpKeys.HalfPageDown,
+	}
+}
+
+// FocusListRequestedMsg reports that the user asked to move focus back to
+// the note list while the previewer was focused.
+type FocusListRequestedMsg struct{}
+
+// EditRequestedMsg reports that the user asked to open the active tab's
+// note in an external editor. The root owns the editor command since it
+// holds the configured editor.
+type EditRequestedMsg struct {
+	Path string
 }
 
 type tab struct {
@@ -62,7 +124,61 @@ func New(cfg *config.Config) (*Previewer, error) {
 		tabs:      []*tab{},
 		activeTab: 0,
 		offset:    0,
+		keys:      DefaultKeyMap(),
 	}, nil
+}
+
+// SetSize resizes the previewer and its viewport.
+func (p *Previewer) SetSize(width, height int) {
+	p.Width = width
+	p.Height = height
+	p.VP.SetWidth(width)
+	p.VP.SetHeight(height)
+}
+
+// activeNote returns the note behind the currently active tab, or the zero
+// value if there are no tabs.
+func (p *Previewer) activeNote() note.Note {
+	if len(p.tabs) == 0 {
+		return note.Note{}
+	}
+	return p.tabs[p.activeTab].note
+}
+
+// PinActiveTab promotes the currently active tab from an ephemeral preview
+// tab to a pinned normal tab, if it isn't already.
+func (p *Previewer) PinActiveTab() {
+	if len(p.tabs) == 0 {
+		return
+	}
+	p.tabs[p.activeTab].isPreviewTab = false
+}
+
+// Update handles a key press while the previewer is focused.
+func (p *Previewer) Update(msg tea.KeyPressMsg) tea.Cmd {
+	switch {
+	case key.Matches(msg, p.keys.FocusList):
+		return func() tea.Msg { return FocusListRequestedMsg{} }
+	case key.Matches(msg, p.keys.EditNote):
+		path := p.activeNote().Path
+		return func() tea.Msg { return EditRequestedMsg{Path: path} }
+	case key.Matches(msg, p.keys.OpenTab):
+		p.PinActiveTab()
+		return nil
+	case key.Matches(msg, p.keys.CloseTab):
+		p.CloseTab()
+		return nil
+	case key.Matches(msg, p.keys.NextTab):
+		p.NextTab()
+		return nil
+	case key.Matches(msg, p.keys.PrevTab):
+		p.PrevTab()
+		return nil
+	default:
+		var cmd tea.Cmd
+		p.VP, cmd = p.VP.Update(msg)
+		return cmd
+	}
 }
 
 // errMsg reports a render failure.
@@ -288,6 +404,31 @@ func (p *Previewer) adjustOffset() {
 			p.offset = newOffset
 		}
 	}
+}
+
+// View renders the previewer's tab bar and viewport, styled according to
+// whether the previewer currently has focus.
+func (p *Previewer) View(s *styles.Style, focused bool) string {
+	var (
+		tabStyles  styles.TabBarStyles
+		frameStyle lipgloss.Style
+		border     lipgloss.Style
+	)
+	if focused {
+		tabStyles = s.TabBarFocused
+		frameStyle = s.ActiveColor
+		border = s.BorderActive
+	} else {
+		tabStyles = s.TabBarUnforcused
+		frameStyle = s.PassiveColor
+		border = s.BorderPassive
+	}
+
+	tabBar := p.RenderTabBar(tabStyles, frameStyle)
+	viewPort := border.UnsetBorderTop().Render(
+		s.Sized(p.Width, p.Height).Render(p.VP.View()),
+	)
+	return lipgloss.JoinVertical(lipgloss.Left, tabBar, viewPort)
 }
 
 // TODO: Refactor this function.
