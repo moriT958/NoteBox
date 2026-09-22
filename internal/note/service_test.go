@@ -1,0 +1,153 @@
+package note
+
+import (
+	"os"
+	"path"
+	"path/filepath"
+	"testing"
+)
+
+type stubBox struct {
+	path string
+}
+
+var _ noteBox = (*stubBox)(nil)
+
+func newStubBox(t *testing.T, name string) *stubBox {
+	dir := t.TempDir()
+	return &stubBox{path.Join(dir, name)}
+}
+
+func (s *stubBox) Path() string {
+	return s.path
+}
+
+func TestNoteService_GetNotes(t *testing.T) {
+	t.Run("Successfully get only markdown notes.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
+		os.WriteFile(filepath.Join(box.path, "note2.md"), []byte("# note2"), 0644)
+		os.WriteFile(filepath.Join(box.path, "ignore.txt"), []byte("not a note"), 0644)
+
+		svc := NewNoteService(box)
+
+		got, err := svc.GetNotes()
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if len(got) != 2 {
+			t.Errorf("len(got) = %d, want 2", len(got))
+		}
+	})
+
+	t.Run("Returns empty slice, when box has no notes.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		svc := NewNoteService(box)
+
+		got, err := svc.GetNotes()
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if len(got) != 0 {
+			t.Errorf("len(got) = %d, want 0", len(got))
+		}
+	})
+}
+
+func TestNoteService_CreateNote(t *testing.T) {
+	t.Run("Successfully create note file.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		s := NewNoteService(box)
+
+		_, err := s.CreateNote("New Note")
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+
+		content, err := os.ReadFile(filepath.Join(box.path, "New Note.md"))
+		if err != nil {
+			t.Fatalf("expected file to be created: %v", err)
+		}
+		if string(content) != "# New Note\n\n" {
+			t.Errorf("content = %q, want %q", string(content), "# New Note")
+		}
+	})
+}
+
+func TestNoteService_GetNoteContent(t *testing.T) {
+	t.Run("Successfully get note file content.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1 content"), 0644)
+
+		s := NewNoteService(box)
+
+		notes, err := s.GetNotes()
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if len(notes) != 1 {
+			t.Fatalf("expected 1 note, got %d", len(notes))
+		}
+
+		got, err := s.GetNoteContent(notes[0])
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got != "# note1 content" {
+			t.Errorf("content = %q, want %q", got, "# note1 content")
+		}
+	})
+}
+
+func TestNoteService_RemoveNote(t *testing.T) {
+	t.Run("Successfull remove note file.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
+
+		s := NewNoteService(box)
+
+		notes, err := s.GetNotes()
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if len(notes) != 1 {
+			t.Fatalf("expected 1 note, got %d", len(notes))
+		}
+
+		if err := s.RemoveNote(notes[0]); err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(box.path, "note1.md")); !os.IsNotExist(err) {
+			t.Errorf("expected note1.md to be removed, stat err = %v", err)
+		}
+	})
+}
+
+func TestNoteService_RenameNote(t *testing.T) {
+	t.Run("Successfully rename note file name.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
+
+		s := NewNoteService(box)
+
+		notes, err := s.GetNotes()
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if len(notes) != 1 {
+			t.Fatalf("expected 1 note, got %d", len(notes))
+		}
+
+		if _, err := s.RenameNote(notes[0], "renamed"); err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(box.path, "renamed.md")); err != nil {
+			t.Errorf("expected renamed.md to exist: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(box.path, "note1.md")); !os.IsNotExist(err) {
+			t.Errorf("expected note1.md to no longer exist, stat err = %v", err)
+		}
+	})
+}

@@ -7,6 +7,10 @@ type Box struct {
 	active bool
 }
 
+func (b Box) Path() string {
+	return b.path
+}
+
 func (b Box) IsActive() bool {
 	return b.active
 }
