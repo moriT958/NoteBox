@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"notebox/internal/config"
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"notebox/internal/tui/boxmodal"
 
 	"charm.land/bubbles/v2/key"
@@ -36,7 +36,7 @@ func (m *model) updateBoxModalSize(msg tea.WindowSizeMsg) {
 	m.boxModal.RenameInput.SetWidth(m.boxModal.Width - 6)
 }
 
-func (m *model) switchBox(newBox note.Box) tea.Cmd {
+func (m *model) switchBox(newBox notedeprecated.Box) tea.Cmd {
 	if err := m.listPanel.Registerer.Unregister(m.currentBox.Path); err != nil {
 		slog.Error("failed to unregister path", "path", m.currentBox.Path, "error", err)
 	}

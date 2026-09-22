@@ -8,7 +8,7 @@ import (
 	"notebox/internal/config"
 	"notebox/internal/database"
 	"notebox/internal/logger"
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"notebox/internal/tui"
 	"os"
 	"path/filepath"
@@ -28,7 +28,7 @@ func main() {
 	boxRepo := database.NewBoxRepository(db)
 
 	if len(os.Args) < 2 {
-		reg, err := note.NewFSNotifyRegisterer()
+		reg, err := notedeprecated.NewFSNotifyRegisterer()
 		if err != nil {
 			slog.Error("failed to initialize fsnotify watcher", "error", err)
 			os.Exit(1)

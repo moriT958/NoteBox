@@ -4,17 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"notebox/internal/notedeprecated"
 	"os"
 	"strings"
 
 	"github.com/google/subcommands"
 	"github.com/mattn/go-runewidth"
-
-	"notebox/internal/note"
 )
 
 type listCmd struct {
-	repo note.BoxRepository
+	repo notedeprecated.BoxRepository
 }
 
 var _ subcommands.Command = (*listCmd)(nil)

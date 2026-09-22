@@ -4,7 +4,7 @@ package previewer
 
 import (
 	"notebox/internal/config"
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"notebox/internal/tui/styles"
 	"slices"
 	"strings"
@@ -29,7 +29,7 @@ const (
 type Previewer struct {
 	Width, Height int
 	VP            viewport.Model
-	Renderer      note.NoteRenderer
+	Renderer      notedeprecated.NoteRenderer
 	// tabs include normal tabs and preview tabs.
 	tabs []*tab
 	// currently active tab index
@@ -100,7 +100,7 @@ type EditRequestedMsg struct {
 }
 
 type tab struct {
-	note     note.Note
+	note     notedeprecated.Note
 	rendered string
 	// preview tab is an unpinned tab that has not been fully opened yet.
 	isPreviewTab bool
@@ -113,7 +113,7 @@ func New(cfg *config.Config) (*Previewer, error) {
 	)
 	vp.SetHorizontalStep(4)
 
-	r, err := note.NewGlamourRenderer(cfg.Theme)
+	r, err := notedeprecated.NewGlamourRenderer(cfg.Theme)
 	if err != nil {
 		return nil, err
 	}
@@ -138,9 +138,9 @@ func (p *Previewer) SetSize(width, height int) {
 
 // activeNote returns the note behind the currently active tab, or the zero
 // value if there are no tabs.
-func (p *Previewer) activeNote() note.Note {
+func (p *Previewer) activeNote() notedeprecated.Note {
 	if len(p.tabs) == 0 {
-		return note.Note{}
+		return notedeprecated.Note{}
 	}
 	return p.tabs[p.activeTab].note
 }
@@ -188,7 +188,7 @@ type errMsg error
 // to be rendered. Pin reports whether the result should become a pinned
 // (normal) tab or stay an ephemeral preview tab.
 type TabRenderedMsg struct {
-	Note     note.Note
+	Note     notedeprecated.Note
 	Rendered string
 	Pin      bool
 }
@@ -196,7 +196,7 @@ type TabRenderedMsg struct {
 // renderTabCmd is the previewer's single render entry point: every path that
 // needs a note rendered into a tab (cursor movement, opening a tab, resize,
 // note creation/rename/deletion) goes through this one command.
-func renderTabCmd(renderer note.NoteRenderer, n note.Note, pin bool) tea.Cmd {
+func renderTabCmd(renderer notedeprecated.NoteRenderer, n notedeprecated.Note, pin bool) tea.Cmd {
 	return func() tea.Msg {
 		rendered, err := renderer.RenderNote(n)
 		if err != nil {
@@ -209,7 +209,7 @@ func renderTabCmd(renderer note.NoteRenderer, n note.Note, pin bool) tea.Cmd {
 // Refresh forces a fresh render of n into an ephemeral preview tab,
 // bypassing the tab cache. Used when the rendered content itself may be
 // stale (e.g. a resize, or the note's file just changed on disk).
-func (p *Previewer) Refresh(n note.Note) tea.Cmd {
+func (p *Previewer) Refresh(n notedeprecated.Note) tea.Cmd {
 	return renderTabCmd(p.Renderer, n, false)
 }
 
@@ -218,7 +218,7 @@ func (p *Previewer) Refresh(n note.Note) tea.Cmd {
 // pinned normal tab) both go through here. An already-cached tab for n is
 // activated in place (promoted to pinned if requested); otherwise a render
 // job is fired and ApplyRendered installs the result on completion.
-func (p *Previewer) OpenTab(n note.Note, pin bool) tea.Cmd {
+func (p *Previewer) OpenTab(n notedeprecated.Note, pin bool) tea.Cmd {
 	for i, t := range p.tabs {
 		if t.note.Path == n.Path {
 			if pin && t.isPreviewTab {

@@ -1,12 +1,12 @@
 package fuzzymodal
 
 import (
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"testing"
 )
 
 func TestFilterNotesEmptyQueryReturnsAllItems(t *testing.T) {
-	items := []note.Note{{Title: "a"}, {Title: "b"}}
+	items := []notedeprecated.Note{{Title: "a"}, {Title: "b"}}
 
 	got := filterNotes("", items)
 
@@ -16,7 +16,7 @@ func TestFilterNotesEmptyQueryReturnsAllItems(t *testing.T) {
 }
 
 func TestFilterNotesMatchesByTitle(t *testing.T) {
-	items := []note.Note{{Title: "grocery-list"}, {Title: "todo"}, {Title: "groceries-2"}}
+	items := []notedeprecated.Note{{Title: "grocery-list"}, {Title: "todo"}, {Title: "groceries-2"}}
 
 	got := filterNotes("groc", items)
 
@@ -31,7 +31,7 @@ func TestFilterNotesMatchesByTitle(t *testing.T) {
 }
 
 func TestFilterResetsCursorAndOffset(t *testing.T) {
-	m := &Modal{AllItems: []note.Note{{Title: "a"}, {Title: "b"}}, Cursor: 5, Offset: 2}
+	m := &Modal{AllItems: []notedeprecated.Note{{Title: "a"}, {Title: "b"}}, Cursor: 5, Offset: 2}
 
 	m.Filter("")
 

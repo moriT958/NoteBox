@@ -1,7 +1,7 @@
 package listpanel
 
 import (
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"testing"
 )
 
@@ -125,56 +125,56 @@ func TestCalcCursorUp(t *testing.T) {
 func TestCalcRemoveItem(t *testing.T) {
 	tests := []struct {
 		name       string
-		items      []note.Note
+		items      []notedeprecated.Note
 		cursor     int
 		wantLen    int
 		wantCursor int
 	}{
 		{
 			name:       "remove middle item",
-			items:      []note.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}},
+			items:      []notedeprecated.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}},
 			cursor:     1,
 			wantLen:    2,
 			wantCursor: 1,
 		},
 		{
 			name:       "remove last item",
-			items:      []note.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}},
+			items:      []notedeprecated.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}},
 			cursor:     2,
 			wantLen:    2,
 			wantCursor: 1,
 		},
 		{
 			name:       "remove first item",
-			items:      []note.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}},
+			items:      []notedeprecated.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}},
 			cursor:     0,
 			wantLen:    2,
 			wantCursor: 0,
 		},
 		{
 			name:       "remove only item",
-			items:      []note.Note{{Title: "a"}},
+			items:      []notedeprecated.Note{{Title: "a"}},
 			cursor:     0,
 			wantLen:    0,
 			wantCursor: 0,
 		},
 		{
 			name:       "empty list",
-			items:      []note.Note{},
+			items:      []notedeprecated.Note{},
 			cursor:     0,
 			wantLen:    0,
 			wantCursor: 0,
 		},
 		{
 			name:       "invalid cursor negative",
-			items:      []note.Note{{Title: "a"}, {Title: "b"}},
+			items:      []notedeprecated.Note{{Title: "a"}, {Title: "b"}},
 			cursor:     -1,
 			wantLen:    2,
 			wantCursor: -1,
 		},
 		{
 			name:       "invalid cursor out of bounds",
-			items:      []note.Note{{Title: "a"}, {Title: "b"}},
+			items:      []notedeprecated.Note{{Title: "a"}, {Title: "b"}},
 			cursor:     5,
 			wantLen:    2,
 			wantCursor: 5,
@@ -247,7 +247,7 @@ func TestCalcAddItem(t *testing.T) {
 }
 
 func TestCalcRemoveItemImmutability(t *testing.T) {
-	original := []note.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}}
+	original := []notedeprecated.Note{{Title: "a"}, {Title: "b"}, {Title: "c"}}
 	originalLen := len(original)
 
 	_, _ = calcRemoveItem(original, 1)
@@ -397,7 +397,7 @@ func TestSelectByIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			items := make([]note.Note, tt.items)
+			items := make([]notedeprecated.Note, tt.items)
 			p := &ListPanel{Items: items, Height: tt.height}
 
 			p.SelectByIndex(tt.index)

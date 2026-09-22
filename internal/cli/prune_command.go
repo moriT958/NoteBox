@@ -5,16 +5,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"notebox/internal/notedeprecated"
 	"os"
 	"strings"
 
 	"github.com/google/subcommands"
-
-	"notebox/internal/note"
 )
 
 type pruneCmd struct {
-	repo  note.BoxRepository
+	repo  notedeprecated.BoxRepository
 	force bool
 }
 

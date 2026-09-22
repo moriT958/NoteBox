@@ -3,7 +3,7 @@
 package fuzzymodal
 
 import (
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 
 	"charm.land/bubbles/v2/textinput"
 	"github.com/sahilm/fuzzy"
@@ -14,13 +14,13 @@ type Modal struct {
 	Input         textinput.Model
 	Cursor        int
 	Offset        int
-	Filtered      []note.Note
-	AllItems      []note.Note
+	Filtered      []notedeprecated.Note
+	AllItems      []notedeprecated.Note
 }
 
 // filterNotes filters notes by fuzzy matching query against titles.
 // Returns all items if query is empty.
-func filterNotes(query string, items []note.Note) []note.Note {
+func filterNotes(query string, items []notedeprecated.Note) []notedeprecated.Note {
 	if query == "" {
 		return items
 	}
@@ -31,7 +31,7 @@ func filterNotes(query string, items []note.Note) []note.Note {
 	}
 
 	matches := fuzzy.Find(query, titles)
-	result := make([]note.Note, len(matches))
+	result := make([]notedeprecated.Note, len(matches))
 	for i, match := range matches {
 		result[i] = items[match.Index]
 	}
@@ -79,9 +79,9 @@ func (m *Modal) CursorDown() {
 	m.Cursor, m.Offset = calcCursorDown(m.Cursor, len(m.Filtered), m.Offset, m.Height)
 }
 
-func (m Modal) SelectedItem() note.Note {
+func (m Modal) SelectedItem() notedeprecated.Note {
 	if len(m.Filtered) == 0 {
-		return note.Note{}
+		return notedeprecated.Note{}
 	}
 	return m.Filtered[m.Cursor]
 }

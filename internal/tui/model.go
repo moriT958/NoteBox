@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"notebox/internal/config"
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"notebox/internal/tui/boxmodal"
 	"notebox/internal/tui/fuzzymodal"
 	"notebox/internal/tui/listpanel"
@@ -49,8 +49,8 @@ const (
 type model struct {
 	cfg        *config.Config
 	styles     *styles.Style
-	currentBox note.Box
-	boxRepo    note.BoxRepository
+	currentBox notedeprecated.Box
+	boxRepo    notedeprecated.BoxRepository
 
 	// main model fields
 	width, height int
@@ -84,7 +84,7 @@ type model struct {
 	help help.Model
 }
 
-func NewModel(reg note.Registerer, br note.BoxRepository) (*model, error) {
+func NewModel(reg notedeprecated.Registerer, br notedeprecated.BoxRepository) (*model, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {
 		return nil, err
@@ -156,19 +156,19 @@ func NewModel(reg note.Registerer, br note.BoxRepository) (*model, error) {
 	return m, nil
 }
 
-func newBox(br note.BoxRepository) (note.Box, error) {
+func newBox(br notedeprecated.BoxRepository) (notedeprecated.Box, error) {
 	ctx := context.Background()
 	boxes, err := br.FindAllActive(ctx)
 	if err != nil {
-		return note.Box{}, err
+		return notedeprecated.Box{}, err
 	}
 
 	if len(boxes) == 0 {
 		defaultPath, err := config.DefaultNotesDir()
 		if err != nil {
-			return note.Box{}, err
+			return notedeprecated.Box{}, err
 		}
-		return br.CreateBox(ctx, note.Box{Title: "Default", Path: defaultPath})
+		return br.CreateBox(ctx, notedeprecated.Box{Title: "Default", Path: defaultPath})
 	}
 
 	if lastID, err := config.LoadLastBoxID(); err == nil && lastID > 0 {
@@ -187,9 +187,9 @@ func newBox(br note.BoxRepository) (note.Box, error) {
 
 	defaultPath, err := config.DefaultNotesDir()
 	if err != nil {
-		return note.Box{}, err
+		return notedeprecated.Box{}, err
 	}
-	return br.CreateBox(ctx, note.Box{Title: "Default", Path: defaultPath})
+	return br.CreateBox(ctx, notedeprecated.Box{Title: "Default", Path: defaultPath})
 }
 
 func pathExists(path string) bool {
@@ -421,7 +421,7 @@ func (m *model) handleBoxRenamingKeys(msg tea.KeyPressMsg) tea.Cmd {
 		m.focus = onBoxModal
 		selected := m.boxModal.SelectedItem()
 		if newTitle != "" && newTitle != selected.Title {
-			cmd = renameBoxCmd(m.boxRepo, note.Box{ID: selected.ID, Title: newTitle, Path: selected.Path})
+			cmd = renameBoxCmd(m.boxRepo, notedeprecated.Box{ID: selected.ID, Title: newTitle, Path: selected.Path})
 		}
 	case key.Matches(msg, m.keys.renameInput.cancel):
 		m.boxModal.RenameInput.Blur()
@@ -505,24 +505,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case previewer.EditRequestedMsg:
 		cmd = openNoteWithEditor(m.cfg.Editor, msg.Path)
 	case newNoteCreatedMsg:
-		m.listPanel.AddItem(note.Note(msg))
+		m.listPanel.AddItem(notedeprecated.Note(msg))
 		cmd = m.previewer.Refresh(m.listPanel.SelectedItem())
 	case boxesLoadedMsg:
-		m.boxModal.ApplyBoxesLoaded([]note.Box(msg), m.currentBox.ID)
+		m.boxModal.ApplyBoxesLoaded([]notedeprecated.Box(msg), m.currentBox.ID)
 		m.focus = onBoxModal
 	case boxCreatedMsg:
-		m.boxModal.ApplyBoxCreated(note.Box(msg))
+		m.boxModal.ApplyBoxCreated(notedeprecated.Box(msg))
 		m.focus = onBoxModal
 	case boxDeletedMsg:
 		m.boxModal.ApplyBoxDeleted(int(msg))
 	case boxRenamedMsg:
-		updated := note.Box(msg)
+		updated := notedeprecated.Box(msg)
 		m.boxModal.ApplyBoxRenamed(updated)
 		if m.currentBox.ID == updated.ID {
 			m.currentBox.Title = updated.Title
 		}
 	case notesChangedMsg:
-		m.listPanel.ReloadAllNotes([]note.Note(msg))
+		m.listPanel.ReloadAllNotes([]notedeprecated.Note(msg))
 		if m.focus == onFuzzyModal {
 			m.fnsModal.AllItems = m.listPanel.Items
 			m.fnsModal.Filter(m.fnsModal.Input.Value())

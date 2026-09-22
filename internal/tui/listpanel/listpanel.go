@@ -4,7 +4,7 @@
 package listpanel
 
 import (
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"slices"
 
 	"charm.land/bubbles/v2/textinput"
@@ -23,13 +23,13 @@ type ListPanel struct {
 	// previewer panel instead of coming up short.
 	BoxRows     int
 	Cursor      int
-	Items       []note.Note
+	Items       []notedeprecated.Note
 	Offset      int
 	RenameInput textinput.Model
 
 	// notes dir change watcher
-	Registerer   note.Registerer
-	NotesUpdates <-chan []note.Note
+	Registerer   notedeprecated.Registerer
+	NotesUpdates <-chan []notedeprecated.Note
 }
 
 // calcCursorUp calculates the new cursor and offset when moving up.
@@ -59,7 +59,7 @@ func calcCursorDown(cursor, itemCount, offset, height int) (newCursor, newOffset
 }
 
 // calcRemoveItem calculates the new items and cursor after removing an item.
-func calcRemoveItem(items []note.Note, cursor int) ([]note.Note, int) {
+func calcRemoveItem(items []notedeprecated.Note, cursor int) ([]notedeprecated.Note, int) {
 	if cursor < 0 || len(items) == 0 || cursor >= len(items) {
 		return items, cursor
 	}
@@ -139,15 +139,15 @@ func (p *ListPanel) SelectByIndex(i int) {
 }
 
 // SelectedItem returns the item under the cursor.
-func (p ListPanel) SelectedItem() note.Note {
+func (p ListPanel) SelectedItem() notedeprecated.Note {
 	if p.Cursor < 0 || len(p.Items) == 0 || len(p.Items) <= p.Cursor {
-		return note.Note{}
+		return notedeprecated.Note{}
 	}
 	return p.Items[p.Cursor]
 }
 
 // AddItem appends n and adjusts cursor/offset to keep it visible.
-func (p *ListPanel) AddItem(n note.Note) {
+func (p *ListPanel) AddItem(n notedeprecated.Note) {
 	p.Items = append(p.Items, n)
 	p.Cursor, p.Offset = calcAddItem(len(p.Items), p.Offset, p.Height)
 }
@@ -160,7 +160,7 @@ func (p *ListPanel) RemoveItem() {
 // ReloadAllNotes replaces the item list (e.g. after an fsnotify change)
 // while keeping the previously selected note (by path) selected when it
 // still exists, and clamping cursor/offset to the new item count.
-func (p *ListPanel) ReloadAllNotes(notes []note.Note) {
+func (p *ListPanel) ReloadAllNotes(notes []notedeprecated.Note) {
 	selectedPath := p.SelectedItem().Path
 	p.Items = notes
 
@@ -185,7 +185,7 @@ func (p *ListPanel) SetSize(width, boxRows, height int) {
 
 // Reset points the panel at a freshly registered notes directory, clearing
 // the item list and cursor/offset back to the top.
-func (p *ListPanel) Reset(notesUpdates <-chan []note.Note) {
+func (p *ListPanel) Reset(notesUpdates <-chan []notedeprecated.Note) {
 	p.NotesUpdates = notesUpdates
 	p.Items = nil
 	p.Cursor = 0

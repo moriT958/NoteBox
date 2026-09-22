@@ -4,7 +4,7 @@
 package boxmodal
 
 import (
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 
 	"charm.land/bubbles/v2/textinput"
 )
@@ -29,7 +29,7 @@ type BoxModal struct {
 	Width, Height int
 	Cursor        int
 	Offset        int
-	Items         []note.Box
+	Items         []notedeprecated.Box
 	Mode          Mode
 	TitleInput    textinput.Model
 	PathInput     textinput.Model
@@ -72,16 +72,16 @@ func (m *BoxModal) CursorDown() {
 	m.Cursor, m.Offset = calcCursorDown(m.Cursor, len(m.Items), m.Offset, m.Height)
 }
 
-func (m BoxModal) SelectedItem() note.Box {
+func (m BoxModal) SelectedItem() notedeprecated.Box {
 	if len(m.Items) == 0 || m.Cursor >= len(m.Items) {
-		return note.Box{}
+		return notedeprecated.Box{}
 	}
 	return m.Items[m.Cursor]
 }
 
 // ApplyBoxesLoaded installs a freshly loaded box list and puts the cursor on
 // the currently active box.
-func (m *BoxModal) ApplyBoxesLoaded(boxes []note.Box, currentBoxID int) {
+func (m *BoxModal) ApplyBoxesLoaded(boxes []notedeprecated.Box, currentBoxID int) {
 	m.Items = boxes
 	m.Cursor = 0
 	m.Offset = 0
@@ -94,7 +94,7 @@ func (m *BoxModal) ApplyBoxesLoaded(boxes []note.Box, currentBoxID int) {
 }
 
 // ApplyBoxCreated appends a newly created box to the cached list.
-func (m *BoxModal) ApplyBoxCreated(box note.Box) {
+func (m *BoxModal) ApplyBoxCreated(box notedeprecated.Box) {
 	m.Items = append(m.Items, box)
 }
 
@@ -113,7 +113,7 @@ func (m *BoxModal) ApplyBoxDeleted(id int) {
 }
 
 // ApplyBoxRenamed replaces a box in the cached list with its updated value.
-func (m *BoxModal) ApplyBoxRenamed(box note.Box) {
+func (m *BoxModal) ApplyBoxRenamed(box notedeprecated.Box) {
 	for i, b := range m.Items {
 		if b.ID == box.ID {
 			m.Items[i] = box

@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"path/filepath"
 	"testing"
 )
@@ -61,7 +61,7 @@ func TestNewBoxFinalPath(t *testing.T) {
 }
 
 func TestIsDuplicatePath(t *testing.T) {
-	boxes := []note.Box{
+	boxes := []notedeprecated.Box{
 		{ID: 1, Title: "A", Path: "/home/user/boxA"},
 		{ID: 2, Title: "B", Path: "/home/user/boxB"},
 	}
@@ -69,7 +69,7 @@ func TestIsDuplicatePath(t *testing.T) {
 	tests := []struct {
 		name  string
 		path  string
-		boxes []note.Box
+		boxes []notedeprecated.Box
 		want  bool
 	}{
 		{"existing path", "/home/user/boxA", boxes, true},

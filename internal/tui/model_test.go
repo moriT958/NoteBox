@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"notebox/internal/tui/listpanel"
 	"notebox/internal/tui/previewer"
 	"os"
@@ -15,7 +15,7 @@ type fakeRenderer struct {
 	rendered string
 }
 
-func (f *fakeRenderer) RenderNote(note.Note) (string, error) {
+func (f *fakeRenderer) RenderNote(notedeprecated.Note) (string, error) {
 	return f.rendered, nil
 }
 
@@ -40,7 +40,7 @@ func TestHandleWarnModalKeysDeleteNoteOrder(t *testing.T) {
 		warnAction: warnDeleteNote,
 		keys:       defaultKeyMap(),
 		listPanel: listpanel.ListPanel{
-			Items:  []note.Note{{Title: "keep", Path: keep}, {Title: "gone", Path: gone}},
+			Items:  []notedeprecated.Note{{Title: "keep", Path: keep}, {Title: "gone", Path: gone}},
 			Cursor: 1,
 		},
 		previewer: previewer.Previewer{Renderer: &fakeRenderer{rendered: "ok"}},
@@ -84,7 +84,7 @@ func TestHandleListPanelKeysCursorMovesPreview(t *testing.T) {
 		focus: onListPanel,
 		keys:  defaultKeyMap(),
 		listPanel: listpanel.ListPanel{
-			Items:  []note.Note{{Title: "a", Path: "a.md"}, {Title: "b", Path: "b.md"}},
+			Items:  []notedeprecated.Note{{Title: "a", Path: "a.md"}, {Title: "b", Path: "b.md"}},
 			Cursor: 0,
 			Height: 10,
 		},

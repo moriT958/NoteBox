@@ -3,7 +3,7 @@ package tui
 import (
 	"context"
 	"notebox/internal/config"
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,11 +21,11 @@ func errCmd(err error) tea.Cmd {
 }
 
 // this inform tea of if note file succesessfull created.
-type newNoteCreatedMsg note.Note
+type newNoteCreatedMsg notedeprecated.Note
 
 func createNewNoteCmd(notesdir, title string) tea.Cmd {
 	return func() tea.Msg {
-		newNote, err := note.CreateNote(notesdir, title)
+		newNote, err := notedeprecated.CreateNote(notesdir, title)
 		if err != nil {
 			return errMsg(err)
 		}
@@ -52,9 +52,9 @@ func deleteNoteFileCmd(path string) tea.Cmd {
 	}
 }
 
-func renameNoteCmd(n note.Note, newTitle string) tea.Cmd {
+func renameNoteCmd(n notedeprecated.Note, newTitle string) tea.Cmd {
 	return func() tea.Msg {
-		_, err := note.RenameNote(n, newTitle)
+		_, err := notedeprecated.RenameNote(n, newTitle)
 		if err != nil {
 			return errMsg(err)
 		}
@@ -62,9 +62,9 @@ func renameNoteCmd(n note.Note, newTitle string) tea.Cmd {
 	}
 }
 
-type notesChangedMsg []note.Note
+type notesChangedMsg []notedeprecated.Note
 
-func waitNoteChangeCmd(ch <-chan []note.Note) tea.Cmd {
+func waitNoteChangeCmd(ch <-chan []notedeprecated.Note) tea.Cmd {
 	return func() tea.Msg {
 		notes, ok := <-ch
 		if !ok {
@@ -74,9 +74,9 @@ func waitNoteChangeCmd(ch <-chan []note.Note) tea.Cmd {
 	}
 }
 
-type boxesLoadedMsg []note.Box
+type boxesLoadedMsg []notedeprecated.Box
 
-func loadBoxesCmd(repo note.BoxRepository) tea.Cmd {
+func loadBoxesCmd(repo notedeprecated.BoxRepository) tea.Cmd {
 	return func() tea.Msg {
 		boxes, err := repo.FindAllActive(context.Background())
 		if err != nil {
@@ -86,7 +86,7 @@ func loadBoxesCmd(repo note.BoxRepository) tea.Cmd {
 	}
 }
 
-type boxCreatedMsg note.Box
+type boxCreatedMsg notedeprecated.Box
 
 // resolveBoxPath expands ~, and resolves relative paths against cwd.
 func resolveBoxPath(input, cwd, home string) string {
@@ -112,7 +112,7 @@ func newBoxFinalPath(title, resolvedBase, configDir string) string {
 }
 
 // isDuplicatePath reports whether path is already used by one of boxes.
-func isDuplicatePath(path string, boxes []note.Box) bool {
+func isDuplicatePath(path string, boxes []notedeprecated.Box) bool {
 	for _, b := range boxes {
 		if b.Path == path {
 			return true
@@ -122,12 +122,12 @@ func isDuplicatePath(path string, boxes []note.Box) bool {
 }
 
 // newBoxCmd creates the directory finalPath (if needed) and registers it as a box.
-func newBoxCmd(repo note.BoxRepository, title, finalPath string) tea.Cmd {
+func newBoxCmd(repo notedeprecated.BoxRepository, title, finalPath string) tea.Cmd {
 	return func() tea.Msg {
 		if err := os.MkdirAll(finalPath, 0755); err != nil {
 			return errMsg(err)
 		}
-		box, err := repo.CreateBox(context.Background(), note.Box{Title: title, Path: finalPath})
+		box, err := repo.CreateBox(context.Background(), notedeprecated.Box{Title: title, Path: finalPath})
 		if err != nil {
 			return errMsg(err)
 		}
@@ -136,9 +136,9 @@ func newBoxCmd(repo note.BoxRepository, title, finalPath string) tea.Cmd {
 }
 
 // openFolderAsBoxCmd registers an existing directory as a box without modifying the filesystem.
-func openFolderAsBoxCmd(repo note.BoxRepository, title, path string) tea.Cmd {
+func openFolderAsBoxCmd(repo notedeprecated.BoxRepository, title, path string) tea.Cmd {
 	return func() tea.Msg {
-		box, err := repo.CreateBox(context.Background(), note.Box{Title: title, Path: path})
+		box, err := repo.CreateBox(context.Background(), notedeprecated.Box{Title: title, Path: path})
 		if err != nil {
 			return errMsg(err)
 		}
@@ -148,7 +148,7 @@ func openFolderAsBoxCmd(repo note.BoxRepository, title, path string) tea.Cmd {
 
 type boxDeletedMsg int
 
-func deleteBoxCmd(repo note.BoxRepository, box note.Box) tea.Cmd {
+func deleteBoxCmd(repo notedeprecated.BoxRepository, box notedeprecated.Box) tea.Cmd {
 	return func() tea.Msg {
 		if err := repo.DeleteBox(context.Background(), box); err != nil {
 			return errMsg(err)
@@ -157,9 +157,9 @@ func deleteBoxCmd(repo note.BoxRepository, box note.Box) tea.Cmd {
 	}
 }
 
-type boxRenamedMsg note.Box
+type boxRenamedMsg notedeprecated.Box
 
-func renameBoxCmd(repo note.BoxRepository, box note.Box) tea.Cmd {
+func renameBoxCmd(repo notedeprecated.BoxRepository, box notedeprecated.Box) tea.Cmd {
 	return func() tea.Msg {
 		updated, err := repo.UpdateBox(context.Background(), box)
 		if err != nil {

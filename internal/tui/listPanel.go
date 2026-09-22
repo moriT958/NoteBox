@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"notebox/internal/tui/listpanel"
 	"path/filepath"
 	"strings"
@@ -53,7 +53,7 @@ const (
 	plainGutter     = "  "
 )
 
-func (m model) renderNoteItemLine(n note.Note) string {
+func (m model) renderNoteItemLine(n notedeprecated.Note) string {
 	if n != m.listPanel.SelectedItem() {
 		titleLine := plainGutter + n.Title
 		titleLine = truncate.StringWithTail(titleLine, uint(m.listPanel.Width), "…   ")
@@ -74,7 +74,7 @@ func (m model) renderNoteItemLine(n note.Note) string {
 
 // renderNotePathLine renders the note's path, relative to the current box, below
 // the title. Selected rows pick up the cursor highlight color; others stay dim.
-func (m model) renderNotePathLine(n note.Note, gutter string, selected bool) string {
+func (m model) renderNotePathLine(n notedeprecated.Note, gutter string, selected bool) string {
 	path := n.Path
 	if rel, err := filepath.Rel(m.currentBox.Path, n.Path); err == nil {
 		path = rel

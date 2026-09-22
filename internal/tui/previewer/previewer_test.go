@@ -2,7 +2,7 @@ package previewer
 
 import (
 	"errors"
-	"notebox/internal/note"
+	"notebox/internal/notedeprecated"
 	"testing"
 
 	"charm.land/bubbles/v2/viewport"
@@ -14,7 +14,7 @@ type fakeRenderer struct {
 	calls    int
 }
 
-func (f *fakeRenderer) RenderNote(note.Note) (string, error) {
+func (f *fakeRenderer) RenderNote(notedeprecated.Note) (string, error) {
 	f.calls++
 	if f.err != nil {
 		return "", f.err
@@ -27,12 +27,12 @@ func newTestPreviewer(width int, tabs ...*tab) *Previewer {
 }
 
 func TestOpenTabCacheHit(t *testing.T) {
-	existing := &tab{note: note.Note{Path: "a.md"}, rendered: "cached", isPreviewTab: true}
+	existing := &tab{note: notedeprecated.Note{Path: "a.md"}, rendered: "cached", isPreviewTab: true}
 	p := newTestPreviewer(80, existing)
 	r := &fakeRenderer{}
 	p.Renderer = r
 
-	cmd := p.OpenTab(note.Note{Path: "a.md"}, false)
+	cmd := p.OpenTab(notedeprecated.Note{Path: "a.md"}, false)
 
 	if cmd != nil {
 		t.Fatalf("expected no render command on cache hit, got one")
@@ -46,10 +46,10 @@ func TestOpenTabCacheHit(t *testing.T) {
 }
 
 func TestOpenTabPromotesPreviewTabToPinned(t *testing.T) {
-	existing := &tab{note: note.Note{Path: "a.md"}, rendered: "cached", isPreviewTab: true}
+	existing := &tab{note: notedeprecated.Note{Path: "a.md"}, rendered: "cached", isPreviewTab: true}
 	p := newTestPreviewer(80, existing)
 
-	if cmd := p.OpenTab(note.Note{Path: "a.md"}, true); cmd != nil {
+	if cmd := p.OpenTab(notedeprecated.Note{Path: "a.md"}, true); cmd != nil {
 		t.Fatalf("expected no render command on cache hit, got one")
 	}
 	if p.tabs[0].isPreviewTab {
@@ -62,7 +62,7 @@ func TestOpenTabCacheMissRenders(t *testing.T) {
 	r := &fakeRenderer{rendered: "hello"}
 	p.Renderer = r
 
-	cmd := p.OpenTab(note.Note{Path: "a.md"}, true)
+	cmd := p.OpenTab(notedeprecated.Note{Path: "a.md"}, true)
 	if cmd == nil {
 		t.Fatalf("expected a render command on cache miss")
 	}
@@ -80,18 +80,18 @@ func TestOpenTabCacheMissRenderError(t *testing.T) {
 	p := newTestPreviewer(80)
 	p.Renderer = &fakeRenderer{err: errors.New("boom")}
 
-	cmd := p.OpenTab(note.Note{Path: "a.md"}, false)
+	cmd := p.OpenTab(notedeprecated.Note{Path: "a.md"}, false)
 	if _, ok := cmd().(errMsg); !ok {
 		t.Fatalf("expected errMsg on render failure")
 	}
 }
 
 func TestApplyRenderedPreviewReplacesExistingPreviewTab(t *testing.T) {
-	old := &tab{note: note.Note{Path: "a.md"}, rendered: "old", isPreviewTab: true}
+	old := &tab{note: notedeprecated.Note{Path: "a.md"}, rendered: "old", isPreviewTab: true}
 	p := newTestPreviewer(80, old)
 	p.VP = viewport.New()
 
-	p.ApplyRendered(TabRenderedMsg{Note: note.Note{Path: "b.md"}, Rendered: "new", Pin: false})
+	p.ApplyRendered(TabRenderedMsg{Note: notedeprecated.Note{Path: "b.md"}, Rendered: "new", Pin: false})
 
 	if len(p.tabs) != 1 {
 		t.Fatalf("expected preview tab to be replaced in place, got %d tabs", len(p.tabs))
@@ -102,11 +102,11 @@ func TestApplyRenderedPreviewReplacesExistingPreviewTab(t *testing.T) {
 }
 
 func TestApplyRenderedPinnedAppendsWhenNoPreviewTabExists(t *testing.T) {
-	pinned := &tab{note: note.Note{Path: "a.md"}, rendered: "a", isPreviewTab: false}
+	pinned := &tab{note: notedeprecated.Note{Path: "a.md"}, rendered: "a", isPreviewTab: false}
 	p := newTestPreviewer(80, pinned)
 	p.VP = viewport.New()
 
-	p.ApplyRendered(TabRenderedMsg{Note: note.Note{Path: "b.md"}, Rendered: "b", Pin: true})
+	p.ApplyRendered(TabRenderedMsg{Note: notedeprecated.Note{Path: "b.md"}, Rendered: "b", Pin: true})
 
 	if len(p.tabs) != 2 {
 		t.Fatalf("expected a new pinned tab to be appended, got %d tabs", len(p.tabs))
@@ -155,7 +155,7 @@ func TestAdjustOffsetKeepsActiveTabVisible(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tabs := make([]*tab, tt.tabCount)
 			for i := range tabs {
-				tabs[i] = &tab{note: note.Note{Path: string(rune('a' + i))}}
+				tabs[i] = &tab{note: notedeprecated.Note{Path: string(rune('a' + i))}}
 			}
 			p := newTestPreviewer(tt.width, tabs...)
 			p.activeTab = tt.activeTab
