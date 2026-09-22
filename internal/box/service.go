@@ -13,12 +13,21 @@ func NewBoxService(store BoxStore) *BoxService {
 	return &BoxService{store}
 }
 
-func (s *BoxService) CreateBox(ctx context.Context, title, path string) (Box, error) {
-	return s.store.Set(ctx, Box{
+func (s *BoxService) CreateBox(ctx context.Context, title, path string) (*Box, error) {
+	box, err := s.store.Set(ctx, Box{
 		title:  title,
 		path:   path,
 		active: true,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create box: %w", err)
+	}
+
+	if box == nil {
+		return nil, fmt.Errorf("failed to create box: box is nil")
+	}
+
+	return box, nil
 }
 
 func (s *BoxService) GetBoxes(ctx context.Context) ([]Box, error) {
@@ -60,7 +69,7 @@ func (s *BoxService) RenameBox(ctx context.Context, id int, title string) (*Box,
 	if err != nil {
 		return nil, fmt.Errorf("failed to rename box: %w", err)
 	}
-	return &b, nil
+	return b, nil
 }
 
 func (s *BoxService) ChangeBoxPath(ctx context.Context, id int, path string) (*Box, error) {
@@ -78,10 +87,19 @@ func (s *BoxService) ChangeBoxPath(ctx context.Context, id int, path string) (*B
 	if err != nil {
 		return nil, fmt.Errorf("failed to change box path: %w", err)
 	}
-	return &b, nil
+	return b, nil
 }
 
 func (s *BoxService) RemoveBox(ctx context.Context, id int) error {
+	box, err := s.store.Get(ctx, WithID(id))
+	if err != nil {
+		return fmt.Errorf("failed to remove box path: %w", err)
+	}
+
+	if len(box) == 0 {
+		return fmt.Errorf("failed to remove box path: box not found")
+	}
+
 	if err := s.store.Del(ctx, WithID(id)); err != nil {
 		return fmt.Errorf("failed to remove box: %w", err)
 	}

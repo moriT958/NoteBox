@@ -22,7 +22,7 @@ func WithActive(active bool) BoxFilterOp {
 }
 
 type BoxStore interface {
-	Set(context.Context, Box) (Box, error)
+	Set(context.Context, Box) (*Box, error)
 	Get(context.Context, ...BoxFilterOp) ([]Box, error)
 	Del(context.Context, ...BoxFilterOp) error
 }
