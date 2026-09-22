@@ -15,6 +15,9 @@ var _ noteBox = (*stubBox)(nil)
 
 func newStubBox(t *testing.T, name string) *stubBox {
 	dir := t.TempDir()
+	if err := os.MkdirAll(path.Join(dir, name), 0755); err != nil {
+		t.Fatalf("failed to create stub box: %v", err)
+	}
 	return &stubBox{path.Join(dir, name)}
 }
 

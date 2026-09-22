@@ -38,10 +38,15 @@ func (s *NoteService) GetNotes() ([]Note, error) {
 			return nil
 		}
 
+		relPath, err := filepath.Rel(s.box.Path(), path)
+		if err != nil {
+			return err
+		}
+
 		title := strings.TrimSuffix(filename, ".md")
 		note := &Note{
 			title: title,
-			path:  path,
+			path:  relPath,
 		}
 		notes = append(notes, *note)
 
@@ -83,9 +88,8 @@ func (s *NoteService) CreateNote(title string) (Note, error) {
 }
 
 func (s *NoteService) RenameNote(note Note, newTitle string) (Note, error) {
-	boxPath := filepath.Dir(s.box.Path())
-	oldNotePath := filepath.Join(boxPath, note.path)
-	newNotePath := filepath.Join(boxPath, newTitle+".md")
+	oldNotePath := filepath.Join(s.box.Path(), note.path)
+	newNotePath := filepath.Join(s.box.Path(), newTitle+".md")
 
 	if err := os.Rename(oldNotePath, newNotePath); err != nil {
 		return Note{}, fmt.Errorf("failed to rename note: %w", err)
@@ -93,7 +97,7 @@ func (s *NoteService) RenameNote(note Note, newTitle string) (Note, error) {
 
 	return Note{
 		title: newTitle,
-		path:  newNotePath,
+		path:  newTitle + ".md",
 	}, nil
 }
 
