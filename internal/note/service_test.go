@@ -77,6 +77,42 @@ func TestNoteService_CreateNote(t *testing.T) {
 	})
 }
 
+func TestNoteService_CreateNote_TitleRoundTrip(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+	}{
+		{name: "japanese", title: "買い物リスト"},
+		{name: "slash", title: "Q1/Q2 Planning"},
+		{name: "colon", title: "TODO: buy milk"},
+		{name: "backslash and colon", title: `C:\Users\test`},
+		{name: "percent sign", title: "100% done"},
+		{name: "question mark", title: "is this ok?"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			box := newStubBox(t, "Test Box")
+			s := NewNoteService(box)
+
+			if _, err := s.CreateNote(tt.title); err != nil {
+				t.Fatalf("unexpected err occurred: %v", err)
+			}
+
+			notes, err := s.GetNotes()
+			if err != nil {
+				t.Fatalf("unexpected err occurred: %v", err)
+			}
+			if len(notes) != 1 {
+				t.Fatalf("expected 1 note, got %d", len(notes))
+			}
+			if notes[0].title != tt.title {
+				t.Errorf("title = %q, want %q", notes[0].title, tt.title)
+			}
+		})
+	}
+}
+
 func TestNoteService_GetNoteContent(t *testing.T) {
 	t.Run("Successfully get note file content.", func(t *testing.T) {
 		box := newStubBox(t, "Test Box")
