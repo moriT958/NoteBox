@@ -57,12 +57,12 @@ func TestBoxService_CreateBox(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
-		if got.id == "" {
+		if got.ID == "" {
 			t.Errorf("id should be generated, got empty string")
 		}
 		wantPath := filepath.Join(base, "New Box")
-		if got.path != wantPath {
-			t.Errorf("path = %q, want %q", got.path, wantPath)
+		if got.Path != wantPath {
+			t.Errorf("path = %q, want %q", got.Path, wantPath)
 		}
 		if info, statErr := os.Stat(wantPath); statErr != nil || !info.IsDir() {
 			t.Errorf("expected directory to be created at %q: %v", wantPath, statErr)
@@ -78,8 +78,8 @@ func TestBoxService_CreateBox(t *testing.T) {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
 		wantPath := filepath.Join(configDir, "My Box")
-		if got.path != wantPath {
-			t.Errorf("path = %q, want %q", got.path, wantPath)
+		if got.Path != wantPath {
+			t.Errorf("path = %q, want %q", got.Path, wantPath)
 		}
 		if info, statErr := os.Stat(wantPath); statErr != nil || !info.IsDir() {
 			t.Errorf("expected directory to be created at %q: %v", wantPath, statErr)
@@ -99,7 +99,7 @@ func TestBoxService_CreateBox(t *testing.T) {
 	t.Run("Fail to create new box, when the path is already used by an active box.", func(t *testing.T) {
 		configDir := t.TempDir()
 		stubGet_Dup := func(ctx context.Context, opts Filter) ([]Box, error) {
-			return []Box{{id: "existing-id", title: "Existing", path: filepath.Join(configDir, "My Box"), active: true}}, nil
+			return []Box{{ID: "existing-id", Title: "Existing", Path: filepath.Join(configDir, "My Box"), Active: true}}, nil
 		}
 		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, nil, stubGet_Dup, nil})
 
@@ -112,7 +112,7 @@ func TestBoxService_CreateBox(t *testing.T) {
 	t.Run("Successfully revive an inactive box at the same path.", func(t *testing.T) {
 		configDir := t.TempDir()
 		stubGet_Inactive := func(ctx context.Context, opts Filter) ([]Box, error) {
-			return []Box{{id: "existing-id", title: "Old Title", path: filepath.Join(configDir, "My Box"), active: false}}, nil
+			return []Box{{ID: "existing-id", Title: "Old Title", Path: filepath.Join(configDir, "My Box"), Active: false}}, nil
 		}
 		var gotSet Box
 		stubSet_Capture := func(ctx context.Context, b Box) (*Box, error) {
@@ -125,14 +125,14 @@ func TestBoxService_CreateBox(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
-		if got.id != "existing-id" {
-			t.Errorf("id = %q, want %q (revived box should keep its id)", got.id, "existing-id")
+		if got.ID != "existing-id" {
+			t.Errorf("id = %q, want %q (revived box should keep its id)", got.ID, "existing-id")
 		}
-		if gotSet.title != "New Title" {
-			t.Errorf("title = %q, want %q", gotSet.title, "New Title")
+		if gotSet.Title != "New Title" {
+			t.Errorf("title = %q, want %q", gotSet.Title, "New Title")
 		}
-		if !gotSet.active {
-			t.Errorf("active = %t, want true", gotSet.active)
+		if !gotSet.Active {
+			t.Errorf("active = %t, want true", gotSet.Active)
 		}
 	})
 
@@ -191,14 +191,14 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
-		if got.id == "" {
+		if got.ID == "" {
 			t.Errorf("id should be generated, got empty string")
 		}
-		if got.title != "My Folder" {
-			t.Errorf("title = %q, want %q", got.title, "My Folder")
+		if got.Title != "My Folder" {
+			t.Errorf("title = %q, want %q", got.Title, "My Folder")
 		}
-		if got.path != dir {
-			t.Errorf("path = %q, want %q", got.path, dir)
+		if got.Path != dir {
+			t.Errorf("path = %q, want %q", got.Path, dir)
 		}
 	})
 
@@ -239,7 +239,7 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 	t.Run("Fail to open folder as box, when the path is already used by an active box.", func(t *testing.T) {
 		dir := t.TempDir()
 		stubGet_Dup := func(ctx context.Context, opts Filter) ([]Box, error) {
-			return []Box{{id: "existing-id", title: "Existing", path: dir, active: true}}, nil
+			return []Box{{ID: "existing-id", Title: "Existing", Path: dir, Active: true}}, nil
 		}
 		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Dup, nil})
 
@@ -252,7 +252,7 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 	t.Run("Successfully revive an inactive box at the same path.", func(t *testing.T) {
 		dir := t.TempDir()
 		stubGet_Inactive := func(ctx context.Context, opts Filter) ([]Box, error) {
-			return []Box{{id: "existing-id", title: "Old Title", path: dir, active: false}}, nil
+			return []Box{{ID: "existing-id", Title: "Old Title", Path: dir, Active: false}}, nil
 		}
 		var gotSet Box
 		stubSet_Capture := func(ctx context.Context, b Box) (*Box, error) {
@@ -265,14 +265,14 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
-		if got.id != "existing-id" {
-			t.Errorf("id = %q, want %q (revived box should keep its id)", got.id, "existing-id")
+		if got.ID != "existing-id" {
+			t.Errorf("id = %q, want %q (revived box should keep its id)", got.ID, "existing-id")
 		}
-		if gotSet.title != "New Title" {
-			t.Errorf("title = %q, want %q", gotSet.title, "New Title")
+		if gotSet.Title != "New Title" {
+			t.Errorf("title = %q, want %q", gotSet.Title, "New Title")
 		}
-		if !gotSet.active {
-			t.Errorf("active = %t, want true", gotSet.active)
+		if !gotSet.Active {
+			t.Errorf("active = %t, want true", gotSet.Active)
 		}
 	})
 
@@ -290,8 +290,8 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 func TestBoxService_GetBoxes(t *testing.T) {
 	stubGet_OK := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return []Box{
-			{id: "1", title: "Box A", path: "/a", active: true},
-			{id: "2", title: "Box B", path: "/b", active: false},
+			{ID: "1", Title: "Box A", Path: "/a", Active: true},
+			{ID: "2", Title: "Box B", Path: "/b", Active: false},
 		}, nil
 	}
 	stubGet_Err := func(ctx context.Context, opts Filter) ([]Box, error) {
@@ -345,8 +345,8 @@ func TestBoxService_GetBoxes(t *testing.T) {
 func TestBoxService_GetActiveBoxes(t *testing.T) {
 	stubGet_OK := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return []Box{
-			{id: "1", title: "Box A", path: "/a", active: true},
-			{id: "2", title: "Box B", path: "/b", active: true},
+			{ID: "1", Title: "Box A", Path: "/a", Active: true},
+			{ID: "2", Title: "Box B", Path: "/b", Active: true},
 		}, nil
 	}
 	stubGet_Err := func(ctx context.Context, opts Filter) ([]Box, error) {
@@ -386,7 +386,7 @@ func TestBoxService_GetActiveBoxes(t *testing.T) {
 					t.Errorf("len(got) = %d, want %d", len(got), tt.expectLen)
 				}
 				for _, b := range got {
-					if !b.active {
+					if !b.Active {
 						t.Errorf("got inactive box in active boxes: %+v", b)
 					}
 				}
@@ -405,8 +405,8 @@ func TestBoxService_GetActiveBoxes(t *testing.T) {
 func TestBoxService_GetInactiveBoxes(t *testing.T) {
 	stubGet_OK := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return []Box{
-			{id: "1", title: "Box A", path: "/a", active: false},
-			{id: "2", title: "Box B", path: "/b", active: false},
+			{ID: "1", Title: "Box A", Path: "/a", Active: false},
+			{ID: "2", Title: "Box B", Path: "/b", Active: false},
 		}, nil
 	}
 	stubGet_Err := func(ctx context.Context, opts Filter) ([]Box, error) {
@@ -446,7 +446,7 @@ func TestBoxService_GetInactiveBoxes(t *testing.T) {
 					t.Errorf("len(got) = %d, want %d", len(got), tt.expectLen)
 				}
 				for _, b := range got {
-					if b.active {
+					if b.Active {
 						t.Errorf("got active box in inactive boxes: %+v", b)
 					}
 				}
@@ -464,7 +464,7 @@ func TestBoxService_GetInactiveBoxes(t *testing.T) {
 
 func TestBoxService_RenameBox(t *testing.T) {
 	stubGetByID_Found := func(ctx context.Context, id string) (*Box, error) {
-		return &Box{id: "1", title: "Old Title", path: "/a", active: true}, nil
+		return &Box{ID: "1", Title: "Old Title", Path: "/a", Active: true}, nil
 	}
 	stubGetByID_NotFound := func(ctx context.Context, id string) (*Box, error) {
 		return nil, nil
@@ -518,8 +518,8 @@ func TestBoxService_RenameBox(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected err occurred: %v", err)
 				}
-				if got.title != tt.expectTitle {
-					t.Errorf("title = %q, want %q", got.title, tt.expectTitle)
+				if got.Title != tt.expectTitle {
+					t.Errorf("title = %q, want %q", got.Title, tt.expectTitle)
 				}
 			} else {
 				if err == nil {
@@ -532,7 +532,7 @@ func TestBoxService_RenameBox(t *testing.T) {
 
 func TestBoxService_ChangeBoxPath(t *testing.T) {
 	stubGetByID_Found := func(ctx context.Context, id string) (*Box, error) {
-		return &Box{id: "1", title: "Box A", path: "/old/path", active: true}, nil
+		return &Box{ID: "1", Title: "Box A", Path: "/old/path", Active: true}, nil
 	}
 	stubGetByID_NotFound := func(ctx context.Context, id string) (*Box, error) {
 		return nil, nil
@@ -586,8 +586,8 @@ func TestBoxService_ChangeBoxPath(t *testing.T) {
 				if err != nil {
 					t.Fatalf("unexpected err occurred: %v", err)
 				}
-				if got.path != tt.expectPath {
-					t.Errorf("path = %q, want %q", got.path, tt.expectPath)
+				if got.Path != tt.expectPath {
+					t.Errorf("path = %q, want %q", got.Path, tt.expectPath)
 				}
 			} else {
 				if err == nil {
@@ -600,7 +600,7 @@ func TestBoxService_ChangeBoxPath(t *testing.T) {
 
 func TestBoxService_RemoveBox(t *testing.T) {
 	stubGetByID_Found := func(ctx context.Context, id string) (*Box, error) {
-		return &Box{id: "1", title: "Box A", path: "/a", active: true}, nil
+		return &Box{ID: "1", Title: "Box A", Path: "/a", Active: true}, nil
 	}
 	stubGetByID_NotFound := func(ctx context.Context, id string) (*Box, error) {
 		return nil, nil
@@ -623,8 +623,8 @@ func TestBoxService_RemoveBox(t *testing.T) {
 		if err := s.RemoveBox(context.Background(), "1"); err != nil {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
-		if gotSet.active {
-			t.Errorf("active = %t, want false", gotSet.active)
+		if gotSet.Active {
+			t.Errorf("active = %t, want false", gotSet.Active)
 		}
 	})
 
@@ -660,8 +660,8 @@ func TestBoxService_PruneBoxes(t *testing.T) {
 
 		stubGet_Inactive := func(ctx context.Context, opts Filter) ([]Box, error) {
 			return []Box{
-				{id: "1", title: "Box A", path: dirA, active: false},
-				{id: "2", title: "Box B", path: dirB, active: false},
+				{ID: "1", Title: "Box A", Path: dirA, Active: false},
+				{ID: "2", Title: "Box B", Path: dirB, Active: false},
 			}, nil
 		}
 		var deletedIDs []string
@@ -701,7 +701,7 @@ func TestBoxService_PruneBoxes(t *testing.T) {
 	t.Run("Fail to prune boxes, when store.Del returns error.", func(t *testing.T) {
 		dir := t.TempDir()
 		stubGet_Inactive := func(ctx context.Context, opts Filter) ([]Box, error) {
-			return []Box{{id: "1", title: "Box A", path: dir, active: false}}, nil
+			return []Box{{ID: "1", Title: "Box A", Path: dir, Active: false}}, nil
 		}
 		stubDel_Err := func(ctx context.Context, id string) error {
 			return errors.New("error at box store")
