@@ -189,4 +189,34 @@ func TestNoteService_RenameNote(t *testing.T) {
 			t.Errorf("expected note1.md to no longer exist, stat err = %v", err)
 		}
 	})
+
+	t.Run("Successfully rename note file name in a subdirectory, keeping its directory.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		subDir := filepath.Join(box.path, "sub")
+		if err := os.MkdirAll(subDir, 0755); err != nil {
+			t.Fatalf("failed to create subdir: %v", err)
+		}
+		os.WriteFile(filepath.Join(subDir, "note1.md"), []byte("# note1"), 0644)
+
+		s := NewNoteService(box)
+
+		notes, err := s.GetNotes()
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if len(notes) != 1 {
+			t.Fatalf("expected 1 note, got %d", len(notes))
+		}
+
+		if _, err := s.RenameNote(notes[0], "renamed"); err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(subDir, "renamed.md")); err != nil {
+			t.Errorf("expected renamed.md to exist in subdir: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(subDir, "note1.md")); !os.IsNotExist(err) {
+			t.Errorf("expected note1.md to no longer exist, stat err = %v", err)
+		}
+	})
 }

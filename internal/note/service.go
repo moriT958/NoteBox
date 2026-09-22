@@ -88,7 +88,8 @@ func (s *NoteService) CreateNote(title string) (Note, error) {
 }
 
 func (s *NoteService) RenameNote(note Note, newTitle string) (Note, error) {
-	newRelPath := encodeTitle(newTitle) + ".md"
+	dir := filepath.Dir(note.path)
+	newRelPath := filepath.Join(dir, encodeTitle(newTitle)+".md")
 
 	oldNotePath := filepath.Join(s.box.Path(), note.path)
 	newNotePath := filepath.Join(s.box.Path(), newRelPath)
