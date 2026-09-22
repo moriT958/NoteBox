@@ -3,6 +3,8 @@ package box
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -27,75 +29,199 @@ func (f *stubBoxStore) Del(ctx context.Context, opts ...BoxFilterOp) error {
 }
 
 func TestBoxService_CreateBox(t *testing.T) {
+	stubGet_Empty := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		return []Box{}, nil
+	}
+	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		return nil, errors.New("error at box store")
+	}
 	stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
-		return &Box{
-			id:     1,
-			title:  "New Test Box",
-			path:   "/test/new/box/path",
-			active: true,
-		}, nil
+		b.id = 1
+		return &b, nil
 	}
 	stubSet_Err := func(ctx context.Context, b Box) (*Box, error) {
 		return nil, errors.New("error at box store")
 	}
 
-	tests := []struct {
-		name         string
-		store        *stubBoxStore
-		expectID     int
-		expectTitle  string
-		expectPath   string
-		expectActive bool
-		expectErr    bool
-	}{
-		{
-			name:         "Successfully create new box.",
-			store:        &stubBoxStore{stubSet_OK, nil, nil},
-			expectID:     1,
-			expectTitle:  "New Test Box",
-			expectPath:   "/test/new/box/path",
-			expectActive: true,
-			expectErr:    false,
-		},
-		{
-			name:      "Fail to create new box, when store returns error.",
-			store:     &stubBoxStore{stubSet_Err, nil, nil},
-			expectErr: true,
-		},
+	t.Run("Successfully create new box at the given path.", func(t *testing.T) {
+		configDir := t.TempDir()
+		base := t.TempDir()
+
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+
+		got, err := s.CreateBox(context.Background(), "New Box", &base)
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		wantPath := filepath.Join(base, "New Box")
+		if got.path != wantPath {
+			t.Errorf("path = %q, want %q", got.path, wantPath)
+		}
+		if info, statErr := os.Stat(wantPath); statErr != nil || !info.IsDir() {
+			t.Errorf("expected directory to be created at %q: %v", wantPath, statErr)
+		}
+	})
+
+	t.Run("Successfully create new box under the default dir, when path is nil.", func(t *testing.T) {
+		configDir := t.TempDir()
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+
+		got, err := s.CreateBox(context.Background(), "My Box", nil)
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		wantPath := filepath.Join(configDir, "My Box")
+		if got.path != wantPath {
+			t.Errorf("path = %q, want %q", got.path, wantPath)
+		}
+		if info, statErr := os.Stat(wantPath); statErr != nil || !info.IsDir() {
+			t.Errorf("expected directory to be created at %q: %v", wantPath, statErr)
+		}
+	})
+
+	t.Run("Fail to create new box, when title is empty.", func(t *testing.T) {
+		configDir := t.TempDir()
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+
+		_, err := s.CreateBox(context.Background(), "", nil)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to create new box, when the path is already used by another box.", func(t *testing.T) {
+		configDir := t.TempDir()
+		stubGet_Dup := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+			return []Box{{id: 1, title: "Existing", path: filepath.Join(configDir, "My Box"), active: true}}, nil
+		}
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Dup, nil})
+
+		_, err := s.CreateBox(context.Background(), "My Box", nil)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to create new box, when store.Get returns error.", func(t *testing.T) {
+		configDir := t.TempDir()
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Err, nil})
+
+		_, err := s.CreateBox(context.Background(), "My Box", nil)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to create new box, when the directory cannot be created.", func(t *testing.T) {
+		configDir := t.TempDir()
+		// A regular file cannot have subdirectories created under it.
+		blocker := filepath.Join(configDir, "blocker")
+		if err := os.WriteFile(blocker, []byte(""), 0644); err != nil {
+			t.Fatalf("failed to set up test: %v", err)
+		}
+		s := NewBoxService(blocker, &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+
+		_, err := s.CreateBox(context.Background(), "My Box", nil)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to create new box, when store.Set returns error.", func(t *testing.T) {
+		configDir := t.TempDir()
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_Err, stubGet_Empty, nil})
+
+		_, err := s.CreateBox(context.Background(), "My Box", nil)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+}
+
+func TestBoxService_OpenFolderAsBox(t *testing.T) {
+	stubGet_Empty := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		return []Box{}, nil
+	}
+	stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
+		b.id = 1
+		return &b, nil
+	}
+	stubSet_Err := func(ctx context.Context, b Box) (*Box, error) {
+		return nil, errors.New("error at box store")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService(tt.store)
+	t.Run("Successfully open an existing folder as a box.", func(t *testing.T) {
+		dir := t.TempDir()
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
 
-			got, err := s.CreateBox(context.Background(), "New Test Box", "/test/new/box/path")
+		got, err := s.OpenFolderAsBox(context.Background(), "My Folder", dir)
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.title != "My Folder" {
+			t.Errorf("title = %q, want %q", got.title, "My Folder")
+		}
+		if got.path != dir {
+			t.Errorf("path = %q, want %q", got.path, dir)
+		}
+	})
 
-			if !tt.expectErr {
-				if err != nil {
-					t.Fatalf("unexpected err occurred: %v", err)
-				}
-				if got.id != tt.expectID {
-					t.Errorf("id = %d, want %d", got.id, tt.expectID)
-				}
-				if got.title != tt.expectTitle {
-					t.Errorf("title = %q, want %q", got.title, tt.expectTitle)
-				}
-				if got.path != tt.expectPath {
-					t.Errorf("path = %q, want %q", got.path, tt.expectPath)
-				}
-				if got.active != tt.expectActive {
-					t.Errorf("active = %t, want %t", got.active, tt.expectActive)
-				}
-			} else {
-				if err == nil {
-					t.Fatalf("error was expected, but not occured.")
-				}
-				if errors.Unwrap(err).Error() != "error at box store" {
-					t.Errorf("unexpected error message: %s", err.Error())
-				}
-			}
-		})
-	}
+	t.Run("Fail to open folder as box, when title is empty.", func(t *testing.T) {
+		dir := t.TempDir()
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+
+		_, err := s.OpenFolderAsBox(context.Background(), "", dir)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to open folder as box, when the path does not exist.", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "does-not-exist")
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+
+		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", dir)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to open folder as box, when the path is a file, not a directory.", func(t *testing.T) {
+		dir := t.TempDir()
+		file := filepath.Join(dir, "note.md")
+		if err := os.WriteFile(file, []byte(""), 0644); err != nil {
+			t.Fatalf("failed to set up test: %v", err)
+		}
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+
+		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", file)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to open folder as box, when the path is already used by another box.", func(t *testing.T) {
+		dir := t.TempDir()
+		stubGet_Dup := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+			return []Box{{id: 1, title: "Existing", path: dir, active: true}}, nil
+		}
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Dup, nil})
+
+		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", dir)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to open folder as box, when store.Set returns error.", func(t *testing.T) {
+		dir := t.TempDir()
+		s := NewBoxService("", &stubBoxStore{stubSet_Err, stubGet_Empty, nil})
+
+		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", dir)
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
 }
 
 func TestBoxService_GetBoxes(t *testing.T) {
@@ -130,7 +256,7 @@ func TestBoxService_GetBoxes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService(tt.store)
+			s := NewBoxService("", tt.store)
 
 			got, err := s.GetBoxes(context.Background())
 
@@ -185,7 +311,7 @@ func TestBoxService_GetActiveBoxes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService(tt.store)
+			s := NewBoxService("", tt.store)
 
 			got, err := s.GetActiveBoxes(context.Background())
 
@@ -245,7 +371,7 @@ func TestBoxService_GetInactiveBoxes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService(tt.store)
+			s := NewBoxService("", tt.store)
 
 			got, err := s.GetInactiveBoxes(context.Background())
 
@@ -321,7 +447,7 @@ func TestBoxService_RenameBox(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService(tt.store)
+			s := NewBoxService("", tt.store)
 
 			got, err := s.RenameBox(context.Background(), 1, "New Title")
 
@@ -389,7 +515,7 @@ func TestBoxService_ChangeBoxPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService(tt.store)
+			s := NewBoxService("", tt.store)
 
 			got, err := s.ChangeBoxPath(context.Background(), 1, "/new/path")
 
@@ -455,7 +581,7 @@ func TestBoxService_RemoveBox(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService(tt.store)
+			s := NewBoxService("", tt.store)
 
 			err := s.RemoveBox(context.Background(), 1)
 
@@ -496,7 +622,7 @@ func TestBoxService_PruneBoxes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService(tt.store)
+			s := NewBoxService("", tt.store)
 
 			err := s.PruneBoxes(context.Background())
 
