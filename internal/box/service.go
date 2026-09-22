@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/google/uuid"
 )
 
 type BoxService struct {
@@ -22,17 +24,15 @@ func NewBoxService(config string, store BoxStore) *BoxService {
 	}
 }
 
-func (s *BoxService) isPathUsed(ctx context.Context, path string) (bool, error) {
-	boxes, err := s.store.Get(ctx)
+func (s *BoxService) findByPath(ctx context.Context, path string) (*Box, error) {
+	boxes, err := s.store.Get(ctx, WithPath(path))
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	for _, b := range boxes {
-		if b.path == path {
-			return true, nil
-		}
+	if len(boxes) == 0 {
+		return nil, nil
 	}
-	return false, nil
+	return &boxes[0], nil
 }
 
 func (s *BoxService) CreateBox(ctx context.Context, title string, path *string) (*Box, error) {
@@ -46,11 +46,11 @@ func (s *BoxService) CreateBox(ctx context.Context, title string, path *string) 
 	}
 	boxPath := filepath.Join(base, encodeDirName(title))
 
-	used, err := s.isPathUsed(ctx, boxPath)
+	existing, err := s.findByPath(ctx, boxPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create box: %w", err)
 	}
-	if used {
+	if existing != nil && existing.active {
 		return nil, fmt.Errorf("failed to create box: a box with this path already exists")
 	}
 
@@ -58,15 +58,15 @@ func (s *BoxService) CreateBox(ctx context.Context, title string, path *string) 
 		return nil, fmt.Errorf("failed to create box: %w", err)
 	}
 
-	box, err := s.store.Set(ctx, Box{
-		title:  title,
-		path:   boxPath,
-		active: true,
-	})
+	newBox := Box{id: uuid.NewString(), title: title, path: boxPath, active: true}
+	if existing != nil {
+		newBox.id = existing.id // revive a soft-deleted box at the same path
+	}
+
+	box, err := s.store.Set(ctx, newBox)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create box: %w", err)
 	}
-
 	if box == nil {
 		return nil, fmt.Errorf("failed to create box: box is nil")
 	}
@@ -84,23 +84,23 @@ func (s *BoxService) OpenFolderAsBox(ctx context.Context, title, path string) (*
 		return nil, fmt.Errorf("failed to open folder as box: path must be an existing directory")
 	}
 
-	used, err := s.isPathUsed(ctx, path)
+	existing, err := s.findByPath(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open folder as box: %w", err)
 	}
-	if used {
+	if existing != nil && existing.active {
 		return nil, fmt.Errorf("failed to open folder as box: a box with this path already exists")
 	}
 
-	box, err := s.store.Set(ctx, Box{
-		title:  title,
-		path:   path,
-		active: true,
-	})
+	newBox := Box{id: uuid.NewString(), title: title, path: path, active: true}
+	if existing != nil {
+		newBox.id = existing.id
+	}
+
+	box, err := s.store.Set(ctx, newBox)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open folder as box: %w", err)
 	}
-
 	if box == nil {
 		return nil, fmt.Errorf("failed to open folder as box: box is nil")
 	}
@@ -132,61 +132,70 @@ func (s *BoxService) GetInactiveBoxes(ctx context.Context) ([]Box, error) {
 	return boxes, nil
 }
 
-func (s *BoxService) RenameBox(ctx context.Context, id int, title string) (*Box, error) {
-	box, err := s.store.Get(ctx, WithID(id))
+func (s *BoxService) RenameBox(ctx context.Context, id string, title string) (*Box, error) {
+	box, err := s.store.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to rename box: %w", err)
 	}
-
-	if len(box) == 0 {
+	if box == nil {
 		return nil, fmt.Errorf("failed to rename box: box not found")
 	}
 
-	box[0].title = title
-	b, err := s.store.Set(ctx, box[0])
+	box.title = title
+	b, err := s.store.Set(ctx, *box)
 	if err != nil {
 		return nil, fmt.Errorf("failed to rename box: %w", err)
 	}
 	return b, nil
 }
 
-func (s *BoxService) ChangeBoxPath(ctx context.Context, id int, path string) (*Box, error) {
-	box, err := s.store.Get(ctx, WithID(id))
+func (s *BoxService) ChangeBoxPath(ctx context.Context, id string, path string) (*Box, error) {
+	box, err := s.store.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to change box path: %w", err)
 	}
-
-	if len(box) == 0 {
+	if box == nil {
 		return nil, fmt.Errorf("failed to change box path: box not found")
 	}
 
-	box[0].path = path
-	b, err := s.store.Set(ctx, box[0])
+	box.path = path
+	b, err := s.store.Set(ctx, *box)
 	if err != nil {
 		return nil, fmt.Errorf("failed to change box path: %w", err)
 	}
 	return b, nil
 }
 
-func (s *BoxService) RemoveBox(ctx context.Context, id int) error {
-	box, err := s.store.Get(ctx, WithID(id))
+func (s *BoxService) RemoveBox(ctx context.Context, id string) error {
+	box, err := s.store.GetByID(ctx, id)
 	if err != nil {
-		return fmt.Errorf("failed to remove box path: %w", err)
+		return fmt.Errorf("failed to remove box: %w", err)
+	}
+	if box == nil {
+		return fmt.Errorf("failed to remove box: box not found")
 	}
 
-	if len(box) == 0 {
-		return fmt.Errorf("failed to remove box path: box not found")
-	}
-
-	if err := s.store.Del(ctx, WithID(id)); err != nil {
+	box.active = false
+	if _, err := s.store.Set(ctx, *box); err != nil {
 		return fmt.Errorf("failed to remove box: %w", err)
 	}
 	return nil
 }
 
 func (s *BoxService) PruneBoxes(ctx context.Context) error {
-	if err := s.store.Del(ctx, WithActive(false)); err != nil {
+	boxes, err := s.store.Get(ctx, WithActive(false))
+	if err != nil {
 		return fmt.Errorf("failed to prune boxes: %w", err)
 	}
+
+	for _, b := range boxes {
+		if err := os.RemoveAll(b.path); err != nil {
+			return fmt.Errorf("failed to prune boxes: %w", err)
+		}
+		if err := s.store.Del(ctx, b.id); err != nil {
+			return fmt.Errorf("failed to prune boxes: %w", err)
+		}
+	}
+
 	return nil
 }

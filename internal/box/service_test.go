@@ -9,9 +9,10 @@ import (
 )
 
 type stubBoxStore struct {
-	setFunc func(ctx context.Context, b Box) (*Box, error)
-	getFunc func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error)
-	delFunc func(ctx context.Context, opts ...BoxFilterOp) error
+	setFunc     func(ctx context.Context, b Box) (*Box, error)
+	getByIDFunc func(ctx context.Context, id string) (*Box, error)
+	getFunc     func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error)
+	delFunc     func(ctx context.Context, id string) error
 }
 
 var _ BoxStore = (*stubBoxStore)(nil)
@@ -20,12 +21,16 @@ func (f *stubBoxStore) Set(ctx context.Context, b Box) (*Box, error) {
 	return f.setFunc(ctx, b)
 }
 
+func (f *stubBoxStore) GetByID(ctx context.Context, id string) (*Box, error) {
+	return f.getByIDFunc(ctx, id)
+}
+
 func (f *stubBoxStore) Get(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
 	return f.getFunc(ctx, opts...)
 }
 
-func (f *stubBoxStore) Del(ctx context.Context, opts ...BoxFilterOp) error {
-	return f.delFunc(ctx, opts...)
+func (f *stubBoxStore) Del(ctx context.Context, id string) error {
+	return f.delFunc(ctx, id)
 }
 
 func TestBoxService_CreateBox(t *testing.T) {
@@ -36,7 +41,6 @@ func TestBoxService_CreateBox(t *testing.T) {
 		return nil, errors.New("error at box store")
 	}
 	stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
-		b.id = 1
 		return &b, nil
 	}
 	stubSet_Err := func(ctx context.Context, b Box) (*Box, error) {
@@ -47,11 +51,14 @@ func TestBoxService_CreateBox(t *testing.T) {
 		configDir := t.TempDir()
 		base := t.TempDir()
 
-		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
 
 		got, err := s.CreateBox(context.Background(), "New Box", &base)
 		if err != nil {
 			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.id == "" {
+			t.Errorf("id should be generated, got empty string")
 		}
 		wantPath := filepath.Join(base, "New Box")
 		if got.path != wantPath {
@@ -64,7 +71,7 @@ func TestBoxService_CreateBox(t *testing.T) {
 
 	t.Run("Successfully create new box under the default dir, when path is nil.", func(t *testing.T) {
 		configDir := t.TempDir()
-		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
 
 		got, err := s.CreateBox(context.Background(), "My Box", nil)
 		if err != nil {
@@ -81,7 +88,7 @@ func TestBoxService_CreateBox(t *testing.T) {
 
 	t.Run("Fail to create new box, when title is empty.", func(t *testing.T) {
 		configDir := t.TempDir()
-		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
 
 		_, err := s.CreateBox(context.Background(), "", nil)
 		if err == nil {
@@ -89,12 +96,12 @@ func TestBoxService_CreateBox(t *testing.T) {
 		}
 	})
 
-	t.Run("Fail to create new box, when the path is already used by another box.", func(t *testing.T) {
+	t.Run("Fail to create new box, when the path is already used by an active box.", func(t *testing.T) {
 		configDir := t.TempDir()
 		stubGet_Dup := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
-			return []Box{{id: 1, title: "Existing", path: filepath.Join(configDir, "My Box"), active: true}}, nil
+			return []Box{{id: "existing-id", title: "Existing", path: filepath.Join(configDir, "My Box"), active: true}}, nil
 		}
-		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Dup, nil})
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, nil, stubGet_Dup, nil})
 
 		_, err := s.CreateBox(context.Background(), "My Box", nil)
 		if err == nil {
@@ -102,9 +109,36 @@ func TestBoxService_CreateBox(t *testing.T) {
 		}
 	})
 
+	t.Run("Successfully revive an inactive box at the same path.", func(t *testing.T) {
+		configDir := t.TempDir()
+		stubGet_Inactive := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+			return []Box{{id: "existing-id", title: "Old Title", path: filepath.Join(configDir, "My Box"), active: false}}, nil
+		}
+		var gotSet Box
+		stubSet_Capture := func(ctx context.Context, b Box) (*Box, error) {
+			gotSet = b
+			return &b, nil
+		}
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_Capture, nil, stubGet_Inactive, nil})
+
+		got, err := s.CreateBox(context.Background(), "New Title", nil)
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.id != "existing-id" {
+			t.Errorf("id = %q, want %q (revived box should keep its id)", got.id, "existing-id")
+		}
+		if gotSet.title != "New Title" {
+			t.Errorf("title = %q, want %q", gotSet.title, "New Title")
+		}
+		if !gotSet.active {
+			t.Errorf("active = %t, want true", gotSet.active)
+		}
+	})
+
 	t.Run("Fail to create new box, when store.Get returns error.", func(t *testing.T) {
 		configDir := t.TempDir()
-		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, stubGet_Err, nil})
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, nil, stubGet_Err, nil})
 
 		_, err := s.CreateBox(context.Background(), "My Box", nil)
 		if err == nil {
@@ -119,7 +153,7 @@ func TestBoxService_CreateBox(t *testing.T) {
 		if err := os.WriteFile(blocker, []byte(""), 0644); err != nil {
 			t.Fatalf("failed to set up test: %v", err)
 		}
-		s := NewBoxService(blocker, &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+		s := NewBoxService(blocker, &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
 
 		_, err := s.CreateBox(context.Background(), "My Box", nil)
 		if err == nil {
@@ -129,7 +163,7 @@ func TestBoxService_CreateBox(t *testing.T) {
 
 	t.Run("Fail to create new box, when store.Set returns error.", func(t *testing.T) {
 		configDir := t.TempDir()
-		s := NewBoxService(configDir, &stubBoxStore{stubSet_Err, stubGet_Empty, nil})
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_Err, nil, stubGet_Empty, nil})
 
 		_, err := s.CreateBox(context.Background(), "My Box", nil)
 		if err == nil {
@@ -143,7 +177,6 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 		return []Box{}, nil
 	}
 	stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
-		b.id = 1
 		return &b, nil
 	}
 	stubSet_Err := func(ctx context.Context, b Box) (*Box, error) {
@@ -152,11 +185,14 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 
 	t.Run("Successfully open an existing folder as a box.", func(t *testing.T) {
 		dir := t.TempDir()
-		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
 
 		got, err := s.OpenFolderAsBox(context.Background(), "My Folder", dir)
 		if err != nil {
 			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.id == "" {
+			t.Errorf("id should be generated, got empty string")
 		}
 		if got.title != "My Folder" {
 			t.Errorf("title = %q, want %q", got.title, "My Folder")
@@ -168,7 +204,7 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 
 	t.Run("Fail to open folder as box, when title is empty.", func(t *testing.T) {
 		dir := t.TempDir()
-		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
 
 		_, err := s.OpenFolderAsBox(context.Background(), "", dir)
 		if err == nil {
@@ -178,7 +214,7 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 
 	t.Run("Fail to open folder as box, when the path does not exist.", func(t *testing.T) {
 		dir := filepath.Join(t.TempDir(), "does-not-exist")
-		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
 
 		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", dir)
 		if err == nil {
@@ -192,7 +228,7 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 		if err := os.WriteFile(file, []byte(""), 0644); err != nil {
 			t.Fatalf("failed to set up test: %v", err)
 		}
-		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Empty, nil})
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
 
 		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", file)
 		if err == nil {
@@ -200,12 +236,12 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 		}
 	})
 
-	t.Run("Fail to open folder as box, when the path is already used by another box.", func(t *testing.T) {
+	t.Run("Fail to open folder as box, when the path is already used by an active box.", func(t *testing.T) {
 		dir := t.TempDir()
 		stubGet_Dup := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
-			return []Box{{id: 1, title: "Existing", path: dir, active: true}}, nil
+			return []Box{{id: "existing-id", title: "Existing", path: dir, active: true}}, nil
 		}
-		s := NewBoxService("", &stubBoxStore{stubSet_OK, stubGet_Dup, nil})
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Dup, nil})
 
 		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", dir)
 		if err == nil {
@@ -213,9 +249,36 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 		}
 	})
 
+	t.Run("Successfully revive an inactive box at the same path.", func(t *testing.T) {
+		dir := t.TempDir()
+		stubGet_Inactive := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+			return []Box{{id: "existing-id", title: "Old Title", path: dir, active: false}}, nil
+		}
+		var gotSet Box
+		stubSet_Capture := func(ctx context.Context, b Box) (*Box, error) {
+			gotSet = b
+			return &b, nil
+		}
+		s := NewBoxService("", &stubBoxStore{stubSet_Capture, nil, stubGet_Inactive, nil})
+
+		got, err := s.OpenFolderAsBox(context.Background(), "New Title", dir)
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.id != "existing-id" {
+			t.Errorf("id = %q, want %q (revived box should keep its id)", got.id, "existing-id")
+		}
+		if gotSet.title != "New Title" {
+			t.Errorf("title = %q, want %q", gotSet.title, "New Title")
+		}
+		if !gotSet.active {
+			t.Errorf("active = %t, want true", gotSet.active)
+		}
+	})
+
 	t.Run("Fail to open folder as box, when store.Set returns error.", func(t *testing.T) {
 		dir := t.TempDir()
-		s := NewBoxService("", &stubBoxStore{stubSet_Err, stubGet_Empty, nil})
+		s := NewBoxService("", &stubBoxStore{stubSet_Err, nil, stubGet_Empty, nil})
 
 		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", dir)
 		if err == nil {
@@ -227,8 +290,8 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 func TestBoxService_GetBoxes(t *testing.T) {
 	stubGet_OK := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
 		return []Box{
-			{id: 1, title: "Box A", path: "/a", active: true},
-			{id: 2, title: "Box B", path: "/b", active: false},
+			{id: "1", title: "Box A", path: "/a", active: true},
+			{id: "2", title: "Box B", path: "/b", active: false},
 		}, nil
 	}
 	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
@@ -243,13 +306,13 @@ func TestBoxService_GetBoxes(t *testing.T) {
 	}{
 		{
 			name:      "Successfully get all boxes.",
-			store:     &stubBoxStore{nil, stubGet_OK, nil},
+			store:     &stubBoxStore{nil, nil, stubGet_OK, nil},
 			expectLen: 2,
 			expectErr: false,
 		},
 		{
 			name:      "Fail to get boxes, when store returns error.",
-			store:     &stubBoxStore{nil, stubGet_Err, nil},
+			store:     &stubBoxStore{nil, nil, stubGet_Err, nil},
 			expectErr: true,
 		},
 	}
@@ -280,10 +343,10 @@ func TestBoxService_GetBoxes(t *testing.T) {
 }
 
 func TestBoxService_GetActiveBoxes(t *testing.T) {
-	stubGetOk_returns_only_active_boxes := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_OK := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
 		return []Box{
-			{id: 1, title: "Box A", path: "/a", active: true},
-			{id: 2, title: "Box B", path: "/b", active: true},
+			{id: "1", title: "Box A", path: "/a", active: true},
+			{id: "2", title: "Box B", path: "/b", active: true},
 		}, nil
 	}
 	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
@@ -298,13 +361,13 @@ func TestBoxService_GetActiveBoxes(t *testing.T) {
 	}{
 		{
 			name:      "Successfully get only active boxes.",
-			store:     &stubBoxStore{nil, stubGetOk_returns_only_active_boxes, nil},
+			store:     &stubBoxStore{nil, nil, stubGet_OK, nil},
 			expectLen: 2,
 			expectErr: false,
 		},
 		{
 			name:      "Fail to get active boxes, when store returns error.",
-			store:     &stubBoxStore{nil, stubGet_Err, nil},
+			store:     &stubBoxStore{nil, nil, stubGet_Err, nil},
 			expectErr: true,
 		},
 	}
@@ -340,10 +403,10 @@ func TestBoxService_GetActiveBoxes(t *testing.T) {
 }
 
 func TestBoxService_GetInactiveBoxes(t *testing.T) {
-	stubGet_Ok_returns_only_inactive_boxes := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_OK := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
 		return []Box{
-			{id: 1, title: "Box A", path: "/a", active: false},
-			{id: 2, title: "Box B", path: "/b", active: false},
+			{id: "1", title: "Box A", path: "/a", active: false},
+			{id: "2", title: "Box B", path: "/b", active: false},
 		}, nil
 	}
 	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
@@ -358,13 +421,13 @@ func TestBoxService_GetInactiveBoxes(t *testing.T) {
 	}{
 		{
 			name:      "Successfully get only inactive boxes.",
-			store:     &stubBoxStore{nil, stubGet_Ok_returns_only_inactive_boxes, nil},
+			store:     &stubBoxStore{nil, nil, stubGet_OK, nil},
 			expectLen: 2,
 			expectErr: false,
 		},
 		{
 			name:      "Fail to get inactive boxes, when store returns error.",
-			store:     &stubBoxStore{nil, stubGet_Err, nil},
+			store:     &stubBoxStore{nil, nil, stubGet_Err, nil},
 			expectErr: true,
 		},
 	}
@@ -400,13 +463,13 @@ func TestBoxService_GetInactiveBoxes(t *testing.T) {
 }
 
 func TestBoxService_RenameBox(t *testing.T) {
-	stubGet_Found := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
-		return []Box{{id: 1, title: "Old Title", path: "/a", active: true}}, nil
+	stubGetByID_Found := func(ctx context.Context, id string) (*Box, error) {
+		return &Box{id: "1", title: "Old Title", path: "/a", active: true}, nil
 	}
-	stubGet_NotFound := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
-		return []Box{}, nil
+	stubGetByID_NotFound := func(ctx context.Context, id string) (*Box, error) {
+		return nil, nil
 	}
-	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGetByID_Err := func(ctx context.Context, id string) (*Box, error) {
 		return nil, errors.New("error at box store")
 	}
 	stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
@@ -424,23 +487,23 @@ func TestBoxService_RenameBox(t *testing.T) {
 	}{
 		{
 			name:        "Successfully rename box.",
-			store:       &stubBoxStore{stubSet_OK, stubGet_Found, nil},
+			store:       &stubBoxStore{stubSet_OK, stubGetByID_Found, nil, nil},
 			expectTitle: "New Title",
 			expectErr:   false,
 		},
 		{
 			name:      "Fail to rename box, when box not found.",
-			store:     &stubBoxStore{stubSet_OK, stubGet_NotFound, nil},
+			store:     &stubBoxStore{stubSet_OK, stubGetByID_NotFound, nil, nil},
 			expectErr: true,
 		},
 		{
-			name:      "Fail to rename box, when store.Get returns error.",
-			store:     &stubBoxStore{stubSet_OK, stubGet_Err, nil},
+			name:      "Fail to rename box, when store.GetByID returns error.",
+			store:     &stubBoxStore{stubSet_OK, stubGetByID_Err, nil, nil},
 			expectErr: true,
 		},
 		{
 			name:      "Fail to rename box, when store.Set returns error.",
-			store:     &stubBoxStore{stubSet_Err, stubGet_Found, nil},
+			store:     &stubBoxStore{stubSet_Err, stubGetByID_Found, nil, nil},
 			expectErr: true,
 		},
 	}
@@ -449,7 +512,7 @@ func TestBoxService_RenameBox(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewBoxService("", tt.store)
 
-			got, err := s.RenameBox(context.Background(), 1, "New Title")
+			got, err := s.RenameBox(context.Background(), "1", "New Title")
 
 			if !tt.expectErr {
 				if err != nil {
@@ -468,13 +531,13 @@ func TestBoxService_RenameBox(t *testing.T) {
 }
 
 func TestBoxService_ChangeBoxPath(t *testing.T) {
-	stubGet_Found := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
-		return []Box{{id: 1, title: "Box A", path: "/old/path", active: true}}, nil
+	stubGetByID_Found := func(ctx context.Context, id string) (*Box, error) {
+		return &Box{id: "1", title: "Box A", path: "/old/path", active: true}, nil
 	}
-	stubGet_NotFound := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
-		return []Box{}, nil
+	stubGetByID_NotFound := func(ctx context.Context, id string) (*Box, error) {
+		return nil, nil
 	}
-	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGetByID_Err := func(ctx context.Context, id string) (*Box, error) {
 		return nil, errors.New("error at box store")
 	}
 	stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
@@ -492,23 +555,23 @@ func TestBoxService_ChangeBoxPath(t *testing.T) {
 	}{
 		{
 			name:       "Successfully change box path.",
-			store:      &stubBoxStore{stubSet_OK, stubGet_Found, nil},
+			store:      &stubBoxStore{stubSet_OK, stubGetByID_Found, nil, nil},
 			expectPath: "/new/path",
 			expectErr:  false,
 		},
 		{
 			name:      "Fail to change box path, when box not found.",
-			store:     &stubBoxStore{stubSet_OK, stubGet_NotFound, nil},
+			store:     &stubBoxStore{stubSet_OK, stubGetByID_NotFound, nil, nil},
 			expectErr: true,
 		},
 		{
-			name:      "Fail to change box path, when store.Get returns error.",
-			store:     &stubBoxStore{stubSet_OK, stubGet_Err, nil},
+			name:      "Fail to change box path, when store.GetByID returns error.",
+			store:     &stubBoxStore{stubSet_OK, stubGetByID_Err, nil, nil},
 			expectErr: true,
 		},
 		{
 			name:      "Fail to change box path, when store.Set returns error.",
-			store:     &stubBoxStore{stubSet_Err, stubGet_Found, nil},
+			store:     &stubBoxStore{stubSet_Err, stubGetByID_Found, nil, nil},
 			expectErr: true,
 		},
 	}
@@ -517,7 +580,7 @@ func TestBoxService_ChangeBoxPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewBoxService("", tt.store)
 
-			got, err := s.ChangeBoxPath(context.Background(), 1, "/new/path")
+			got, err := s.ChangeBoxPath(context.Background(), "1", "/new/path")
 
 			if !tt.expectErr {
 				if err != nil {
@@ -536,102 +599,117 @@ func TestBoxService_ChangeBoxPath(t *testing.T) {
 }
 
 func TestBoxService_RemoveBox(t *testing.T) {
-	stubGet_Found := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
-		return []Box{{id: 1, title: "Box A", path: "/a", active: true}}, nil
+	stubGetByID_Found := func(ctx context.Context, id string) (*Box, error) {
+		return &Box{id: "1", title: "Box A", path: "/a", active: true}, nil
 	}
-	stubGet_NotFound := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
-		return []Box{}, nil
+	stubGetByID_NotFound := func(ctx context.Context, id string) (*Box, error) {
+		return nil, nil
 	}
-	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGetByID_Err := func(ctx context.Context, id string) (*Box, error) {
 		return nil, errors.New("error at box store")
 	}
-	stubDel_OK := func(ctx context.Context, opts ...BoxFilterOp) error {
-		return nil
-	}
-	stubDel_Err := func(ctx context.Context, opts ...BoxFilterOp) error {
-		return errors.New("error at box store")
+	stubSet_Err := func(ctx context.Context, b Box) (*Box, error) {
+		return nil, errors.New("error at box store")
 	}
 
-	tests := []struct {
-		name      string
-		store     *stubBoxStore
-		expectErr bool
-	}{
-		{
-			name:      "Successfully remove box.",
-			store:     &stubBoxStore{nil, stubGet_Found, stubDel_OK},
-			expectErr: false,
-		},
-		{
-			name:      "Fail to remove box, when box not found.",
-			store:     &stubBoxStore{nil, stubGet_NotFound, stubDel_OK},
-			expectErr: true,
-		},
-		{
-			name:      "Fail to remove box, when store.Get returns error.",
-			store:     &stubBoxStore{nil, stubGet_Err, stubDel_OK},
-			expectErr: true,
-		},
-		{
-			name:      "Fail to remove box, when store.Del returns error.",
-			store:     &stubBoxStore{nil, stubGet_Found, stubDel_Err},
-			expectErr: true,
-		},
-	}
+	t.Run("Successfully remove (deactivate) box.", func(t *testing.T) {
+		var gotSet Box
+		stubSet_Capture := func(ctx context.Context, b Box) (*Box, error) {
+			gotSet = b
+			return &b, nil
+		}
+		s := NewBoxService("", &stubBoxStore{stubSet_Capture, stubGetByID_Found, nil, nil})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService("", tt.store)
+		if err := s.RemoveBox(context.Background(), "1"); err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if gotSet.active {
+			t.Errorf("active = %t, want false", gotSet.active)
+		}
+	})
 
-			err := s.RemoveBox(context.Background(), 1)
+	t.Run("Fail to remove box, when box not found.", func(t *testing.T) {
+		s := NewBoxService("", &stubBoxStore{nil, stubGetByID_NotFound, nil, nil})
 
-			if !tt.expectErr && err != nil {
-				t.Fatalf("unexpected err occurred: %v", err)
-			}
-			if tt.expectErr && err == nil {
-				t.Fatalf("error was expected, but not occured.")
-			}
-		})
-	}
+		if err := s.RemoveBox(context.Background(), "1"); err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to remove box, when store.GetByID returns error.", func(t *testing.T) {
+		s := NewBoxService("", &stubBoxStore{nil, stubGetByID_Err, nil, nil})
+
+		if err := s.RemoveBox(context.Background(), "1"); err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to remove box, when store.Set returns error.", func(t *testing.T) {
+		s := NewBoxService("", &stubBoxStore{stubSet_Err, stubGetByID_Found, nil, nil})
+
+		if err := s.RemoveBox(context.Background(), "1"); err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
 }
 
 func TestBoxService_PruneBoxes(t *testing.T) {
-	stubDel_OK := func(ctx context.Context, opts ...BoxFilterOp) error {
-		return nil
-	}
-	stubDel_Err := func(ctx context.Context, opts ...BoxFilterOp) error {
-		return errors.New("error at box store")
-	}
+	t.Run("Successfully remove directories and delete inactive boxes.", func(t *testing.T) {
+		dirA := t.TempDir()
+		dirB := t.TempDir()
 
-	tests := []struct {
-		name      string
-		store     *stubBoxStore
-		expectErr bool
-	}{
-		{
-			name:      "Successfully prune inactive boxes.",
-			store:     &stubBoxStore{nil, nil, stubDel_OK},
-			expectErr: false,
-		},
-		{
-			name:      "Fail to prune boxes, when store.Del returns error.",
-			store:     &stubBoxStore{nil, nil, stubDel_Err},
-			expectErr: true,
-		},
-	}
+		stubGet_Inactive := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+			return []Box{
+				{id: "1", title: "Box A", path: dirA, active: false},
+				{id: "2", title: "Box B", path: dirB, active: false},
+			}, nil
+		}
+		var deletedIDs []string
+		stubDel_Capture := func(ctx context.Context, id string) error {
+			deletedIDs = append(deletedIDs, id)
+			return nil
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := NewBoxService("", tt.store)
+		s := NewBoxService("", &stubBoxStore{nil, nil, stubGet_Inactive, stubDel_Capture})
 
-			err := s.PruneBoxes(context.Background())
+		if err := s.PruneBoxes(context.Background()); err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
 
-			if !tt.expectErr && err != nil {
-				t.Fatalf("unexpected err occurred: %v", err)
-			}
-			if tt.expectErr && err == nil {
-				t.Fatalf("error was expected, but not occured.")
-			}
-		})
-	}
+		if _, err := os.Stat(dirA); !os.IsNotExist(err) {
+			t.Errorf("expected %q to be removed, stat err = %v", dirA, err)
+		}
+		if _, err := os.Stat(dirB); !os.IsNotExist(err) {
+			t.Errorf("expected %q to be removed, stat err = %v", dirB, err)
+		}
+		if len(deletedIDs) != 2 {
+			t.Errorf("len(deletedIDs) = %d, want 2", len(deletedIDs))
+		}
+	})
+
+	t.Run("Fail to prune boxes, when store.Get returns error.", func(t *testing.T) {
+		stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+			return nil, errors.New("error at box store")
+		}
+		s := NewBoxService("", &stubBoxStore{nil, nil, stubGet_Err, nil})
+
+		if err := s.PruneBoxes(context.Background()); err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to prune boxes, when store.Del returns error.", func(t *testing.T) {
+		dir := t.TempDir()
+		stubGet_Inactive := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+			return []Box{{id: "1", title: "Box A", path: dir, active: false}}, nil
+		}
+		stubDel_Err := func(ctx context.Context, id string) error {
+			return errors.New("error at box store")
+		}
+		s := NewBoxService("", &stubBoxStore{nil, nil, stubGet_Inactive, stubDel_Err})
+
+		if err := s.PruneBoxes(context.Background()); err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
 }

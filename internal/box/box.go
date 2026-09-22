@@ -1,7 +1,7 @@
 package box
 
 type Box struct {
-	id     int
+	id     string
 	title  string
 	path   string
 	active bool

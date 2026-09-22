@@ -5,13 +5,13 @@ import "context"
 type BoxFilterOp func(*filter)
 
 type filter struct {
-	id     *int
+	path   *string
 	active *bool
 }
 
-func WithID(id int) BoxFilterOp {
+func WithPath(path string) BoxFilterOp {
 	return func(f *filter) {
-		f.id = &id
+		f.path = &path
 	}
 }
 
@@ -22,7 +22,8 @@ func WithActive(active bool) BoxFilterOp {
 }
 
 type BoxStore interface {
-	Set(context.Context, Box) (*Box, error)
-	Get(context.Context, ...BoxFilterOp) ([]Box, error)
-	Del(context.Context, ...BoxFilterOp) error
+	Set(ctx context.Context, box Box) (*Box, error)
+	GetByID(ctx context.Context, id string) (*Box, error)
+	Get(ctx context.Context, opts ...BoxFilterOp) ([]Box, error)
+	Del(ctx context.Context, id string) error
 }
