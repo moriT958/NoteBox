@@ -1,6 +1,7 @@
 package note
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -72,8 +73,11 @@ func (s *NoteService) CreateNote(title string) (Note, error) {
 	relPath := encodeTitle(title) + ".md"
 	absPath := filepath.Join(s.box.Path(), relPath)
 
-	fp, err := os.Create(absPath)
+	fp, err := os.OpenFile(absPath, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
+		if errors.Is(err, fs.ErrExist) {
+			return Note{}, fmt.Errorf("failed to create note: note with this title already exists")
+		}
 		return Note{}, fmt.Errorf("failed to create note: %w", err)
 	}
 	defer fp.Close()
@@ -93,6 +97,14 @@ func (s *NoteService) RenameNote(note Note, newTitle string) (Note, error) {
 
 	oldNotePath := filepath.Join(s.box.Path(), note.path)
 	newNotePath := filepath.Join(s.box.Path(), newRelPath)
+
+	if newNotePath != oldNotePath {
+		if _, err := os.Stat(newNotePath); err == nil {
+			return Note{}, fmt.Errorf("failed to rename note: note with this title already exists")
+		} else if !errors.Is(err, fs.ErrNotExist) {
+			return Note{}, fmt.Errorf("failed to rename note: %w", err)
+		}
+	}
 
 	if err := os.Rename(oldNotePath, newNotePath); err != nil {
 		return Note{}, fmt.Errorf("failed to rename note: %w", err)

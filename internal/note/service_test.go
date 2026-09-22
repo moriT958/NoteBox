@@ -75,6 +75,26 @@ func TestNoteService_CreateNote(t *testing.T) {
 			t.Errorf("content = %q, want %q", string(content), "# New Note")
 		}
 	})
+
+	t.Run("Fail to create note, when a note with the same title already exists.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		os.WriteFile(filepath.Join(box.path, "New Note.md"), []byte("# original content"), 0644)
+
+		s := NewNoteService(box)
+
+		_, err := s.CreateNote("New Note")
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+
+		content, err := os.ReadFile(filepath.Join(box.path, "New Note.md"))
+		if err != nil {
+			t.Fatalf("expected existing file to still exist: %v", err)
+		}
+		if string(content) != "# original content" {
+			t.Errorf("existing note content was overwritten: got %q", string(content))
+		}
+	})
 }
 
 func TestNoteService_CreateNote_TitleRoundTrip(t *testing.T) {
@@ -217,6 +237,63 @@ func TestNoteService_RenameNote(t *testing.T) {
 		}
 		if _, err := os.Stat(filepath.Join(subDir, "note1.md")); !os.IsNotExist(err) {
 			t.Errorf("expected note1.md to no longer exist, stat err = %v", err)
+		}
+	})
+
+	t.Run("Fail to rename note, when a note with the new title already exists.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
+		os.WriteFile(filepath.Join(box.path, "note2.md"), []byte("# note2 original"), 0644)
+
+		s := NewNoteService(box)
+
+		notes, err := s.GetNotes()
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		var note1 Note
+		for _, n := range notes {
+			if n.title == "note1" {
+				note1 = n
+			}
+		}
+
+		if _, err := s.RenameNote(note1, "note2"); err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+
+		if _, err := os.Stat(filepath.Join(box.path, "note1.md")); err != nil {
+			t.Errorf("expected note1.md to still exist: %v", err)
+		}
+		content, err := os.ReadFile(filepath.Join(box.path, "note2.md"))
+		if err != nil {
+			t.Fatalf("expected note2.md to still exist: %v", err)
+		}
+		if string(content) != "# note2 original" {
+			t.Errorf("existing note2.md content was overwritten: got %q", string(content))
+		}
+	})
+
+	t.Run("Successfully renames to the same title as a no-op.", func(t *testing.T) {
+		box := newStubBox(t, "Test Box")
+		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
+
+		s := NewNoteService(box)
+
+		notes, err := s.GetNotes()
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if len(notes) != 1 {
+			t.Fatalf("expected 1 note, got %d", len(notes))
+		}
+
+		if _, err := s.RenameNote(notes[0], "note1"); err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+
+		if _, err := os.Stat(filepath.Join(box.path, "note1.md")); err != nil {
+			t.Errorf("expected note1.md to still exist: %v", err)
 		}
 	})
 }
