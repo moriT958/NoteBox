@@ -25,7 +25,7 @@ func NewBoxService(config string, store BoxStore) *BoxService {
 }
 
 func (s *BoxService) findByPath(ctx context.Context, path string) (*Box, error) {
-	boxes, err := s.store.Get(ctx, WithPath(path))
+	boxes, err := s.store.Get(ctx, Filter{Path: &path})
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func (s *BoxService) OpenFolderAsBox(ctx context.Context, title, path string) (*
 }
 
 func (s *BoxService) GetBoxes(ctx context.Context) ([]Box, error) {
-	boxes, err := s.store.Get(ctx)
+	boxes, err := s.store.Get(ctx, Filter{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get boxes: %w", err)
 	}
@@ -117,7 +117,8 @@ func (s *BoxService) GetBoxes(ctx context.Context) ([]Box, error) {
 }
 
 func (s *BoxService) GetActiveBoxes(ctx context.Context) ([]Box, error) {
-	boxes, err := s.store.Get(ctx, WithActive(true))
+	active := true
+	boxes, err := s.store.Get(ctx, Filter{Active: &active})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get active boxes: %w", err)
 	}
@@ -125,7 +126,8 @@ func (s *BoxService) GetActiveBoxes(ctx context.Context) ([]Box, error) {
 }
 
 func (s *BoxService) GetInactiveBoxes(ctx context.Context) ([]Box, error) {
-	boxes, err := s.store.Get(ctx, WithActive(false))
+	active := false
+	boxes, err := s.store.Get(ctx, Filter{Active: &active})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get inactive boxes: %w", err)
 	}
@@ -183,7 +185,8 @@ func (s *BoxService) RemoveBox(ctx context.Context, id string) error {
 }
 
 func (s *BoxService) PruneBoxes(ctx context.Context) error {
-	boxes, err := s.store.Get(ctx, WithActive(false))
+	active := false
+	boxes, err := s.store.Get(ctx, Filter{Active: &active})
 	if err != nil {
 		return fmt.Errorf("failed to prune boxes: %w", err)
 	}

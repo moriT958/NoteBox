@@ -11,7 +11,7 @@ import (
 type stubBoxStore struct {
 	setFunc     func(ctx context.Context, b Box) (*Box, error)
 	getByIDFunc func(ctx context.Context, id string) (*Box, error)
-	getFunc     func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error)
+	getFunc     func(ctx context.Context, opts Filter) ([]Box, error)
 	delFunc     func(ctx context.Context, id string) error
 }
 
@@ -25,8 +25,8 @@ func (f *stubBoxStore) GetByID(ctx context.Context, id string) (*Box, error) {
 	return f.getByIDFunc(ctx, id)
 }
 
-func (f *stubBoxStore) Get(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
-	return f.getFunc(ctx, opts...)
+func (f *stubBoxStore) Get(ctx context.Context, opts Filter) ([]Box, error) {
+	return f.getFunc(ctx, opts)
 }
 
 func (f *stubBoxStore) Del(ctx context.Context, id string) error {
@@ -34,10 +34,10 @@ func (f *stubBoxStore) Del(ctx context.Context, id string) error {
 }
 
 func TestBoxService_CreateBox(t *testing.T) {
-	stubGet_Empty := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_Empty := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return []Box{}, nil
 	}
-	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_Err := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return nil, errors.New("error at box store")
 	}
 	stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
@@ -98,7 +98,7 @@ func TestBoxService_CreateBox(t *testing.T) {
 
 	t.Run("Fail to create new box, when the path is already used by an active box.", func(t *testing.T) {
 		configDir := t.TempDir()
-		stubGet_Dup := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		stubGet_Dup := func(ctx context.Context, opts Filter) ([]Box, error) {
 			return []Box{{id: "existing-id", title: "Existing", path: filepath.Join(configDir, "My Box"), active: true}}, nil
 		}
 		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, nil, stubGet_Dup, nil})
@@ -111,7 +111,7 @@ func TestBoxService_CreateBox(t *testing.T) {
 
 	t.Run("Successfully revive an inactive box at the same path.", func(t *testing.T) {
 		configDir := t.TempDir()
-		stubGet_Inactive := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		stubGet_Inactive := func(ctx context.Context, opts Filter) ([]Box, error) {
 			return []Box{{id: "existing-id", title: "Old Title", path: filepath.Join(configDir, "My Box"), active: false}}, nil
 		}
 		var gotSet Box
@@ -173,7 +173,7 @@ func TestBoxService_CreateBox(t *testing.T) {
 }
 
 func TestBoxService_OpenFolderAsBox(t *testing.T) {
-	stubGet_Empty := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_Empty := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return []Box{}, nil
 	}
 	stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
@@ -238,7 +238,7 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 
 	t.Run("Fail to open folder as box, when the path is already used by an active box.", func(t *testing.T) {
 		dir := t.TempDir()
-		stubGet_Dup := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		stubGet_Dup := func(ctx context.Context, opts Filter) ([]Box, error) {
 			return []Box{{id: "existing-id", title: "Existing", path: dir, active: true}}, nil
 		}
 		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Dup, nil})
@@ -251,7 +251,7 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 
 	t.Run("Successfully revive an inactive box at the same path.", func(t *testing.T) {
 		dir := t.TempDir()
-		stubGet_Inactive := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		stubGet_Inactive := func(ctx context.Context, opts Filter) ([]Box, error) {
 			return []Box{{id: "existing-id", title: "Old Title", path: dir, active: false}}, nil
 		}
 		var gotSet Box
@@ -288,13 +288,13 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 }
 
 func TestBoxService_GetBoxes(t *testing.T) {
-	stubGet_OK := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_OK := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return []Box{
 			{id: "1", title: "Box A", path: "/a", active: true},
 			{id: "2", title: "Box B", path: "/b", active: false},
 		}, nil
 	}
-	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_Err := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return nil, errors.New("error at box store")
 	}
 
@@ -343,13 +343,13 @@ func TestBoxService_GetBoxes(t *testing.T) {
 }
 
 func TestBoxService_GetActiveBoxes(t *testing.T) {
-	stubGet_OK := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_OK := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return []Box{
 			{id: "1", title: "Box A", path: "/a", active: true},
 			{id: "2", title: "Box B", path: "/b", active: true},
 		}, nil
 	}
-	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_Err := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return nil, errors.New("error at box store")
 	}
 
@@ -403,13 +403,13 @@ func TestBoxService_GetActiveBoxes(t *testing.T) {
 }
 
 func TestBoxService_GetInactiveBoxes(t *testing.T) {
-	stubGet_OK := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_OK := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return []Box{
 			{id: "1", title: "Box A", path: "/a", active: false},
 			{id: "2", title: "Box B", path: "/b", active: false},
 		}, nil
 	}
-	stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+	stubGet_Err := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return nil, errors.New("error at box store")
 	}
 
@@ -658,7 +658,7 @@ func TestBoxService_PruneBoxes(t *testing.T) {
 		dirA := t.TempDir()
 		dirB := t.TempDir()
 
-		stubGet_Inactive := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		stubGet_Inactive := func(ctx context.Context, opts Filter) ([]Box, error) {
 			return []Box{
 				{id: "1", title: "Box A", path: dirA, active: false},
 				{id: "2", title: "Box B", path: dirB, active: false},
@@ -688,7 +688,7 @@ func TestBoxService_PruneBoxes(t *testing.T) {
 	})
 
 	t.Run("Fail to prune boxes, when store.Get returns error.", func(t *testing.T) {
-		stubGet_Err := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		stubGet_Err := func(ctx context.Context, opts Filter) ([]Box, error) {
 			return nil, errors.New("error at box store")
 		}
 		s := NewBoxService("", &stubBoxStore{nil, nil, stubGet_Err, nil})
@@ -700,7 +700,7 @@ func TestBoxService_PruneBoxes(t *testing.T) {
 
 	t.Run("Fail to prune boxes, when store.Del returns error.", func(t *testing.T) {
 		dir := t.TempDir()
-		stubGet_Inactive := func(ctx context.Context, opts ...BoxFilterOp) ([]Box, error) {
+		stubGet_Inactive := func(ctx context.Context, opts Filter) ([]Box, error) {
 			return []Box{{id: "1", title: "Box A", path: dir, active: false}}, nil
 		}
 		stubDel_Err := func(ctx context.Context, id string) error {
