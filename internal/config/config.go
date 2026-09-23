@@ -23,9 +23,8 @@ var (
 )
 
 type Config struct {
-	Editor       string `json:"editor"`
-	Theme        string `json:"theme"`
-	DummyNoteDir string `json:"-"`
+	Editor string `json:"editor"`
+	Theme  string `json:"theme"`
 }
 
 func GetConfig() (*Config, error) {
@@ -69,12 +68,6 @@ func loadConfig() (*Config, error) {
 		return nil, fmt.Errorf("failed to decode config file: %v", err)
 	}
 
-	cfg.DummyNoteDir = filepath.Join(home, AppDirName, DummyFileName)
-
-	if err := ensureDirectoriesAndFiles(cfg); err != nil {
-		return nil, err
-	}
-
 	cfg.Theme = strings.ToLower(cfg.Theme)
 
 	return cfg, nil
@@ -85,17 +78,6 @@ func defaultConfig() *Config {
 		Editor: DefaultEditor,
 		Theme:  defaultTheme,
 	}
-}
-
-func ensureDirectoriesAndFiles(cfg *Config) error {
-	fp, err := os.Create(cfg.DummyNoteDir)
-	if err != nil {
-		return fmt.Errorf("failed to create dummy note: %v", err)
-	}
-	defer fp.Close()
-	fmt.Fprint(fp, DummyNoteContent)
-
-	return nil
 }
 
 // LoadLastBoxID reads the last used box ID from the state file.
