@@ -3,16 +3,16 @@ package cli
 import (
 	"context"
 	"flag"
-	"notebox/internal/notedeprecated"
+	"notebox/internal/core/box"
 
 	"github.com/google/subcommands"
 )
 
-func InitCommands(ctx context.Context, repo notedeprecated.BoxRepository) int {
+func InitCommands(ctx context.Context, boxes *box.BoxService) int {
 
 	subcommands.Register(&versionCmd{}, "")
-	subcommands.Register(&listCmd{repo: repo}, "")
-	subcommands.Register(&pruneCmd{repo: repo}, "")
+	subcommands.Register(&listCmd{boxes: boxes}, "")
+	subcommands.Register(&pruneCmd{boxes: boxes}, "")
 
 	flag.Parse()
 
