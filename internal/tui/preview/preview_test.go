@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"notebox/internal/core/box"
@@ -179,6 +180,26 @@ func TestPreview_Close(t *testing.T) {
 
 		if _, ok := p.Active(); ok {
 			t.Errorf("expected no active tab")
+		}
+	})
+}
+
+func TestPreview_Placeholder(t *testing.T) {
+	t.Run("Shows the placeholder only while no tab is open.", func(t *testing.T) {
+		notes := newNotes(t, "a")
+		p := newPreview(t, 80)
+		if !strings.Contains(p.Render(false), "No Note Selected") {
+			t.Errorf("expected the placeholder in an empty preview")
+		}
+
+		p.SetRendered(notes[0], "A", false)
+		if strings.Contains(p.Render(false), "No Note Selected") {
+			t.Errorf("expected no placeholder with a tab open")
+		}
+
+		p.Remove(notes[0])
+		if !strings.Contains(p.Render(false), "No Note Selected") {
+			t.Errorf("expected the placeholder after the last tab is closed")
 		}
 	})
 }

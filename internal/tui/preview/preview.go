@@ -20,6 +20,8 @@ const (
 	minTabWidth = 6
 )
 
+const placeholder = "\n  (( No Note Selected ))"
+
 type tab struct {
 	note     note.Note
 	rendered string
@@ -247,10 +249,14 @@ func (p *Preview) Render(focused bool) string {
 		frame, tabStyles, border = sty.FrameFocused, sty.Tab.Focused, sty.BorderFocused
 	}
 
+	content := p.vp.View()
+	if len(p.tabs) == 0 {
+		content = ansi.Truncate(placeholder, max(0, p.width-2), "")
+	}
 	body := border.UnsetBorderTop().
 		Width(p.width).
 		Height(p.height - 1).
-		Render(p.vp.View())
+		Render(content)
 	return lipgloss.JoinVertical(lipgloss.Left, p.renderTabBar(frame, tabStyles), body)
 }
 
