@@ -6,8 +6,8 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"notebox/internal/box"
 	"notebox/internal/config"
+	"notebox/internal/core/box"
 	"os"
 	"path/filepath"
 

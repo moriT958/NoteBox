@@ -3,10 +3,9 @@ package database
 import (
 	"context"
 	"database/sql"
+	"notebox/internal/core/box"
 	"path/filepath"
 	"testing"
-
-	"notebox/internal/box"
 
 	"github.com/pressly/goose/v3"
 )
