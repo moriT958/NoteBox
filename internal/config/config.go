@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 )
@@ -100,33 +99,29 @@ func ensureDirectoriesAndFiles(cfg *Config) error {
 }
 
 // LoadLastBoxID reads the last used box ID from the state file.
-// Returns 0 (no preference) when the file does not exist or contains invalid content.
-func LoadLastBoxID() (int, error) {
+// Returns "" (no preference) when the file does not exist.
+func LoadLastBoxID() (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return 0, err
+		return "", err
 	}
 	data, err := os.ReadFile(filepath.Join(home, AppDirName, StateFileName))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			return 0, nil
+			return "", nil
 		}
-		return 0, err
+		return "", err
 	}
-	id, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil {
-		return 0, nil
-	}
-	return id, nil
+	return strings.TrimSpace(string(data)), nil
 }
 
-// SaveLastBoxID writes the given box ID to the state file asynchronously.
-func SaveLastBoxID(id int) error {
+// SaveLastBoxID writes the given box ID to the state file.
+func SaveLastBoxID(id string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(home, AppDirName, StateFileName), []byte(strconv.Itoa(id)), 0644)
+	return os.WriteFile(filepath.Join(home, AppDirName, StateFileName), []byte(id), 0644)
 }
 
 // DefaultNotesDir returns the default path for the notes directory.
