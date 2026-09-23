@@ -5,16 +5,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"notebox/internal/core/box"
 	"os"
 	"strings"
 
 	"github.com/google/subcommands"
-
-	"notebox/internal/note"
 )
 
 type pruneCmd struct {
-	repo  note.BoxRepository
+	boxes *box.BoxService
 	force bool
 }
 
@@ -35,7 +34,7 @@ func (c *pruneCmd) SetFlags(f *flag.FlagSet) {
 }
 
 func (c *pruneCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	boxes, err := c.repo.FindInactiveBoxes(ctx)
+	boxes, err := c.boxes.GetInactiveBoxes(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to find deleted boxes:", err)
 		return subcommands.ExitFailure
@@ -64,17 +63,7 @@ func (c *pruneCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) su
 		}
 	}
 
-	for _, b := range boxes {
-		if b.Path == "" {
-			continue
-		}
-		if err := os.RemoveAll(b.Path); err != nil {
-			fmt.Fprintln(os.Stderr, "failed to remove directory:", err)
-			return subcommands.ExitFailure
-		}
-	}
-
-	if err := c.repo.PruneBoxes(ctx); err != nil {
+	if err := c.boxes.PruneBoxes(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, "failed to prune boxes:", err)
 		return subcommands.ExitFailure
 	}

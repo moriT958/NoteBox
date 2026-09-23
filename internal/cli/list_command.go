@@ -4,17 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"notebox/internal/core/box"
 	"os"
 	"strings"
 
 	"github.com/google/subcommands"
 	"github.com/mattn/go-runewidth"
-
-	"notebox/internal/note"
 )
 
 type listCmd struct {
-	repo note.BoxRepository
+	boxes *box.BoxService
 }
 
 var _ subcommands.Command = (*listCmd)(nil)
@@ -32,7 +31,7 @@ show all boxes. deleted boxes are shown dimmed.
 func (*listCmd) SetFlags(f *flag.FlagSet) {}
 
 func (c *listCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
-	boxes, err := c.repo.FindAll(ctx)
+	boxes, err := c.boxes.GetBoxes(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to list boxes:", err)
 		return subcommands.ExitFailure

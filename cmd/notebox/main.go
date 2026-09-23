@@ -6,10 +6,11 @@ import (
 	"log/slog"
 	"notebox/internal/cli"
 	"notebox/internal/config"
+	"notebox/internal/core/box"
 	"notebox/internal/database"
 	"notebox/internal/logger"
-	"notebox/internal/note"
 	"notebox/internal/tui"
+	"notebox/internal/watcher"
 	"os"
 	"path/filepath"
 
@@ -17,37 +18,43 @@ import (
 )
 
 func main() {
-	// initialize DB and run migrations; shared by the TUI and every CLI subcommand
-	db, err := database.NewSQLiteDB()
+	// open the DB and run migrations; shared by the TUI and every CLI subcommand
+	store, err := database.NewSQLiteBoxStore()
 	if err != nil {
 		slog.Error("failed to initialize database", "error", err)
 		os.Exit(1)
 	}
-	defer db.Close()
 
-	boxRepo := database.NewBoxRepository(db)
+	home, err := os.UserHomeDir()
+	if err != nil {
+		slog.Error("failed to get home dir", "error", err)
+		os.Exit(1)
+	}
+	// new boxes are created under the app dir unless a path is given
+	boxes := box.NewBoxService(filepath.Join(home, config.AppDirName), store)
 
-	if len(os.Args) < 2 {
-		reg, err := note.NewFSNotifyRegisterer()
-		if err != nil {
-			slog.Error("failed to initialize fsnotify watcher", "error", err)
-			os.Exit(1)
-		}
-		defer reg.Close()
+	if len(os.Args) >= 2 {
+		os.Exit(cli.InitCommands(context.Background(), boxes))
+	}
 
-		m, err := tui.NewModel(reg, boxRepo)
-		if err != nil {
-			slog.Error("failed to initialize bubbletea model", "error", err)
-			os.Exit(1)
-		}
+	cfg, err := config.GetConfig()
+	if err != nil {
+		slog.Error("failed to load config", "error", err)
+		os.Exit(1)
+	}
 
-		p := tea.NewProgram(m)
-		if _, err := p.Run(); err != nil {
-			slog.Error("failed to run bubbletea app", "error", err)
-			os.Exit(1)
-		}
-	} else {
-		os.Exit(cli.InitCommands(context.Background(), boxRepo))
+	w := watcher.NewWatcher()
+	defer w.Close()
+
+	m, err := tui.New(cfg, boxes, w)
+	if err != nil {
+		slog.Error("failed to initialize tui", "error", err)
+		os.Exit(1)
+	}
+
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		slog.Error("failed to run tui", "error", err)
+		os.Exit(1)
 	}
 }
 

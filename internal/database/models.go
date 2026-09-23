@@ -4,13 +4,9 @@
 
 package database
 
-import (
-	"database/sql"
-)
-
 type Box struct {
-	ID        int64
-	Title     string
-	Path      string
-	DeletedAt sql.NullTime
+	ID     string
+	Title  string
+	Path   string
+	Active bool
 }

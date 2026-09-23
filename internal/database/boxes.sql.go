@@ -9,170 +9,155 @@ import (
 	"context"
 )
 
-const createBox = `-- name: CreateBox :one
-INSERT INTO boxes (title, path)
-VALUES (?, ?)
-ON CONFLICT (path) DO UPDATE
-SET title = excluded.title, deleted_at = NULL
-WHERE boxes.deleted_at IS NOT NULL
-RETURNING id, title, path, deleted_at
-`
-
-type CreateBoxParams struct {
-	Title string
-	Path  string
-}
-
-func (q *Queries) CreateBox(ctx context.Context, arg CreateBoxParams) (Box, error) {
-	row := q.db.QueryRowContext(ctx, createBox, arg.Title, arg.Path)
-	var i Box
-	err := row.Scan(
-		&i.ID,
-		&i.Title,
-		&i.Path,
-		&i.DeletedAt,
-	)
-	return i, err
-}
-
 const deleteBox = `-- name: DeleteBox :exec
-UPDATE boxes
-SET deleted_at = CURRENT_TIMESTAMP
-WHERE id = ?
+DELETE FROM boxes WHERE id = ?
 `
 
-func (q *Queries) DeleteBox(ctx context.Context, id int64) error {
+func (q *Queries) DeleteBox(ctx context.Context, id string) error {
 	_, err := q.db.ExecContext(ctx, deleteBox, id)
 	return err
 }
 
-const listActiveBoxes = `-- name: ListActiveBoxes :many
-SELECT id, title, path, deleted_at FROM boxes WHERE deleted_at IS NULL ORDER BY id
+const getBoxByID = `-- name: GetBoxByID :one
+SELECT id, title, path, active FROM boxes WHERE id = ?
 `
 
-func (q *Queries) ListActiveBoxes(ctx context.Context) ([]Box, error) {
-	rows, err := q.db.QueryContext(ctx, listActiveBoxes)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Box
-	for rows.Next() {
-		var i Box
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Path,
-			&i.DeletedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listAllBoxes = `-- name: ListAllBoxes :many
-SELECT id, title, path, deleted_at FROM boxes ORDER BY id
-`
-
-func (q *Queries) ListAllBoxes(ctx context.Context) ([]Box, error) {
-	rows, err := q.db.QueryContext(ctx, listAllBoxes)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Box
-	for rows.Next() {
-		var i Box
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Path,
-			&i.DeletedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listInactiveBoxes = `-- name: ListInactiveBoxes :many
-SELECT id, title, path, deleted_at FROM boxes WHERE deleted_at IS NOT NULL ORDER BY id
-`
-
-func (q *Queries) ListInactiveBoxes(ctx context.Context) ([]Box, error) {
-	rows, err := q.db.QueryContext(ctx, listInactiveBoxes)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Box
-	for rows.Next() {
-		var i Box
-		if err := rows.Scan(
-			&i.ID,
-			&i.Title,
-			&i.Path,
-			&i.DeletedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const pruneBoxes = `-- name: PruneBoxes :exec
-DELETE FROM boxes
-WHERE deleted_at IS NOT NULL
-`
-
-func (q *Queries) PruneBoxes(ctx context.Context) error {
-	_, err := q.db.ExecContext(ctx, pruneBoxes)
-	return err
-}
-
-const updateBox = `-- name: UpdateBox :one
-UPDATE boxes
-SET title = ?, path = ?
-WHERE id = ?
-RETURNING id, title, path, deleted_at
-`
-
-type UpdateBoxParams struct {
-	Title string
-	Path  string
-	ID    int64
-}
-
-func (q *Queries) UpdateBox(ctx context.Context, arg UpdateBoxParams) (Box, error) {
-	row := q.db.QueryRowContext(ctx, updateBox, arg.Title, arg.Path, arg.ID)
+func (q *Queries) GetBoxByID(ctx context.Context, id string) (Box, error) {
+	row := q.db.QueryRowContext(ctx, getBoxByID, id)
 	var i Box
 	err := row.Scan(
 		&i.ID,
 		&i.Title,
 		&i.Path,
-		&i.DeletedAt,
+		&i.Active,
+	)
+	return i, err
+}
+
+const listBoxes = `-- name: ListBoxes :many
+SELECT id, title, path, active FROM boxes ORDER BY title
+`
+
+func (q *Queries) ListBoxes(ctx context.Context) ([]Box, error) {
+	rows, err := q.db.QueryContext(ctx, listBoxes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Box
+	for rows.Next() {
+		var i Box
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Path,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBoxesByActive = `-- name: ListBoxesByActive :many
+SELECT id, title, path, active FROM boxes WHERE active = ? ORDER BY title
+`
+
+func (q *Queries) ListBoxesByActive(ctx context.Context, active bool) ([]Box, error) {
+	rows, err := q.db.QueryContext(ctx, listBoxesByActive, active)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Box
+	for rows.Next() {
+		var i Box
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Path,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBoxesByPath = `-- name: ListBoxesByPath :many
+SELECT id, title, path, active FROM boxes WHERE path = ?
+`
+
+func (q *Queries) ListBoxesByPath(ctx context.Context, path string) ([]Box, error) {
+	rows, err := q.db.QueryContext(ctx, listBoxesByPath, path)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Box
+	for rows.Next() {
+		var i Box
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Path,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const upsertBox = `-- name: UpsertBox :one
+INSERT INTO boxes (id, title, path, active)
+VALUES (?, ?, ?, ?)
+ON CONFLICT (id) DO UPDATE
+SET title = excluded.title, path = excluded.path, active = excluded.active
+RETURNING id, title, path, active
+`
+
+type UpsertBoxParams struct {
+	ID     string
+	Title  string
+	Path   string
+	Active bool
+}
+
+func (q *Queries) UpsertBox(ctx context.Context, arg UpsertBoxParams) (Box, error) {
+	row := q.db.QueryRowContext(ctx, upsertBox,
+		arg.ID,
+		arg.Title,
+		arg.Path,
+		arg.Active,
+	)
+	var i Box
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Path,
+		&i.Active,
 	)
 	return i, err
 }
