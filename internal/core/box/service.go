@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/google/uuid"
+	"uuid"
 )
 
 type BoxService struct {
@@ -62,7 +61,7 @@ func (s *BoxService) CreateBox(ctx context.Context, title string, path *string) 
 		return nil, fmt.Errorf("failed to create box: %w", err)
 	}
 
-	newBox := Box{ID: uuid.NewString(), Title: title, Path: boxPath, Active: true}
+	newBox := Box{ID: uuid.New().String(), Title: title, Path: boxPath, Active: true}
 	if existing != nil {
 		newBox.ID = existing.ID // revive a soft-deleted box at the same path
 	}
@@ -101,7 +100,7 @@ func (s *BoxService) OpenFolderAsBox(ctx context.Context, title, path string) (*
 		return nil, fmt.Errorf("failed to open folder as box: a box with this path already exists")
 	}
 
-	newBox := Box{ID: uuid.NewString(), Title: title, Path: path, Active: true}
+	newBox := Box{ID: uuid.New().String(), Title: title, Path: path, Active: true}
 	if existing != nil {
 		newBox.ID = existing.ID
 	}
