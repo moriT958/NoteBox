@@ -27,6 +27,10 @@ tasks:
     desc: go fmt
     cmd: go fmt ./...
 
+  fix:
+    desc: go fix
+    cmd: go fix ./...
+
   test:
     desc: Run all tests
     cmds:
