@@ -1,6 +1,6 @@
 module notebox
 
-go 1.25.8
+go 1.27.1
 
 require (
 	charm.land/bubbles/v2 v2.1.0
@@ -10,7 +10,6 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/gofsnotify/fsnotify v0.0.3
 	github.com/google/subcommands v1.2.0
-	github.com/google/uuid v1.6.0
 	github.com/mattn/go-runewidth v0.0.23
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/sahilm/fuzzy v0.1.1
@@ -32,6 +31,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/dlclark/regexp2 v1.11.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect
