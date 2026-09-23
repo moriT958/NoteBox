@@ -129,6 +129,16 @@ func (f frame) buttons(confirm, cancel string) string {
 	return lipgloss.PlaceHorizontal(f.innerWidth(), lipgloss.Center, row)
 }
 
+// padRows joins lines into a block of exactly rows lines, padding with
+// blank lines so a list dialog's rendered height stays constant regardless
+// of how many lines currently have content.
+func padRows(lines []string, rows int) string {
+	for len(lines) < rows {
+		lines = append(lines, "")
+	}
+	return strings.Join(lines, "\n")
+}
+
 // scroll keeps a list's cursor inside the rows visible from offset and
 // returns the adjusted offset.
 func scroll(cursor, offset, rows int) int {
