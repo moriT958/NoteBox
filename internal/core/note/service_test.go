@@ -2,36 +2,23 @@ package note
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 	"testing"
+
+	"notebox/internal/core/box"
 )
 
-type stubBox struct {
-	path string
-}
-
-var _ noteBox = (*stubBox)(nil)
-
-func newStubBox(t *testing.T, name string) *stubBox {
+func newTestBox(t *testing.T) box.Box {
 	t.Helper()
-	dir := t.TempDir()
-	if err := os.MkdirAll(path.Join(dir, name), 0755); err != nil {
-		t.Fatalf("failed to create stub box: %v", err)
-	}
-	return &stubBox{path.Join(dir, name)}
-}
-
-func (s *stubBox) Path() string {
-	return s.path
+	return box.Box{ID: "test", Title: "Test Box", Path: t.TempDir(), Active: true}
 }
 
 func TestNoteService_GetNotes(t *testing.T) {
 	t.Run("Successfully get only markdown notes.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
-		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
-		os.WriteFile(filepath.Join(box.path, "note2.md"), []byte("# note2"), 0644)
-		os.WriteFile(filepath.Join(box.path, "ignore.txt"), []byte("not a note"), 0644)
+		box := newTestBox(t)
+		os.WriteFile(filepath.Join(box.Path, "note1.md"), []byte("# note1"), 0644)
+		os.WriteFile(filepath.Join(box.Path, "note2.md"), []byte("# note2"), 0644)
+		os.WriteFile(filepath.Join(box.Path, "ignore.txt"), []byte("not a note"), 0644)
 
 		svc := NewNoteService(box)
 
@@ -45,7 +32,7 @@ func TestNoteService_GetNotes(t *testing.T) {
 	})
 
 	t.Run("Returns empty slice, when box has no notes.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
+		box := newTestBox(t)
 		svc := NewNoteService(box)
 
 		got, err := svc.GetNotes()
@@ -60,7 +47,7 @@ func TestNoteService_GetNotes(t *testing.T) {
 
 func TestNoteService_CreateNote(t *testing.T) {
 	t.Run("Successfully create note file.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
+		box := newTestBox(t)
 		s := NewNoteService(box)
 
 		_, err := s.CreateNote("New Note")
@@ -68,7 +55,7 @@ func TestNoteService_CreateNote(t *testing.T) {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
 
-		content, err := os.ReadFile(filepath.Join(box.path, "New Note.md"))
+		content, err := os.ReadFile(filepath.Join(box.Path, "New Note.md"))
 		if err != nil {
 			t.Fatalf("expected file to be created: %v", err)
 		}
@@ -78,8 +65,8 @@ func TestNoteService_CreateNote(t *testing.T) {
 	})
 
 	t.Run("Fail to create note, when a note with the same title already exists.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
-		os.WriteFile(filepath.Join(box.path, "New Note.md"), []byte("# original content"), 0644)
+		box := newTestBox(t)
+		os.WriteFile(filepath.Join(box.Path, "New Note.md"), []byte("# original content"), 0644)
 
 		s := NewNoteService(box)
 
@@ -88,7 +75,7 @@ func TestNoteService_CreateNote(t *testing.T) {
 			t.Fatalf("error was expected, but not occured.")
 		}
 
-		content, err := os.ReadFile(filepath.Join(box.path, "New Note.md"))
+		content, err := os.ReadFile(filepath.Join(box.Path, "New Note.md"))
 		if err != nil {
 			t.Fatalf("expected existing file to still exist: %v", err)
 		}
@@ -113,7 +100,7 @@ func TestNoteService_CreateNote_TitleRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			box := newStubBox(t, "Test Box")
+			box := newTestBox(t)
 			s := NewNoteService(box)
 
 			if _, err := s.CreateNote(tt.title); err != nil {
@@ -136,8 +123,8 @@ func TestNoteService_CreateNote_TitleRoundTrip(t *testing.T) {
 
 func TestNoteService_GetNoteContent(t *testing.T) {
 	t.Run("Successfully get note file content.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
-		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1 content"), 0644)
+		box := newTestBox(t)
+		os.WriteFile(filepath.Join(box.Path, "note1.md"), []byte("# note1 content"), 0644)
 
 		s := NewNoteService(box)
 
@@ -161,8 +148,8 @@ func TestNoteService_GetNoteContent(t *testing.T) {
 
 func TestNoteService_RemoveNote(t *testing.T) {
 	t.Run("Successfull remove note file.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
-		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
+		box := newTestBox(t)
+		os.WriteFile(filepath.Join(box.Path, "note1.md"), []byte("# note1"), 0644)
 
 		s := NewNoteService(box)
 
@@ -178,7 +165,7 @@ func TestNoteService_RemoveNote(t *testing.T) {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
 
-		if _, err := os.Stat(filepath.Join(box.path, "note1.md")); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(box.Path, "note1.md")); !os.IsNotExist(err) {
 			t.Errorf("expected note1.md to be removed, stat err = %v", err)
 		}
 	})
@@ -186,8 +173,8 @@ func TestNoteService_RemoveNote(t *testing.T) {
 
 func TestNoteService_RenameNote(t *testing.T) {
 	t.Run("Successfully rename note file name.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
-		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
+		box := newTestBox(t)
+		os.WriteFile(filepath.Join(box.Path, "note1.md"), []byte("# note1"), 0644)
 
 		s := NewNoteService(box)
 
@@ -203,17 +190,17 @@ func TestNoteService_RenameNote(t *testing.T) {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
 
-		if _, err := os.Stat(filepath.Join(box.path, "renamed.md")); err != nil {
+		if _, err := os.Stat(filepath.Join(box.Path, "renamed.md")); err != nil {
 			t.Errorf("expected renamed.md to exist: %v", err)
 		}
-		if _, err := os.Stat(filepath.Join(box.path, "note1.md")); !os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(box.Path, "note1.md")); !os.IsNotExist(err) {
 			t.Errorf("expected note1.md to no longer exist, stat err = %v", err)
 		}
 	})
 
 	t.Run("Successfully rename note file name in a subdirectory, keeping its directory.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
-		subDir := filepath.Join(box.path, "sub")
+		box := newTestBox(t)
+		subDir := filepath.Join(box.Path, "sub")
 		if err := os.MkdirAll(subDir, 0755); err != nil {
 			t.Fatalf("failed to create subdir: %v", err)
 		}
@@ -242,9 +229,9 @@ func TestNoteService_RenameNote(t *testing.T) {
 	})
 
 	t.Run("Fail to rename note, when a note with the new title already exists.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
-		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
-		os.WriteFile(filepath.Join(box.path, "note2.md"), []byte("# note2 original"), 0644)
+		box := newTestBox(t)
+		os.WriteFile(filepath.Join(box.Path, "note1.md"), []byte("# note1"), 0644)
+		os.WriteFile(filepath.Join(box.Path, "note2.md"), []byte("# note2 original"), 0644)
 
 		s := NewNoteService(box)
 
@@ -263,10 +250,10 @@ func TestNoteService_RenameNote(t *testing.T) {
 			t.Fatalf("error was expected, but not occured.")
 		}
 
-		if _, err := os.Stat(filepath.Join(box.path, "note1.md")); err != nil {
+		if _, err := os.Stat(filepath.Join(box.Path, "note1.md")); err != nil {
 			t.Errorf("expected note1.md to still exist: %v", err)
 		}
-		content, err := os.ReadFile(filepath.Join(box.path, "note2.md"))
+		content, err := os.ReadFile(filepath.Join(box.Path, "note2.md"))
 		if err != nil {
 			t.Fatalf("expected note2.md to still exist: %v", err)
 		}
@@ -276,8 +263,8 @@ func TestNoteService_RenameNote(t *testing.T) {
 	})
 
 	t.Run("Successfully renames to the same title as a no-op.", func(t *testing.T) {
-		box := newStubBox(t, "Test Box")
-		os.WriteFile(filepath.Join(box.path, "note1.md"), []byte("# note1"), 0644)
+		box := newTestBox(t)
+		os.WriteFile(filepath.Join(box.Path, "note1.md"), []byte("# note1"), 0644)
 
 		s := NewNoteService(box)
 
@@ -293,7 +280,7 @@ func TestNoteService_RenameNote(t *testing.T) {
 			t.Fatalf("unexpected err occurred: %v", err)
 		}
 
-		if _, err := os.Stat(filepath.Join(box.path, "note1.md")); err != nil {
+		if _, err := os.Stat(filepath.Join(box.Path, "note1.md")); err != nil {
 			t.Errorf("expected note1.md to still exist: %v", err)
 		}
 	})

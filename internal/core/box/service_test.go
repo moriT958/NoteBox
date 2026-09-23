@@ -33,6 +33,18 @@ func (f *stubBoxStore) Del(ctx context.Context, id string) error {
 	return f.delFunc(ctx, id)
 }
 
+// realTempDir returns a temp dir with symlinks resolved (e.g. /var ->
+// /private/var on macOS), so it matches paths resolved from the working
+// directory.
+func realTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatalf("failed to resolve temp dir: %v", err)
+	}
+	return dir
+}
+
 func TestBoxService_CreateBox(t *testing.T) {
 	stubGet_Empty := func(ctx context.Context, opts Filter) ([]Box, error) {
 		return []Box{}, nil
@@ -249,6 +261,37 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 		}
 	})
 
+	t.Run("Successfully store a relative path as an absolute path.", func(t *testing.T) {
+		dir := realTempDir(t)
+		t.Chdir(filepath.Dir(dir))
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
+
+		got, err := s.OpenFolderAsBox(context.Background(), "My Folder", filepath.Base(dir))
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.Path != dir {
+			t.Errorf("path = %q, want %q", got.Path, dir)
+		}
+	})
+
+	t.Run("Fail to open folder as box, when a differently written path is already used by an active box.", func(t *testing.T) {
+		dir := realTempDir(t)
+		t.Chdir(filepath.Dir(dir))
+		stubGet_ByPath := func(ctx context.Context, opts Filter) ([]Box, error) {
+			if opts.Path != nil && *opts.Path == dir {
+				return []Box{{ID: "existing-id", Title: "Existing", Path: dir, Active: true}}, nil
+			}
+			return []Box{}, nil
+		}
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_ByPath, nil})
+
+		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", filepath.Base(dir)+"/")
+		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
 	t.Run("Successfully revive an inactive box at the same path.", func(t *testing.T) {
 		dir := t.TempDir()
 		stubGet_Inactive := func(ctx context.Context, opts Filter) ([]Box, error) {
@@ -282,6 +325,49 @@ func TestBoxService_OpenFolderAsBox(t *testing.T) {
 
 		_, err := s.OpenFolderAsBox(context.Background(), "My Folder", dir)
 		if err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+}
+
+func TestBoxService_GetBox(t *testing.T) {
+	t.Run("Successfully get a box by id.", func(t *testing.T) {
+		stubGetByID := func(ctx context.Context, id string) (*Box, error) {
+			return &Box{ID: id, Title: "Box A", Path: "/a", Active: true}, nil
+		}
+		s := NewBoxService("", &stubBoxStore{nil, stubGetByID, nil, nil})
+
+		got, err := s.GetBox(context.Background(), "1")
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got == nil || got.ID != "1" {
+			t.Errorf("got = %+v, want box with id %q", got, "1")
+		}
+	})
+
+	t.Run("Returns nil, when no box has the id.", func(t *testing.T) {
+		stubGetByID := func(ctx context.Context, id string) (*Box, error) {
+			return nil, nil
+		}
+		s := NewBoxService("", &stubBoxStore{nil, stubGetByID, nil, nil})
+
+		got, err := s.GetBox(context.Background(), "missing")
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got != nil {
+			t.Errorf("got = %+v, want nil", got)
+		}
+	})
+
+	t.Run("Fail to get box, when store.GetByID returns error.", func(t *testing.T) {
+		stubGetByID := func(ctx context.Context, id string) (*Box, error) {
+			return nil, errors.New("error at box store")
+		}
+		s := NewBoxService("", &stubBoxStore{nil, stubGetByID, nil, nil})
+
+		if _, err := s.GetBox(context.Background(), "1"); err == nil {
 			t.Fatalf("error was expected, but not occured.")
 		}
 	})

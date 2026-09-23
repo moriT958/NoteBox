@@ -42,7 +42,11 @@ func (s *BoxService) CreateBox(ctx context.Context, title string, path *string) 
 
 	base := s.config
 	if path != nil {
-		base = *path
+		p, err := normalizePath(*path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create box: %w", err)
+		}
+		base = p
 	}
 	boxPath := filepath.Join(base, encodeDirName(title))
 
@@ -79,6 +83,11 @@ func (s *BoxService) OpenFolderAsBox(ctx context.Context, title, path string) (*
 		return nil, fmt.Errorf("failed to open folder as box: title is required")
 	}
 
+	path, err := normalizePath(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open folder as box: %w", err)
+	}
+
 	info, err := os.Stat(path)
 	if err != nil || !info.IsDir() {
 		return nil, fmt.Errorf("failed to open folder as box: path must be an existing directory")
@@ -105,6 +114,16 @@ func (s *BoxService) OpenFolderAsBox(ctx context.Context, title, path string) (*
 		return nil, fmt.Errorf("failed to open folder as box: box is nil")
 	}
 
+	return box, nil
+}
+
+// GetBox returns the box with the given ID, or nil if there is none.
+// Inactive (removed) boxes are returned too.
+func (s *BoxService) GetBox(ctx context.Context, id string) (*Box, error) {
+	box, err := s.store.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get box: %w", err)
+	}
 	return box, nil
 }
 
@@ -152,6 +171,11 @@ func (s *BoxService) RenameBox(ctx context.Context, id string, title string) (*B
 }
 
 func (s *BoxService) ChangeBoxPath(ctx context.Context, id string, path string) (*Box, error) {
+	path, err := normalizePath(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to change box path: %w", err)
+	}
+
 	box, err := s.store.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to change box path: %w", err)
