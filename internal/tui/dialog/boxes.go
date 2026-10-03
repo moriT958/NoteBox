@@ -168,40 +168,37 @@ func (d *Boxes) Render(area image.Rectangle) (string, *tea.Cursor) {
 	rows := max(1, min(listRows, area.Dy()-2-sty.Frame.GetVerticalFrameSize()))
 	offset := scroll(d.cursor, d.offset, rows)
 
-	var list strings.Builder
+	lines := make([]string, 0, rows)
 	switch {
 	case d.loading:
-		list.WriteString("  Loading...")
+		lines = append(lines, "  Loading...")
 	case len(d.items) == 0:
-		list.WriteString("  No boxes found")
-	}
-	for i := offset; i < min(offset+rows, len(d.items)); i++ {
-		if i != offset {
-			list.WriteString("\n")
-		}
-		if i == d.cursor && d.renaming {
-			list.WriteString(renamePrefix)
-			list.WriteString(d.input.View())
-			continue
-		}
+		lines = append(lines, "  No boxes found")
+	default:
+		for i := offset; i < min(offset+rows, len(d.items)); i++ {
+			if i == d.cursor && d.renaming {
+				lines = append(lines, renamePrefix+d.input.View())
+				continue
+			}
 
-		it := d.items[i]
-		title := it.Box.Title
-		if it.Missing {
-			title = sty.Missing.Render(title)
+			it := d.items[i]
+			title := it.Box.Title
+			if it.Missing {
+				title = sty.Missing.Render(title)
+			}
+			if it.Box.ID == d.currentID {
+				title += " *"
+			}
+			line := "  " + title
+			if i == d.cursor {
+				line = sty.Cursor.Render(line)
+			}
+			lines = append(lines, ansi.Truncate(line, w, "..."))
 		}
-		if it.Box.ID == d.currentID {
-			title += " *"
-		}
-		line := "  " + title
-		if i == d.cursor {
-			line = sty.Cursor.Render(line)
-		}
-		list.WriteString(ansi.Truncate(line, w, "..."))
 	}
 
 	const listLine = 2
-	view := f.render(sty.Title.Render("Boxes"), "", list.String())
+	view := f.render(sty.Title.Render("Boxes"), "", padRows(lines, rows))
 	if !d.renaming {
 		return view, nil
 	}

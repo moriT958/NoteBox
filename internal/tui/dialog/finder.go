@@ -2,7 +2,6 @@ package dialog
 
 import (
 	"image"
-	"strings"
 
 	"notebox/internal/core/note"
 	"notebox/internal/tui/common"
@@ -101,19 +100,17 @@ func (d *Finder) Render(area image.Rectangle) (string, *tea.Cursor) {
 	rows := max(1, min(listRows, area.Dy()-4-d.com.Styles.Dialog.Frame.GetVerticalFrameSize()))
 	offset := scroll(d.cursor, d.offset, rows)
 
-	var list strings.Builder
+	lines := make([]string, 0, rows)
 	if len(d.filtered) == 0 {
-		list.WriteString("  No matches found")
-	}
-	for i := offset; i < min(offset+rows, len(d.filtered)); i++ {
-		if i != offset {
-			list.WriteString("\n")
+		lines = append(lines, "  No matches found")
+	} else {
+		for i := offset; i < min(offset+rows, len(d.filtered)); i++ {
+			line := "  " + d.filtered[i].Title()
+			if i == d.cursor {
+				line = d.com.Styles.Dialog.Cursor.Render(line)
+			}
+			lines = append(lines, ansi.Truncate(line, w, "..."))
 		}
-		line := "  " + d.filtered[i].Title()
-		if i == d.cursor {
-			line = d.com.Styles.Dialog.Cursor.Render(line)
-		}
-		list.WriteString(ansi.Truncate(line, w, "..."))
 	}
 
 	const inputLine = 2
@@ -122,7 +119,7 @@ func (d *Finder) Render(area image.Rectangle) (string, *tea.Cursor) {
 		"",
 		d.input.View(),
 		"",
-		list.String(),
+		padRows(lines, rows),
 	)
 	return view, f.cursor(common.InputCursorX(d.input), inputLine)
 }
