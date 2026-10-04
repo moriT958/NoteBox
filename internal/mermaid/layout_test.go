@@ -148,10 +148,7 @@ func TestLayoutOrder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fc := mustParseFlowchart(t, tt.src)
-			l, err := layOut(fc)
-			if err != nil {
-				t.Fatalf("layOut() error = %v", err)
-			}
+			l := layOut(fc)
 			if got := rankOrder(fc, l); !slices.Equal(got, tt.want) {
 				t.Errorf("ranks = %q, want %q", got, tt.want)
 			}
@@ -164,10 +161,7 @@ func TestLayoutOrder(t *testing.T) {
 
 func TestReduceCrossings(t *testing.T) {
 	fc := mustParseFlowchart(t, "graph TD\nA & B\nA --> C --> E\nB --> D --> F")
-	l, err := layOut(fc)
-	if err != nil {
-		t.Fatalf("layOut() error = %v", err)
-	}
+	l := layOut(fc)
 	// Start from an order with edges crossing between both pairs of ranks.
 	l.ranks = [][]int{
 		{fc.index["A"], fc.index["B"]},
@@ -194,24 +188,21 @@ func TestLayoutPlace(t *testing.T) {
 		"B & C & D --> E",
 		"A ---> E",
 	}, "\n"))
-	l, err := layOut(fc)
-	if err != nil {
-		t.Fatalf("layOut() error = %v", err)
-	}
+	l := layOut(fc)
 
 	for r, rank := range l.ranks {
 		for i, v := range rank {
 			vert := l.verts[v]
-			if vert.cx-vert.left() < 0 || vert.cx+vert.right() >= l.w {
-				t.Errorf("vertex %d at columns %d-%d is outside the layout's width %d", v, vert.cx-vert.left(), vert.cx+vert.right(), l.w)
+			if vert.cx-l.left(&vert) < 0 || vert.cx+l.right(&vert) >= l.w {
+				t.Errorf("vertex %d at columns %d-%d is outside the layout's width %d", v, vert.cx-l.left(&vert), vert.cx+l.right(&vert), l.w)
 			}
 			if vert.y < l.rankY[r] || vert.y+vert.h > l.rankY[r]+l.rankH[r] {
 				t.Errorf("vertex %d at rows %d-%d is outside its rank's rows %d-%d", v, vert.y, vert.y+vert.h, l.rankY[r], l.rankY[r]+l.rankH[r])
 			}
 			if i > 0 {
 				prev := l.verts[rank[i-1]]
-				if gap := (vert.cx - vert.left()) - (prev.cx + prev.right() + 1); gap < gapX {
-					t.Errorf("vertices %d and %d in rank %d are %d apart, less than %d", rank[i-1], v, r, gap, gapX)
+				if gap := (vert.cx - l.left(&vert)) - (prev.cx + l.right(&prev) + 1); gap < l.gapX() {
+					t.Errorf("vertices %d and %d in rank %d are %d apart, less than %d", rank[i-1], v, r, gap, l.gapX())
 				}
 			}
 		}
@@ -237,10 +228,7 @@ func TestLayoutPlace(t *testing.T) {
 
 func TestLayoutCenterUnderSingleParent(t *testing.T) {
 	fc := mustParseFlowchart(t, "graph TD\nA[a wide parent node] --> B")
-	l, err := layOut(fc)
-	if err != nil {
-		t.Fatalf("layOut() error = %v", err)
-	}
+	l := layOut(fc)
 	if a, b := l.verts[fc.index["A"]], l.verts[fc.index["B"]]; a.cx != b.cx {
 		t.Errorf("parent centered at %d, child at %d", a.cx, b.cx)
 	}

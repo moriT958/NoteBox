@@ -354,7 +354,6 @@ func TestDrawFlowchartErrors(t *testing.T) {
 	}{
 		{"graph TD", ErrSyntax},
 		{"graph TD\nclassDef a fill:#f00", ErrSyntax},
-		{"graph LR\nA --> B", ErrUnsupported},
 	}
 	for _, tt := range tests {
 		if _, err := drawFlowchart(tt.src); !errors.Is(err, tt.want) {

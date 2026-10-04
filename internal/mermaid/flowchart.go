@@ -71,22 +71,15 @@ func drawFlowchart(src string) (*canvas, error) {
 	if len(fc.nodes) == 0 {
 		return nil, fmt.Errorf("%w: no nodes", ErrSyntax)
 	}
-	if fc.dir != flowTopDown {
-		return nil, fmt.Errorf("%w: direction other than top down", ErrUnsupported)
-	}
-	l, err := layOut(fc)
-	if err != nil {
-		return nil, err
-	}
-
-	c := newCanvas(l.w, l.h)
+	l := layOut(fc)
+	p := newPen(fc.dir, l)
 	for _, v := range l.verts {
 		if !v.isPoint() {
-			drawBox(c, v.x, v.y, v.w, v.h, fc.nodes[v.node].shape, v.lines)
+			p.box(v, fc.nodes[v.node].shape)
 		}
 	}
-	drawEdges(c, fc, l)
-	return c, nil
+	drawEdges(p, fc)
+	return p.c, nil
 }
 
 // ignoredStatements only style or link a flowchart, which is drawn

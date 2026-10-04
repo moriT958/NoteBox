@@ -6,9 +6,8 @@ import (
 )
 
 const (
-	// gapX is the number of columns between boxes side by side, and gapY
-	// the number of rows between ranks.
-	gapX = 3
+	// gapY is the least depth of the gap between ranks, in rows of a
+	// layout.
 	gapY = 2
 	// orderSweeps is how many times the ranks are reordered to reduce the
 	// crossings of edges, and placeSweeps how many times the boxes are
@@ -19,23 +18,27 @@ const (
 	// the label of the edges ending at it starts, leaving a space after the
 	// head.
 	labelGap = 2
-	// backX is the column, left of the middle of a node, that edges going
-	// back up leave it or reach it at, so that they keep apart from the
-	// edges going down. backWidth is the least width of a box with them,
-	// keeping the column off its corners.
-	backX     = 2
-	backWidth = 2*backX + 3
 	// loopHeight is the least height of a box with an edge to itself, which
 	// runs out of its right side on one row and back in on the next.
 	loopHeight = 4
+	// loopLabelX is how many columns right of a box's left side the label
+	// of its edges to itself starts, past the loop, when a flowchart runs
+	// sideways and the loop is under the box.
+	loopLabelX = 4
 )
 
 // A layout places the nodes of a flowchart on a grid, in ranks from the
 // top down. An edge that spans more than one rank passes through a point,
 // a vertex without a node, in each rank between its ends, so that every
 // part of an edge joins vertices in adjacent ranks.
+//
+// A flowchart that runs sideways is laid out the same way, with the columns
+// and the rows of its boxes swapped, and turned when it is drawn. Every
+// position in a layout is as it would be in a flowchart that runs down.
 type layout struct {
-	verts []vertex
+	// sideways reports whether the flowchart runs left or right.
+	sideways bool
+	verts    []vertex
 	// ranks holds the vertices of each rank from left to right.
 	ranks [][]int
 	// paths holds the vertices each edge passes through from the top down,
@@ -65,9 +68,10 @@ type vertex struct {
 	// point takes up. cx is the column at the middle of the box.
 	x, y, w, h int
 	cx         int
-	// label is the text written to the right of the head row above a node,
-	// labelling the edges that end at it, and backLabel the text written to
-	// the left of it, labelling the edges going back up from it.
+	// label labels the edges that end at a node, and backLabel the edges
+	// going back up from it. They are written beside the heads above the
+	// node, label to the right and backLabel to the left, or along the
+	// edges when the flowchart runs sideways.
 	label, backLabel string
 	// loop reports whether a node has edges to itself, labelled loopLabel.
 	loop      bool
@@ -76,25 +80,48 @@ type vertex struct {
 
 func (v *vertex) isPoint() bool { return v.node < 0 }
 
-// left and right are the number of columns a vertex takes up on each side of
-// its middle column, including the labels and the edges to itself beside a
-// node.
-func (v *vertex) left() int {
-	l := v.w / 2
-	if v.backLabel != "" {
-		l = max(l, backX+1+textWidth(v.backLabel))
+// gapX is the number of columns between vertices side by side in a rank: a
+// few columns, or a row when a flowchart runs sideways.
+func (l *layout) gapX() int {
+	if l.sideways {
+		return 1
 	}
-	return l
+	return 3
 }
 
-func (v *vertex) right() int {
+// backX is the column, left of the middle of a node, that edges going back
+// up leave it or reach it at, so that they keep apart from the edges going
+// down: two columns, or a row when a flowchart runs sideways. backWidth is
+// the least width of a box with them, keeping the column off its corners.
+func (l *layout) backX() int {
+	if l.sideways {
+		return 1
+	}
+	return 2
+}
+
+func (l *layout) backWidth() int { return 2*l.backX() + 3 }
+
+// left and right are the number of columns a vertex takes up on each side of
+// its middle column, including the labels and the edges to itself beside a
+// node. When a flowchart runs sideways, labels run along its edges instead,
+// in the gaps between ranks.
+func (l *layout) left(v *vertex) int {
+	left := v.w / 2
+	if v.backLabel != "" && !l.sideways {
+		left = max(left, l.backX()+1+textWidth(v.backLabel))
+	}
+	return left
+}
+
+func (l *layout) right(v *vertex) int {
 	r := v.w - 1 - v.w/2
-	if v.label != "" {
+	if v.label != "" && !l.sideways {
 		r = max(r, labelGap-1+textWidth(v.label))
 	}
 	if v.loop {
 		r = max(r, v.loopDX())
-		if v.loopLabel != "" {
+		if v.loopLabel != "" && !l.sideways {
 			r = max(r, v.loopDX()+1+textWidth(v.loopLabel))
 		}
 	}
@@ -115,18 +142,18 @@ type part struct {
 	track          int
 }
 
-// layOut places a flowchart's nodes, which must flow from the top down.
-func layOut(fc *flowchart) (*layout, error) {
+// layOut places a flowchart's nodes.
+func layOut(fc *flowchart) *layout {
 	back := backEdges(fc)
 	ranks := rankNodes(fc, back)
-	l := &layout{back: back}
+	l := &layout{back: back, sideways: fc.dir == flowLeftRight || fc.dir == flowRightLeft}
 	l.addVertices(fc, ranks)
 	l.initOrder()
 	l.reduceCrossings()
 	l.placeX()
 	l.addParts()
 	l.placeY()
-	return l, nil
+	return l
 }
 
 // backEdges finds the edges that go back up, so that the rest have no
@@ -263,7 +290,11 @@ func (l *layout) addVertices(fc *flowchart, ranks []int) {
 		for _, line := range lines {
 			w = max(w, textWidth(line))
 		}
-		add(vertex{node: i, edge: -1, rank: ranks[i], lines: lines, w: w + 2*labelPad + 2, h: len(lines) + 2})
+		w, h := w+2*labelPad+2, len(lines)+2
+		if l.sideways {
+			w, h = h, w
+		}
+		add(vertex{node: i, edge: -1, rank: ranks[i], lines: lines, w: w, h: h})
 	}
 	for ei, e := range fc.edges {
 		label := ""
@@ -283,7 +314,7 @@ func (l *layout) addVertices(fc *flowchart, ranks []int) {
 		if l.back[ei] {
 			top, bottom = e.to, e.from
 			for _, v := range []int{top, bottom} {
-				l.verts[v].w = max(l.verts[v].w, backWidth)
+				l.verts[v].w = max(l.verts[v].w, l.backWidth())
 			}
 			l.verts[bottom].backLabel = joinLabel(l.verts[bottom].backLabel, label)
 		} else {
@@ -481,20 +512,20 @@ func (l *layout) placeX() {
 
 	left := math.Inf(1)
 	for i := range l.verts {
-		left = min(left, center[i]-float64(l.verts[i].left()))
+		left = min(left, center[i]-float64(l.left(&l.verts[i])))
 	}
 	for i := range l.verts {
 		v := &l.verts[i]
 		v.cx = int(math.Round(center[i] - left))
 		v.x = v.cx - v.w/2
-		l.w = max(l.w, v.cx+v.right()+1)
+		l.w = max(l.w, v.cx+l.right(v)+1)
 	}
 }
 
 // apart is the least distance between the middle columns of the vertices a
 // and b, side by side in a rank in that order.
 func (l *layout) apart(a, b int) float64 {
-	return float64(l.verts[a].right() + 1 + gapX + l.verts[b].left())
+	return float64(l.right(&l.verts[a]) + 1 + l.gapX() + l.left(&l.verts[b]))
 }
 
 // relax moves the vertices of a rank toward the mean middle column of the
@@ -545,10 +576,10 @@ func (l *layout) addParts() {
 			switch {
 			case l.back[ei]:
 				if !from.isPoint() {
-					p.fromX -= backX
+					p.fromX -= l.backX()
 				}
 				if !to.isPoint() {
-					p.toX -= backX
+					p.toX -= l.backX()
 				}
 			// A part that would only jog by a column leaves its from box
 			// straight above where it ends instead.
@@ -601,12 +632,19 @@ func abs(n int) int {
 // placeY sets the rows of the vertices: the ranks one below another, with
 // gaps tall enough for the tracks between them, a row where each part runs
 // down alone, so that its style shows, and the row of heads above the boxes
-// below.
+// below. When a flowchart runs sideways, the gaps also fit the labels that
+// run along the edges into the boxes after them.
 func (l *layout) placeY() {
 	tracks := make([]int, len(l.ranks))
 	for _, p := range l.parts {
 		r := l.verts[p.from].rank
 		tracks[r] = max(tracks[r], p.track+1)
+	}
+	labels := make([]int, len(l.ranks)) // the widest label into each rank
+	if l.sideways {
+		for _, v := range l.verts {
+			labels[v.rank] = max(labels[v.rank], textWidth(v.label), textWidth(v.backLabel))
+		}
 	}
 
 	y := 0
@@ -614,6 +652,11 @@ func (l *layout) placeY() {
 		h := 1
 		for _, v := range rank {
 			h = max(h, l.verts[v].h)
+			// The label of a loop under a box runs on past the box's side,
+			// within the rank around the box in its middle.
+			if vert := l.verts[v]; l.sideways && vert.loopLabel != "" {
+				h = max(h, 2*(loopLabelX+textWidth(vert.loopLabel))-vert.h)
+			}
 		}
 		l.rankY = append(l.rankY, y)
 		l.rankH = append(l.rankH, h)
@@ -628,10 +671,16 @@ func (l *layout) placeY() {
 		y += h
 		if r < len(l.ranks)-1 {
 			l.gapTop = append(l.gapTop, y)
-			y += gapY
+			gap := gapY
 			if tracks[r] > 0 {
-				y += tracks[r]
+				gap = tracks[r] + 2
 			}
+			// A label runs after the tracks and a line, up to the line and
+			// head before the box.
+			if w := labels[r+1]; w > 0 {
+				gap = max(gap, tracks[r]+w+3)
+			}
+			y += gap
 		}
 	}
 	l.h = y
