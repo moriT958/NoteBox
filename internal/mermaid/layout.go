@@ -1,7 +1,6 @@
 package mermaid
 
 import (
-	"fmt"
 	"math"
 	"slices"
 )
@@ -20,6 +19,15 @@ const (
 	// the label of the edges ending at it starts, leaving a space after the
 	// head.
 	labelGap = 2
+	// backX is the column, left of the middle of a node, that edges going
+	// back up leave it or reach it at, so that they keep apart from the
+	// edges going down. backWidth is the least width of a box with them,
+	// keeping the column off its corners.
+	backX     = 2
+	backWidth = 2*backX + 3
+	// loopHeight is the least height of a box with an edge to itself, which
+	// runs out of its right side on one row and back in on the next.
+	loopHeight = 4
 )
 
 // A layout places the nodes of a flowchart on a grid, in ranks from the
@@ -30,9 +38,12 @@ type layout struct {
 	verts []vertex
 	// ranks holds the vertices of each rank from left to right.
 	ranks [][]int
-	// paths holds the vertices each edge passes through, from its from end
-	// to its to end.
+	// paths holds the vertices each edge passes through from the top down,
+	// which is from its to end to its from end for an edge going back up.
+	// Edges from a node to itself have no path.
 	paths [][]int
+	// back reports for each edge whether it goes back up.
+	back []bool
 	// parts holds the parts of the edges, each joining vertices in
 	// adjacent ranks.
 	parts []part
@@ -55,23 +66,44 @@ type vertex struct {
 	x, y, w, h int
 	cx         int
 	// label is the text written to the right of the head row above a node,
-	// labelling the edges that end at it.
-	label string
+	// labelling the edges that end at it, and backLabel the text written to
+	// the left of it, labelling the edges going back up from it.
+	label, backLabel string
+	// loop reports whether a node has edges to itself, labelled loopLabel.
+	loop      bool
+	loopLabel string
 }
 
 func (v *vertex) isPoint() bool { return v.node < 0 }
 
 // left and right are the number of columns a vertex takes up on each side of
-// its middle column, including the label to the right of a node.
-func (v *vertex) left() int { return v.w / 2 }
+// its middle column, including the labels and the edges to itself beside a
+// node.
+func (v *vertex) left() int {
+	l := v.w / 2
+	if v.backLabel != "" {
+		l = max(l, backX+1+textWidth(v.backLabel))
+	}
+	return l
+}
 
 func (v *vertex) right() int {
 	r := v.w - 1 - v.w/2
 	if v.label != "" {
 		r = max(r, labelGap-1+textWidth(v.label))
 	}
+	if v.loop {
+		r = max(r, v.loopDX())
+		if v.loopLabel != "" {
+			r = max(r, v.loopDX()+1+textWidth(v.loopLabel))
+		}
+	}
 	return r
 }
+
+// loopDX is how many columns right of its middle the edges from a node to
+// itself turn, a column out from its right side.
+func (v *vertex) loopDX() int { return v.w - v.w/2 + 1 }
 
 // A part of an edge joins vertices in adjacent ranks. It leaves its from
 // vertex at column fromX and reaches its to vertex at column toX, running
@@ -85,11 +117,9 @@ type part struct {
 
 // layOut places a flowchart's nodes, which must flow from the top down.
 func layOut(fc *flowchart) (*layout, error) {
-	ranks, err := rankNodes(fc)
-	if err != nil {
-		return nil, err
-	}
-	l := &layout{}
+	back := backEdges(fc)
+	ranks := rankNodes(fc, back)
+	l := &layout{back: back}
 	l.addVertices(fc, ranks)
 	l.initOrder()
 	l.reduceCrossings()
@@ -99,19 +129,78 @@ func layOut(fc *flowchart) (*layout, error) {
 	return l, nil
 }
 
-// rankNodes puts each node in a rank below those of the nodes with edges to
-// it, by at least the edges' lengths, and then moves nodes without edges to
-// them down next to the nodes they have edges to.
-func rankNodes(fc *flowchart) ([]int, error) {
+// backEdges finds the edges that go back up, so that the rest have no
+// cycles: those that a depth-first walk along the edges, in the order nodes
+// and edges are declared, finds leading back to a node it is still walking
+// from. Edges from a node to itself are left to be drawn beside it.
+func backEdges(fc *flowchart) []bool {
+	out := make([][]int, len(fc.nodes))
+	for i, e := range fc.edges {
+		if e.from != e.to {
+			out[e.from] = append(out[e.from], i)
+		}
+	}
+	back := make([]bool, len(fc.edges))
+	const (
+		unvisited = iota
+		walking
+		done
+	)
+	state := make([]int, len(fc.nodes))
+	var walk func(u int)
+	walk = func(u int) {
+		state[u] = walking
+		for _, i := range out[u] {
+			switch to := fc.edges[i].to; state[to] {
+			case unvisited:
+				walk(to)
+			case walking:
+				back[i] = true
+			}
+		}
+		state[u] = done
+	}
+	for u := range fc.nodes {
+		if state[u] == unvisited {
+			walk(u)
+		}
+	}
+	return back
+}
+
+// A link joins two nodes from the top down, as an edge or an edge going back
+// up turned around.
+type link struct{ from, to, length int }
+
+// links returns the edges of a flowchart joining two nodes from the top down.
+func links(fc *flowchart, back []bool) []link {
+	var ls []link
+	for i, e := range fc.edges {
+		switch {
+		case e.from == e.to:
+		case back[i]:
+			ls = append(ls, link{e.to, e.from, e.length})
+		default:
+			ls = append(ls, link{e.from, e.to, e.length})
+		}
+	}
+	return ls
+}
+
+// rankNodes puts each node in a rank below those of the nodes linked to it,
+// by at least the links' lengths, and then moves nodes without links to them
+// down next to the nodes they link to.
+func rankNodes(fc *flowchart, back []bool) []int {
 	n := len(fc.nodes)
 	in := make([]int, n)
-	out := make([][]edge, n)
-	for _, e := range fc.edges {
-		if e.from == e.to {
-			return nil, fmt.Errorf("%w: edge from %q to itself", ErrUnsupported, fc.nodes[e.from].id)
-		}
-		in[e.to]++
-		out[e.from] = append(out[e.from], e)
+	out := make([][]link, n)
+	for _, lk := range links(fc, back) {
+		in[lk.to]++
+		out[lk.from] = append(out[lk.from], lk)
+	}
+	hasIncoming := make([]bool, n)
+	for i := range n {
+		hasIncoming[i] = in[i] > 0
 	}
 
 	// Visit the nodes in topological order, keeping the order they were
@@ -128,24 +217,21 @@ func rankNodes(fc *flowchart) ([]int, error) {
 		u := queue[0]
 		queue = queue[1:]
 		sorted = append(sorted, u)
-		for _, e := range out[u] {
-			rank[e.to] = max(rank[e.to], rank[u]+e.length)
-			if in[e.to]--; in[e.to] == 0 {
-				queue = append(queue, e.to)
+		for _, lk := range out[u] {
+			rank[lk.to] = max(rank[lk.to], rank[u]+lk.length)
+			if in[lk.to]--; in[lk.to] == 0 {
+				queue = append(queue, lk.to)
 			}
 		}
 	}
-	if len(sorted) < n {
-		return nil, fmt.Errorf("%w: cycle", ErrUnsupported)
-	}
 
 	for _, u := range slices.Backward(sorted) {
-		if len(out[u]) == 0 || hasIncoming(fc, u) {
+		if len(out[u]) == 0 || hasIncoming[u] {
 			continue
 		}
 		lowest := math.MaxInt
-		for _, e := range out[u] {
-			lowest = min(lowest, rank[e.to]-e.length)
+		for _, lk := range out[u] {
+			lowest = min(lowest, rank[lk.to]-lk.length)
 		}
 		rank[u] = lowest
 	}
@@ -157,11 +243,7 @@ func rankNodes(fc *flowchart) ([]int, error) {
 			rank[i] -= top
 		}
 	}
-	return rank, nil
-}
-
-func hasIncoming(fc *flowchart, u int) bool {
-	return slices.ContainsFunc(fc.edges, func(e edge) bool { return e.to == u })
+	return rank
 }
 
 // addVertices adds a vertex for each node and the points edges pass
@@ -184,35 +266,64 @@ func (l *layout) addVertices(fc *flowchart, ranks []int) {
 		add(vertex{node: i, edge: -1, rank: ranks[i], lines: lines, w: w + 2*labelPad + 2, h: len(lines) + 2})
 	}
 	for ei, e := range fc.edges {
-		path := []int{e.from}
-		for r := ranks[e.from] + 1; r < ranks[e.to]; r++ {
+		label := ""
+		if e.label != "" && !e.invisible {
+			label = fitLabel(e.label, labelWidth)
+		}
+		if e.from == e.to {
+			v := &l.verts[e.from]
+			v.loop = v.loop || !e.invisible
+			v.loopLabel = joinLabel(v.loopLabel, label)
+			v.h = max(v.h, loopHeight)
+			l.paths = append(l.paths, nil)
+			continue
+		}
+
+		top, bottom := e.from, e.to
+		if l.back[ei] {
+			top, bottom = e.to, e.from
+			for _, v := range []int{top, bottom} {
+				l.verts[v].w = max(l.verts[v].w, backWidth)
+			}
+			l.verts[bottom].backLabel = joinLabel(l.verts[bottom].backLabel, label)
+		} else {
+			l.verts[bottom].label = joinLabel(l.verts[bottom].label, label)
+		}
+		path := []int{top}
+		for r := ranks[top] + 1; r < ranks[bottom]; r++ {
 			path = append(path, add(vertex{node: -1, edge: ei, rank: r, w: 1}))
 		}
-		l.paths = append(l.paths, append(path, e.to))
-		if e.label != "" && !e.invisible {
-			to := &l.verts[e.to]
-			to.label = joinLabel(to.label, fitLabel(e.label, labelWidth))
-		}
+		l.paths = append(l.paths, append(path, bottom))
 	}
 }
 
-// joinLabel adds label to the labels of the edges ending at a node.
+// joinLabel adds label to the labels of edges at the same place.
 func joinLabel(labels, label string) string {
-	if labels == "" {
+	switch {
+	case labels == "":
 		return label
+	case label == "":
+		return labels
 	}
 	return labels + ", " + label
 }
 
 // neighbors returns, for each vertex, the vertices it is joined to in the
-// rank above and in the rank below.
+// rank above and in the rank below. The vertices joined by edges going back
+// up come first, so that walking down the edges in order puts them on the
+// left, the side those edges leave and reach their nodes on.
 func (l *layout) neighbors() (up, down [][]int) {
 	up = make([][]int, len(l.verts))
 	down = make([][]int, len(l.verts))
-	for _, path := range l.paths {
-		for i := 1; i < len(path); i++ {
-			up[path[i]] = append(up[path[i]], path[i-1])
-			down[path[i-1]] = append(down[path[i-1]], path[i])
+	for _, back := range []bool{true, false} {
+		for ei, path := range l.paths {
+			if l.back[ei] != back {
+				continue
+			}
+			for i := 1; i < len(path); i++ {
+				up[path[i]] = append(up[path[i]], path[i-1])
+				down[path[i-1]] = append(down[path[i-1]], path[i])
+			}
 		}
 	}
 	return up, down
@@ -375,7 +486,7 @@ func (l *layout) placeX() {
 	for i := range l.verts {
 		v := &l.verts[i]
 		v.cx = int(math.Round(center[i] - left))
-		v.x = v.cx - v.left()
+		v.x = v.cx - v.w/2
 		l.w = max(l.w, v.cx+v.right()+1)
 	}
 }
@@ -431,9 +542,17 @@ func (l *layout) addParts() {
 				first: i == 1, last: i == len(path)-1,
 				fromX: from.cx, toX: to.cx, track: -1,
 			}
+			switch {
+			case l.back[ei]:
+				if !from.isPoint() {
+					p.fromX -= backX
+				}
+				if !to.isPoint() {
+					p.toX -= backX
+				}
 			// A part that would only jog by a column leaves its from box
 			// straight above where it ends instead.
-			if !from.isPoint() && abs(p.fromX-p.toX) <= 1 && p.toX > from.x && p.toX < from.x+from.w-1 {
+			case !from.isPoint() && abs(p.fromX-p.toX) <= 1 && p.toX > from.x && p.toX < from.x+from.w-1:
 				p.fromX = p.toX
 			}
 			l.parts = append(l.parts, p)
@@ -461,10 +580,10 @@ func (l *layout) addParts() {
 }
 
 // clash reports whether two parts running sideways can't share a track:
-// they would run along or right next to each other, and don't start or end
-// at the same vertex.
+// they would run along or right next to each other, and don't leave or reach
+// a vertex at the same column.
 func clash(a, b *part) bool {
-	if a.from == b.from || a.to == b.to {
+	if a.from == b.from && a.fromX == b.fromX || a.to == b.to && a.toX == b.toX {
 		return false
 	}
 	aLo, aHi := min(a.fromX, a.toX), max(a.fromX, a.toX)

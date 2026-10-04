@@ -1,7 +1,6 @@
 package mermaid
 
 import (
-	"errors"
 	"maps"
 	"slices"
 	"strings"
@@ -58,14 +57,21 @@ func TestRankNodes(t *testing.T) {
 			src:  "graph TD\nA ~~~ B",
 			want: map[string]int{"A": 0, "B": 1},
 		},
+		{
+			name: "edges going back up are turned around",
+			src:  "graph TD\nA --> B --> C --> A",
+			want: map[string]int{"A": 0, "B": 1, "C": 2},
+		},
+		{
+			name: "edges to the node itself are left out",
+			src:  "graph TD\nA --> A --> B",
+			want: map[string]int{"A": 0, "B": 1},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fc := mustParseFlowchart(t, tt.src)
-			ranks, err := rankNodes(fc)
-			if err != nil {
-				t.Fatalf("rankNodes() error = %v", err)
-			}
+			ranks := rankNodes(fc, backEdges(fc))
 			got := map[string]int{}
 			for i, n := range fc.nodes {
 				got[n.id] = ranks[i]
@@ -77,15 +83,25 @@ func TestRankNodes(t *testing.T) {
 	}
 }
 
-func TestRankNodesUnsupported(t *testing.T) {
-	for _, src := range []string{
-		"graph TD\nA --> B --> A",
-		"graph TD\nA --> B --> C --> A",
-		"graph TD\nA --> A",
-	} {
-		if _, err := rankNodes(mustParseFlowchart(t, src)); !errors.Is(err, ErrUnsupported) {
-			t.Errorf("rankNodes(%q) error = %v, want ErrUnsupported", src, err)
-		}
+func TestBackEdges(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want []bool
+	}{
+		{"no cycles", "graph TD\nA --> B --> C\nA --> C", []bool{false, false, false}},
+		{"two nodes", "graph TD\nA --> B\nB --> A", []bool{false, true}},
+		{"longer cycle", "graph TD\nA --> B --> C --> A", []bool{false, false, true}},
+		{"declared from the middle", "graph TD\nB --> C\nC --> A\nA --> B", []bool{false, false, true}},
+		{"self-loops", "graph TD\nA --> A", []bool{false}},
+		{"cross edges", "graph TD\nA --> B\nA --> C\nC --> B", []bool{false, false, false}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := backEdges(mustParseFlowchart(t, tt.src)); !slices.Equal(got, tt.want) {
+				t.Errorf("backEdges() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
