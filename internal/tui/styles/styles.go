@@ -3,6 +3,8 @@ package styles
 import (
 	"fmt"
 
+	"notebox/internal/mermaid"
+
 	"charm.land/lipgloss/v2"
 )
 
@@ -45,6 +47,9 @@ type Styles struct {
 		Cancel  lipgloss.Style
 		Error   lipgloss.Style
 	}
+
+	// Mermaid colors the diagrams drawn in the preview.
+	Mermaid mermaid.Styles
 }
 
 // New builds the styles for the given theme name ("dark" or "light").
@@ -113,6 +118,13 @@ func New(theme string) (*Styles, error) {
 	s.Dialog.Confirm = lipgloss.NewStyle().Foreground(buttonFg).Background(confirmBg)
 	s.Dialog.Cancel = lipgloss.NewStyle().Foreground(buttonFg).Background(cancelBg)
 	s.Dialog.Error = lipgloss.NewStyle().Foreground(cancelBg)
+
+	s.Mermaid = mermaid.Styles{
+		Border:    pick(lipgloss.Color("#1e66f5"), lipgloss.Color("#8caaee")),
+		Text:      pick(lipgloss.Color("#4c4f69"), lipgloss.Color("#c6d0f5")),
+		Edge:      pick(lipgloss.Color("#7c7f93"), lipgloss.Color("#949cbb")),
+		EdgeLabel: pick(lipgloss.Color("#6c6f85"), lipgloss.Color("#a5adce")),
+	}
 
 	return s, nil
 }

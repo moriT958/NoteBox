@@ -37,7 +37,10 @@ type Styles struct {
 type drawFunc func(src string) (*canvas, error)
 
 // diagrams maps the keyword that opens a diagram to the function drawing it.
-var diagrams = map[string]drawFunc{}
+var diagrams = map[string]drawFunc{
+	"graph":     drawFlowchart,
+	"flowchart": drawFlowchart,
+}
 
 // Render draws a Mermaid diagram in the given colors. Diagrams that can't be
 // drawn are reported with one of the errors above, so that the caller can

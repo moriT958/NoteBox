@@ -346,3 +346,21 @@ func TestParseFlowchartErrors(t *testing.T) {
 		}
 	}
 }
+
+func TestDrawFlowchartErrors(t *testing.T) {
+	tests := []struct {
+		src  string
+		want error
+	}{
+		{"graph TD", ErrSyntax},
+		{"graph TD\nclassDef a fill:#f00", ErrSyntax},
+		{"graph LR\nA --> B", ErrUnsupported},
+		{"graph TD\nA --> B --> A", ErrUnsupported},
+		{"graph TD\nA --> A", ErrUnsupported},
+	}
+	for _, tt := range tests {
+		if _, err := drawFlowchart(tt.src); !errors.Is(err, tt.want) {
+			t.Errorf("drawFlowchart(%q) error = %v, want %v", tt.src, err, tt.want)
+		}
+	}
+}

@@ -62,6 +62,33 @@ type flowchart struct {
 	index map[string]int // node IDs to indexes into nodes
 }
 
+// drawFlowchart draws a flowchart from its source.
+func drawFlowchart(src string) (*canvas, error) {
+	fc, err := parseFlowchart(src)
+	if err != nil {
+		return nil, err
+	}
+	if len(fc.nodes) == 0 {
+		return nil, fmt.Errorf("%w: no nodes", ErrSyntax)
+	}
+	if fc.dir != flowTopDown {
+		return nil, fmt.Errorf("%w: direction other than top down", ErrUnsupported)
+	}
+	l, err := layOut(fc)
+	if err != nil {
+		return nil, err
+	}
+
+	c := newCanvas(l.w, l.h)
+	for _, v := range l.verts {
+		if !v.isPoint() {
+			drawBox(c, v.x, v.y, v.w, v.h, fc.nodes[v.node].shape, v.lines)
+		}
+	}
+	drawEdges(c, fc, l)
+	return c, nil
+}
+
 // ignoredStatements only style or link a flowchart, which is drawn
 // without them.
 var ignoredStatements = map[string]bool{

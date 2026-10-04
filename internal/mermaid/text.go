@@ -7,9 +7,16 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// labelBreakpoints are where words too long for a line may break, in
-// addition to hyphens, so identifiers split between their segments.
-const labelBreakpoints = "_./"
+const (
+	// labelWidth and labelLines bound the size of a wrapped label, and
+	// labelPad is the space on each side of a label in its box.
+	labelWidth = 24
+	labelLines = 4
+	labelPad   = 1
+	// labelBreakpoints are where words too long for a line may break, in
+	// addition to hyphens, so identifiers split between their segments.
+	labelBreakpoints = "_./"
+)
 
 // formatTags are the HTML tags that only style text. Labels drop them and
 // keep their text.
