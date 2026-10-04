@@ -5,8 +5,8 @@ go 1.27.1
 require (
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.6
-	charm.land/glamour/v2 v2.0.0
-	charm.land/lipgloss/v2 v2.0.3
+	charm.land/glamour/v2 v2.0.1
+	charm.land/lipgloss/v2 v2.0.4
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/gofsnotify/fsnotify v0.0.3
 	github.com/google/subcommands v1.2.0
@@ -54,3 +54,5 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+
+replace charm.land/glamour/v2 => github.com/moriT958/glamour/v2 v2.0.1-notebox.1
