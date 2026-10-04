@@ -33,6 +33,22 @@ type Styles struct {
 	EdgeLabel color.Color
 }
 
+// Limits on the size of diagrams, beyond which they aren't drawn.
+const (
+	// maxTextSize and maxEdges are Mermaid's own limits by default, on the
+	// length of a diagram's source and on its edges.
+	maxTextSize = 50000
+	maxEdges    = 500
+	// maxPoints limits the points edges pass through, which edges spanning
+	// many ranks add many of.
+	maxPoints = 10 * maxEdges
+	// maxCells limits the size of a drawing, in cells.
+	maxCells = 1 << 21
+)
+
+// errPanic reports a bug: a panic while drawing a diagram.
+var errPanic = errors.New("mermaid: panic")
+
 // A drawFunc draws a diagram of one type from its whole source.
 type drawFunc func(src string) (*canvas, error)
 
@@ -48,10 +64,13 @@ var diagrams = map[string]drawFunc{
 func Render(src string, styles Styles) (out string, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			out, err = "", fmt.Errorf("mermaid: panic: %v", r)
+			out, err = "", fmt.Errorf("%w: %v", errPanic, r)
 		}
 	}()
 
+	if len(src) > maxTextSize {
+		return "", fmt.Errorf("%w: longer than %d bytes", ErrTooLarge, maxTextSize)
+	}
 	keyword := diagramKeyword(src)
 	draw, ok := diagrams[keyword]
 	if !ok {

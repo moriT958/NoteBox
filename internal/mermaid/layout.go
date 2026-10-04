@@ -1,6 +1,7 @@
 package mermaid
 
 import (
+	"fmt"
 	"math"
 	"slices"
 )
@@ -142,10 +143,18 @@ type part struct {
 	track          int
 }
 
-// layOut places a flowchart's nodes.
-func layOut(fc *flowchart) *layout {
+// layOut places a flowchart's nodes, unless the layout would be too large.
+func layOut(fc *flowchart) (*layout, error) {
 	back := backEdges(fc)
 	ranks := rankNodes(fc, back)
+	points := 0
+	for _, lk := range links(fc, back) {
+		points += ranks[lk.to] - ranks[lk.from] - 1
+	}
+	if points > maxPoints {
+		return nil, fmt.Errorf("%w: edges span %d ranks between their ends", ErrTooLarge, points)
+	}
+
 	l := &layout{back: back, sideways: fc.dir == flowLeftRight || fc.dir == flowRightLeft}
 	l.addVertices(fc, ranks)
 	l.initOrder()
@@ -153,7 +162,10 @@ func layOut(fc *flowchart) *layout {
 	l.placeX()
 	l.addParts()
 	l.placeY()
-	return l
+	if l.w*l.h > maxCells {
+		return nil, fmt.Errorf("%w: %dx%d cells", ErrTooLarge, l.w, l.h)
+	}
+	return l, nil
 }
 
 // backEdges finds the edges that go back up, so that the rest have no

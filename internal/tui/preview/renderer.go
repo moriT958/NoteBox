@@ -1,6 +1,8 @@
 package preview
 
 import (
+	"errors"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -46,9 +48,25 @@ func diagramRenderer(diagrams mermaid.Styles) func(language, code string) (strin
 		}
 		drawn, err := mermaid.Render(code, diagrams)
 		if err != nil {
+			logDiagramError(err)
 			return "", false
 		}
 		return drawn, true
+	}
+}
+
+// logDiagramError logs why a diagram is shown as code: quietly for kinds of
+// diagrams that can't be drawn yet, which are expected, louder for diagrams
+// that are broken or too large, and as an error for anything else, which is
+// a bug.
+func logDiagramError(err error) {
+	switch {
+	case errors.Is(err, mermaid.ErrUnsupported):
+		slog.Debug("mermaid diagram not drawn", "error", err)
+	case errors.Is(err, mermaid.ErrSyntax), errors.Is(err, mermaid.ErrTooLarge):
+		slog.Warn("mermaid diagram not drawn", "error", err)
+	default:
+		slog.Error("mermaid diagram not drawn", "error", err)
 	}
 }
 

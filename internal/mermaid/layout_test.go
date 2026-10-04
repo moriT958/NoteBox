@@ -148,7 +148,10 @@ func TestLayoutOrder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fc := mustParseFlowchart(t, tt.src)
-			l := layOut(fc)
+			l, err := layOut(fc)
+			if err != nil {
+				t.Fatalf("layOut() error = %v", err)
+			}
 			if got := rankOrder(fc, l); !slices.Equal(got, tt.want) {
 				t.Errorf("ranks = %q, want %q", got, tt.want)
 			}
@@ -161,7 +164,10 @@ func TestLayoutOrder(t *testing.T) {
 
 func TestReduceCrossings(t *testing.T) {
 	fc := mustParseFlowchart(t, "graph TD\nA & B\nA --> C --> E\nB --> D --> F")
-	l := layOut(fc)
+	l, err := layOut(fc)
+	if err != nil {
+		t.Fatalf("layOut() error = %v", err)
+	}
 	// Start from an order with edges crossing between both pairs of ranks.
 	l.ranks = [][]int{
 		{fc.index["A"], fc.index["B"]},
@@ -188,7 +194,10 @@ func TestLayoutPlace(t *testing.T) {
 		"B & C & D --> E",
 		"A ---> E",
 	}, "\n"))
-	l := layOut(fc)
+	l, err := layOut(fc)
+	if err != nil {
+		t.Fatalf("layOut() error = %v", err)
+	}
 
 	for r, rank := range l.ranks {
 		for i, v := range rank {
@@ -228,7 +237,10 @@ func TestLayoutPlace(t *testing.T) {
 
 func TestLayoutCenterUnderSingleParent(t *testing.T) {
 	fc := mustParseFlowchart(t, "graph TD\nA[a wide parent node] --> B")
-	l := layOut(fc)
+	l, err := layOut(fc)
+	if err != nil {
+		t.Fatalf("layOut() error = %v", err)
+	}
 	if a, b := l.verts[fc.index["A"]], l.verts[fc.index["B"]]; a.cx != b.cx {
 		t.Errorf("parent centered at %d, child at %d", a.cx, b.cx)
 	}

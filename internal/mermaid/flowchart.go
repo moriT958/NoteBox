@@ -71,7 +71,10 @@ func drawFlowchart(src string) (*canvas, error) {
 	if len(fc.nodes) == 0 {
 		return nil, fmt.Errorf("%w: no nodes", ErrSyntax)
 	}
-	l := layOut(fc)
+	l, err := layOut(fc)
+	if err != nil {
+		return nil, err
+	}
 	p := newPen(fc.dir, l)
 	for _, v := range l.verts {
 		if !v.isPoint() {
@@ -225,7 +228,14 @@ func (s *scanner) skipSpaces() {
 func (s *scanner) done() bool { return s.i >= len(s.rs) }
 
 func (s *scanner) hasPrefix(p string) bool {
-	return strings.HasPrefix(string(s.rs[s.i:]), p)
+	i := s.i
+	for _, r := range p {
+		if i >= len(s.rs) || s.rs[i] != r {
+			return false
+		}
+		i++
+	}
+	return true
 }
 
 func (s *scanner) rest() string { return string(s.rs[s.i:]) }
@@ -255,6 +265,9 @@ func (fc *flowchart) parseStatement(st string) error {
 		for _, f := range from {
 			for _, t := range to {
 				e.from, e.to = f, t
+				if len(fc.edges) == maxEdges {
+					return fmt.Errorf("%w: more than %d edges", ErrTooLarge, maxEdges)
+				}
 				fc.edges = append(fc.edges, e)
 			}
 		}
