@@ -1,6 +1,7 @@
 package mermaid
 
 import (
+	"image/color"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -232,15 +233,50 @@ func lineGlyph(d dirs, style lineStyle) string {
 	return solidGlyphs[d]
 }
 
-// String returns the canvas as lines of text without trailing spaces.
+// String returns the canvas as lines of text without colors.
 func (c *canvas) String() string {
+	return c.render(Styles{})
+}
+
+// render returns the canvas as lines of text without trailing spaces, each
+// part colored as styles says. Colors only set and reset the foreground, so
+// that the attributes of the text around the diagram carry through it.
+func (c *canvas) render(styles Styles) string {
+	seqs := map[role]string{}
+	for r, col := range map[role]color.Color{
+		roleBorder:    styles.Border,
+		roleText:      styles.Text,
+		roleEdge:      styles.Edge,
+		roleEdgeLabel: styles.EdgeLabel,
+	} {
+		if col != nil {
+			seqs[r] = ansi.Style{}.ForegroundColor(col).String()
+		}
+	}
+	reset := ansi.Style{}.ForegroundColor(nil).String()
+
 	var b strings.Builder
 	for y := range c.h {
-		var row strings.Builder
-		for x := range c.w {
-			row.WriteString(c.cells[y*c.w+x].s)
+		row := c.cells[y*c.w : (y+1)*c.w]
+		end := len(row)
+		for end > 0 && row[end-1].s == " " {
+			end--
 		}
-		b.WriteString(strings.TrimRight(row.String(), " "))
+		cur := ""
+		for _, cl := range row[:end] {
+			// Spaces show no color, so they don't need to switch to one.
+			if cl.s != " " && cl.s != "" && seqs[cl.role] != cur {
+				if cur != "" {
+					b.WriteString(reset)
+				}
+				cur = seqs[cl.role]
+				b.WriteString(cur)
+			}
+			b.WriteString(cl.s)
+		}
+		if cur != "" {
+			b.WriteString(reset)
+		}
 		if y < c.h-1 {
 			b.WriteByte('\n')
 		}

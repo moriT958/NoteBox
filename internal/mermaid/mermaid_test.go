@@ -3,6 +3,8 @@ package mermaid
 import (
 	"errors"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // withDiagram registers a diagram type for the duration of a test.
@@ -12,8 +14,17 @@ func withDiagram(t *testing.T, keyword string, draw drawFunc) {
 	t.Cleanup(func() { delete(diagrams, keyword) })
 }
 
+// drawText returns a drawFunc that draws s as text, whatever the source.
+func drawText(s string) drawFunc {
+	return func(string) (*canvas, error) {
+		c := newCanvas(textWidth(s), 1)
+		c.text(0, 0, s, roleText)
+		return c, nil
+	}
+}
+
 func TestRenderDispatch(t *testing.T) {
-	withDiagram(t, "test", func(src string) (string, error) { return "drawn", nil })
+	withDiagram(t, "test", drawText("drawn"))
 
 	tests := []struct {
 		name string
@@ -29,7 +40,7 @@ func TestRenderDispatch(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Render(tt.src)
+			got, err := Render(tt.src, Styles{})
 			if err != nil || got != "drawn" {
 				t.Errorf("Render() = %q, %v; want %q, nil", got, err, "drawn")
 			}
@@ -38,7 +49,7 @@ func TestRenderDispatch(t *testing.T) {
 }
 
 func TestRenderUnsupported(t *testing.T) {
-	withDiagram(t, "test", func(src string) (string, error) { return "drawn", nil })
+	withDiagram(t, "test", drawText("drawn"))
 
 	for _, src := range []string{
 		"",
@@ -48,17 +59,34 @@ func TestRenderUnsupported(t *testing.T) {
 		"tests",
 		"---\ntest\n",
 	} {
-		if _, err := Render(src); !errors.Is(err, ErrUnsupported) {
+		if _, err := Render(src, Styles{}); !errors.Is(err, ErrUnsupported) {
 			t.Errorf("Render(%q) error = %v, want ErrUnsupported", src, err)
 		}
 	}
 }
 
 func TestRenderPanic(t *testing.T) {
-	withDiagram(t, "test", func(src string) (string, error) { panic("boom") })
+	withDiagram(t, "test", func(string) (*canvas, error) { panic("boom") })
 
-	got, err := Render("test")
+	got, err := Render("test", Styles{})
 	if err == nil || got != "" {
 		t.Errorf("Render() = %q, %v; want an error", got, err)
+	}
+}
+
+func TestRenderError(t *testing.T) {
+	withDiagram(t, "test", func(string) (*canvas, error) { return nil, ErrSyntax })
+
+	if got, err := Render("test", Styles{}); !errors.Is(err, ErrSyntax) || got != "" {
+		t.Errorf("Render() = %q, %v; want ErrSyntax", got, err)
+	}
+}
+
+func TestRenderStyles(t *testing.T) {
+	withDiagram(t, "test", drawText("drawn"))
+
+	got, err := Render("test", Styles{Text: ansi.IndexedColor(1)})
+	if want := "\x1b[38;5;1mdrawn\x1b[39m"; err != nil || got != want {
+		t.Errorf("Render() = %q, %v; want %q, nil", got, err, want)
 	}
 }

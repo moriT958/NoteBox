@@ -3,6 +3,8 @@ package mermaid
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 func lines(s ...string) string { return strings.Join(s, "\n") }
@@ -184,5 +186,78 @@ func TestCanvasOutOfBounds(t *testing.T) {
 	c.text(-1, 1, "ab", roleText)
 	if got, want := c.String(), lines("─┼─", " │"); got != want {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}
+
+func TestCanvasRender(t *testing.T) {
+	const (
+		border = "\x1b[38;5;1m"
+		text   = "\x1b[38;5;2m"
+		edge   = "\x1b[38;5;3m"
+		label  = "\x1b[38;5;4m"
+		reset  = "\x1b[39m"
+	)
+	styles := Styles{
+		Border:    ansi.IndexedColor(1),
+		Text:      ansi.IndexedColor(2),
+		Edge:      ansi.IndexedColor(3),
+		EdgeLabel: ansi.IndexedColor(4),
+	}
+
+	tests := []struct {
+		name   string
+		draw   func(c *canvas)
+		styles Styles
+		want   string
+	}{
+		{
+			name: "runs switch colors and spaces keep the current one",
+			draw: func(c *canvas) {
+				c.hline(0, 3, 0, lineSolid, roleBorder)
+				c.text(5, 0, "ab", roleText)
+				c.hline(7, 8, 0, lineSolid, roleEdge)
+				c.text(1, 1, "ノ x", roleEdgeLabel)
+			},
+			styles: styles,
+			want: lines(
+				border+"──── "+reset+text+"ab"+reset+edge+"──"+reset,
+				" "+label+"ノ x"+reset,
+			),
+		},
+		{
+			name: "trailing spaces are trimmed outside the colors",
+			draw: func(c *canvas) {
+				c.text(0, 0, "a", roleText)
+			},
+			styles: styles,
+			want:   lines(text+"a"+reset, ""),
+		},
+		{
+			name: "parts without a color reset to the default",
+			draw: func(c *canvas) {
+				c.hline(0, 1, 0, lineSolid, roleBorder)
+				c.text(2, 0, "a", roleText)
+				c.hline(3, 4, 0, lineSolid, roleBorder)
+			},
+			styles: Styles{Border: ansi.IndexedColor(1)},
+			want:   lines(border+"──"+reset+"a"+border+"──"+reset, ""),
+		},
+		{
+			name: "no colors",
+			draw: func(c *canvas) {
+				c.hline(0, 1, 0, lineSolid, roleBorder)
+				c.text(2, 0, "a", roleText)
+			},
+			want: lines("──a", ""),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newCanvas(10, 2)
+			tt.draw(c)
+			if got := c.render(tt.styles); got != tt.want {
+				t.Errorf("got\n%q\nwant\n%q", got, tt.want)
+			}
+		})
 	}
 }
