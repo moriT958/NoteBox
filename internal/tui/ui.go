@@ -65,7 +65,7 @@ func New(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, er
 	if err != nil {
 		return nil, err
 	}
-	renderer, err := preview.NewRenderer(cfg.Theme)
+	renderer, err := preview.NewRenderer(cfg.Theme, sty.Mermaid)
 	if err != nil {
 		return nil, err
 	}
