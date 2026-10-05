@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"notebox/internal/mermaid/diagram"
+	"notebox/internal/mermaid/internal/diagram"
 )
 
 func TestDrawInvalidEdges(t *testing.T) {

@@ -2,7 +2,7 @@ package mermaid
 
 import (
 	"errors"
-	"notebox/internal/mermaid/diagram"
+	"notebox/internal/mermaid/internal/diagram"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"

@@ -2,7 +2,7 @@
 // as flowcharts, from what they mean rather than how they are written.
 package graph
 
-import "notebox/internal/mermaid/diagram"
+import "notebox/internal/mermaid/internal/diagram"
 
 // A Graph is a diagram of nodes joined by edges.
 type Graph struct {

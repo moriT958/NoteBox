@@ -2,7 +2,7 @@ package flowchart
 
 import (
 	"fmt"
-	"notebox/internal/mermaid/diagram"
+	"notebox/internal/mermaid/internal/diagram"
 	"strings"
 	"unicode"
 )

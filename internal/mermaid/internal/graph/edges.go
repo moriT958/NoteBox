@@ -1,6 +1,6 @@
 package graph
 
-import "notebox/internal/mermaid/diagram"
+import "notebox/internal/mermaid/internal/diagram"
 
 // drawEdges draws the edges between nodes, leaving their labels and the
 // edges from nodes to themselves to drawLabels and drawLoops. Boxes must be

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"notebox/internal/mermaid/diagram"
-	"notebox/internal/mermaid/flowchart"
+	"notebox/internal/mermaid/internal/diagram"
+	"notebox/internal/mermaid/internal/flowchart"
 )
 
 // Styles are the colors of the parts of a diagram. With the zero value, a

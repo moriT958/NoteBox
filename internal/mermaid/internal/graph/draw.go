@@ -3,7 +3,7 @@ package graph
 import (
 	"fmt"
 
-	"notebox/internal/mermaid/diagram"
+	"notebox/internal/mermaid/internal/diagram"
 )
 
 // Draw lays out a graph and draws it, or reports diagram.ErrTooLarge for a

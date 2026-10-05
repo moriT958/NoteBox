@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"notebox/internal/mermaid/diagram"
+	"notebox/internal/mermaid/internal/diagram"
 	"strings"
 	"testing"
 

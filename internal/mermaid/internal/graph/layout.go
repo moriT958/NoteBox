@@ -2,7 +2,7 @@ package graph
 
 import (
 	"fmt"
-	"notebox/internal/mermaid/diagram"
+	"notebox/internal/mermaid/internal/diagram"
 )
 
 // Limits on the size of a layout, beyond which a graph isn't drawn.

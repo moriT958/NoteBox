@@ -2,8 +2,8 @@ package flowchart
 
 import (
 	"errors"
-	"notebox/internal/mermaid/diagram"
-	"notebox/internal/mermaid/graph"
+	"notebox/internal/mermaid/internal/diagram"
+	"notebox/internal/mermaid/internal/graph"
 	"reflect"
 	"strings"
 	"testing"

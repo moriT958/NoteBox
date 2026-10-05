@@ -4,8 +4,8 @@ package flowchart
 import (
 	"fmt"
 
-	"notebox/internal/mermaid/diagram"
-	"notebox/internal/mermaid/graph"
+	"notebox/internal/mermaid/internal/diagram"
+	"notebox/internal/mermaid/internal/graph"
 )
 
 // maxEdges is Mermaid's own limit on the edges of a flowchart by default.
