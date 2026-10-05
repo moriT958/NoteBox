@@ -1,12 +1,18 @@
-package mermaid
+package graph
 
-import "testing"
+import (
+	"notebox/internal/mermaid/diagram"
+	"strings"
+	"testing"
+
+	"github.com/charmbracelet/x/ansi"
+)
 
 func TestDrawBox(t *testing.T) {
 	tests := []struct {
 		name  string
 		w, h  int
-		shape shape
+		shape Shape
 		lines []string
 		want  string
 	}{
@@ -14,7 +20,7 @@ func TestDrawBox(t *testing.T) {
 			name:  "rectangle",
 			w:     7,
 			h:     3,
-			shape: shapeRect,
+			shape: ShapeRect,
 			lines: []string{"abc"},
 			want:  lines("┌─────┐", "│ abc │", "└─────┘"),
 		},
@@ -22,7 +28,7 @@ func TestDrawBox(t *testing.T) {
 			name:  "rounded",
 			w:     7,
 			h:     3,
-			shape: shapeRound,
+			shape: ShapeRound,
 			lines: []string{"abc"},
 			want:  lines("╭─────╮", "│ abc │", "╰─────╯"),
 		},
@@ -30,7 +36,7 @@ func TestDrawBox(t *testing.T) {
 			name:  "diamond",
 			w:     7,
 			h:     3,
-			shape: shapeDiamond,
+			shape: ShapeDiamond,
 			lines: []string{"abc"},
 			want:  lines("╱─────╲", "│ abc │", "╲─────╱"),
 		},
@@ -38,7 +44,7 @@ func TestDrawBox(t *testing.T) {
 			name:  "lines centered",
 			w:     10,
 			h:     4,
-			shape: shapeRect,
+			shape: ShapeRect,
 			lines: []string{"ノート", "a"},
 			want:  lines("┌────────┐", "│ ノート │", "│   a    │", "└────────┘"),
 		},
@@ -46,16 +52,16 @@ func TestDrawBox(t *testing.T) {
 			name:  "too wide lines cut short",
 			w:     7,
 			h:     3,
-			shape: shapeRect,
+			shape: ShapeRect,
 			lines: []string{"abcdefg"},
 			want:  lines("┌─────┐", "│abcd…│", "└─────┘"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newCanvas(tt.w, tt.h)
+			c := diagram.New(tt.w, tt.h)
 			drawBox(c, 0, 0, tt.w, tt.h, tt.shape, tt.lines)
-			if got := c.String(); got != tt.want {
+			if got := c.Render(diagram.Styles{}); got != tt.want {
 				t.Errorf("got\n%s\nwant\n%s", got, tt.want)
 			}
 		})
@@ -63,20 +69,18 @@ func TestDrawBox(t *testing.T) {
 }
 
 func TestDrawBoxRoles(t *testing.T) {
-	c := newCanvas(5, 3)
-	drawBox(c, 0, 0, 5, 3, shapeRect, []string{"a"})
-	for _, tt := range []struct {
-		x, y int
-		want role
-	}{
-		{0, 0, roleBorder},
-		{2, 0, roleBorder},
-		{0, 1, roleBorder},
-		{2, 1, roleText},
-		{4, 2, roleBorder},
-	} {
-		if got := c.at(tt.x, tt.y).role; got != tt.want {
-			t.Errorf("role at (%d, %d) = %d, want %d", tt.x, tt.y, got, tt.want)
-		}
+	c := diagram.New(5, 3)
+	drawBox(c, 0, 0, 5, 3, ShapeRect, []string{"a"})
+	got := c.Render(diagram.Styles{Border: ansi.IndexedColor(1), Text: ansi.IndexedColor(2)})
+	const border, text, reset = "\x1b[38;5;1m", "\x1b[38;5;2m", "\x1b[39m"
+	want := lines(
+		border+"┌───┐"+reset,
+		border+"│ "+reset+text+"a "+reset+border+"│"+reset,
+		border+"└───┘"+reset,
+	)
+	if got != want {
+		t.Errorf("got\n%q\nwant\n%q", got, want)
 	}
 }
+
+func lines(s ...string) string { return strings.Join(s, "\n") }

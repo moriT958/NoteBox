@@ -4,58 +4,41 @@ package mermaid
 import (
 	"errors"
 	"fmt"
-	"image/color"
-	"strings"
-)
 
-var (
-	// ErrUnsupported is returned for diagram types, and syntax within them,
-	// that can't be drawn yet.
-	ErrUnsupported = errors.New("mermaid: unsupported diagram")
-	// ErrSyntax is returned for diagrams that can't be parsed.
-	ErrSyntax = errors.New("mermaid: syntax error")
-	// ErrTooLarge is returned for diagrams too large to draw.
-	ErrTooLarge = errors.New("mermaid: diagram too large")
+	"notebox/internal/mermaid/diagram"
+	"notebox/internal/mermaid/flowchart"
 )
 
 // Styles are the colors of the parts of a diagram. With the zero value, a
 // diagram is drawn without colors. A part without a color is drawn in the
 // terminal's default color rather than in the color of the text around the
 // diagram, so a colored diagram should give every part a color.
-type Styles struct {
-	// Border is the color of the outlines of nodes and groups.
-	Border color.Color
-	// Text is the color of the labels of nodes and groups.
-	Text color.Color
-	// Edge is the color of the lines of edges and their heads.
-	Edge color.Color
-	// EdgeLabel is the color of the labels of edges.
-	EdgeLabel color.Color
-}
+type Styles = diagram.Styles
 
-// Limits on the size of diagrams, beyond which they aren't drawn.
-const (
-	// maxTextSize and maxEdges are Mermaid's own limits by default, on the
-	// length of a diagram's source and on its edges.
-	maxTextSize = 50000
-	maxEdges    = 500
-	// maxPoints limits the points edges pass through, which edges spanning
-	// many ranks add many of.
-	maxPoints = 10 * maxEdges
-	// maxCells limits the size of a drawing, in cells.
-	maxCells = 1 << 21
+var (
+	// ErrUnsupported is returned for diagram types, and syntax within them,
+	// that can't be drawn yet.
+	ErrUnsupported = diagram.ErrUnsupported
+	// ErrSyntax is returned for diagrams that can't be parsed.
+	ErrSyntax = diagram.ErrSyntax
+	// ErrTooLarge is returned for diagrams too large to draw.
+	ErrTooLarge = diagram.ErrTooLarge
 )
+
+// maxTextSize is Mermaid's own limit on the length of a diagram's source by
+// default.
+const maxTextSize = 50000
 
 // errPanic reports a bug: a panic while drawing a diagram.
 var errPanic = errors.New("mermaid: panic")
 
 // A drawFunc draws a diagram of one type from its whole source.
-type drawFunc func(src string) (*canvas, error)
+type drawFunc func(src string) (*diagram.Canvas, error)
 
 // diagrams maps the keyword that opens a diagram to the function drawing it.
 var diagrams = map[string]drawFunc{
-	"graph":     drawFlowchart,
-	"flowchart": drawFlowchart,
+	"graph":     flowchart.Draw,
+	"flowchart": flowchart.Draw,
 }
 
 // Render draws a Mermaid diagram in the given colors. Diagrams that can't be
@@ -80,30 +63,5 @@ func Render(src string, styles Styles) (out string, err error) {
 	if err != nil {
 		return "", err
 	}
-	return c.render(styles), nil
-}
-
-// diagramKeyword returns the first word of a diagram's declaration, such as
-// "flowchart" in "flowchart LR", skipping the front matter, comments and
-// blank lines that may come before it.
-func diagramKeyword(src string) string {
-	lines := strings.Split(src, "\n")
-	i := 0
-	for i < len(lines) && strings.TrimSpace(lines[i]) == "" {
-		i++
-	}
-	if i < len(lines) && strings.TrimSpace(lines[i]) == "---" {
-		for i++; i < len(lines) && strings.TrimSpace(lines[i]) != "---"; i++ {
-		}
-		i++
-	}
-	for ; i < len(lines); i++ {
-		line := strings.TrimSpace(lines[i])
-		if line == "" || strings.HasPrefix(line, "%%") {
-			continue
-		}
-		word, _, _ := strings.Cut(strings.Fields(line)[0], ";")
-		return word
-	}
-	return ""
+	return c.Render(styles), nil
 }

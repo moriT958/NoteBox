@@ -9,6 +9,9 @@ import (
 	"testing"
 )
 
+// The limits on edges (500) and on the points edges pass through (5000) are
+// those of the flowchart and graph packages.
+
 func TestRenderTooLarge(t *testing.T) {
 	// A wide fan-out and a long chain, within the limits on edges.
 	var wideAndTall strings.Builder
@@ -22,7 +25,7 @@ func TestRenderTooLarge(t *testing.T) {
 
 	var manyEdges strings.Builder
 	manyEdges.WriteString("graph TD\n")
-	for i := range maxEdges + 1 {
+	for i := range 500 + 1 {
 		fmt.Fprintf(&manyEdges, "A --> N%d\n", i)
 	}
 
@@ -33,7 +36,7 @@ func TestRenderTooLarge(t *testing.T) {
 		{"long source", "graph TD\n" + strings.Repeat("%% comment\n", maxTextSize/10)},
 		{"many edges", manyEdges.String()},
 		{"many edges from groups", "graph TD\n" + strings.Repeat("A & ", 30) + "A --> " + strings.Repeat("B & ", 30) + "B"},
-		{"long edges", "graph TD\nA " + strings.Repeat("-", maxPoints+3) + "> B"},
+		{"long edges", "graph TD\nA " + strings.Repeat("-", 5000+3) + "> B"},
 		{"large drawing", wideAndTall.String()},
 	}
 	for _, tt := range tests {
@@ -48,7 +51,7 @@ func TestRenderTooLarge(t *testing.T) {
 func TestRenderWithinLimits(t *testing.T) {
 	var src strings.Builder
 	src.WriteString("graph TD\n")
-	for i := range maxEdges {
+	for i := range 500 {
 		fmt.Fprintf(&src, "N%d --> N%d\n", i%50, 50+i%40)
 	}
 	if _, err := Render(src.String(), Styles{}); err != nil {

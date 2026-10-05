@@ -2,6 +2,7 @@ package mermaid
 
 import (
 	"errors"
+	"notebox/internal/mermaid/diagram"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
@@ -16,9 +17,9 @@ func withDiagram(t *testing.T, keyword string, draw drawFunc) {
 
 // drawText returns a drawFunc that draws s as text, whatever the source.
 func drawText(s string) drawFunc {
-	return func(string) (*canvas, error) {
-		c := newCanvas(textWidth(s), 1)
-		c.text(0, 0, s, roleText)
+	return func(string) (*diagram.Canvas, error) {
+		c := diagram.New(ansi.StringWidth(s), 1)
+		c.Text(0, 0, s, diagram.RoleText)
 		return c, nil
 	}
 }
@@ -66,7 +67,7 @@ func TestRenderUnsupported(t *testing.T) {
 }
 
 func TestRenderPanic(t *testing.T) {
-	withDiagram(t, "test", func(string) (*canvas, error) { panic("boom") })
+	withDiagram(t, "test", func(string) (*diagram.Canvas, error) { panic("boom") })
 
 	got, err := Render("test", Styles{})
 	if err == nil || got != "" {
@@ -75,7 +76,7 @@ func TestRenderPanic(t *testing.T) {
 }
 
 func TestRenderError(t *testing.T) {
-	withDiagram(t, "test", func(string) (*canvas, error) { return nil, ErrSyntax })
+	withDiagram(t, "test", func(string) (*diagram.Canvas, error) { return nil, ErrSyntax })
 
 	if got, err := Render("test", Styles{}); !errors.Is(err, ErrSyntax) || got != "" {
 		t.Errorf("Render() = %q, %v; want ErrSyntax", got, err)
