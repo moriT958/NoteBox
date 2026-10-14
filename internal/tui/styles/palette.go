@@ -116,6 +116,9 @@ func LightPalette() Palette {
 	}
 }
 
+// builtinNames are the names of the built-in themes.
+var builtinNames = []string{"dark", "light"}
+
 // builtin returns the built-in theme of that name.
 func builtin(name string) (Palette, bool) {
 	switch name {

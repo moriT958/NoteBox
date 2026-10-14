@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -175,3 +176,63 @@ func TestNew(t *testing.T) {
 }
 
 func rgb(r, g, b uint8) color.Color { return color.RGBA{r, g, b, 0xff} }
+
+func TestExportTheme(t *testing.T) {
+	t.Run("An exported theme loads back as the built-in one.", func(t *testing.T) {
+		dir := t.TempDir()
+		for name, want := range map[string]Palette{"dark": DarkPalette(), "light": LightPalette()} {
+			data, err := ExportTheme(name)
+			if err != nil {
+				t.Fatalf("ExportTheme(%q) error = %v", name, err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "mine-"+name+".json"), data, 0644); err != nil {
+				t.Fatalf("failed to write theme: %v", err)
+			}
+
+			p, problems := LoadTheme(dir, "mine-"+name)
+
+			if len(problems) != 0 {
+				t.Errorf("%s: problems = %v, want none", name, problems)
+			}
+			if p != want {
+				t.Errorf("%s: palette = %+v, want the built-in one", name, p)
+			}
+		}
+	})
+
+	t.Run("An unknown theme is an error.", func(t *testing.T) {
+		if _, err := ExportTheme("nope"); err == nil {
+			t.Errorf("ExportTheme() = nil, want an error")
+		}
+	})
+}
+
+func TestListThemes(t *testing.T) {
+	t.Run("Built-in themes are listed without a directory.", func(t *testing.T) {
+		got, err := ListThemes(filepath.Join(t.TempDir(), "missing"))
+
+		want := []Theme{{Name: "dark"}, {Name: "light"}}
+		if err != nil || !slices.Equal(got, want) {
+			t.Errorf("got %v, %v, want %v", got, err, want)
+		}
+	})
+
+	t.Run("Files are listed with the built-in themes, and win over them.", func(t *testing.T) {
+		dir := writeTheme(t, "mine", `{}`)
+		for _, name := range []string{"light.json", "Bad Name.json", "notes.txt"} {
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(`{}`), 0644); err != nil {
+				t.Fatalf("failed to write file: %v", err)
+			}
+		}
+		if err := os.Mkdir(filepath.Join(dir, "sub.json"), 0755); err != nil {
+			t.Fatalf("failed to make dir: %v", err)
+		}
+
+		got, err := ListThemes(dir)
+
+		want := []Theme{{Name: "dark"}, {Name: "light", File: true}, {Name: "mine", File: true}}
+		if err != nil || !slices.Equal(got, want) {
+			t.Errorf("got %v, %v, want %v", got, err, want)
+		}
+	})
+}

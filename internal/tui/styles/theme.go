@@ -48,6 +48,54 @@ func LoadTheme(dir, name string) (Palette, []error) {
 	return DarkPalette(), []error{fmt.Errorf("theme %q not found, using the dark theme", name)}
 }
 
+// Theme is a theme that can be used, for listing.
+type Theme struct {
+	Name string
+	// File reports that the theme is a file, which takes precedence over a
+	// built-in theme of the same name.
+	File bool
+}
+
+// ListThemes returns the themes that can be used, sorted by name: the files
+// in dir and the built-in themes. An empty dir means no theme files.
+func ListThemes(dir string) ([]Theme, error) {
+	byName := map[string]Theme{}
+	for _, name := range builtinNames {
+		byName[name] = Theme{Name: name}
+	}
+	if dir != "" {
+		entries, err := os.ReadDir(dir)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("failed to list the themes: %w", err)
+		}
+		for _, e := range entries {
+			name, ok := strings.CutSuffix(e.Name(), ".json")
+			if ok && !e.IsDir() && themeName.MatchString(name) {
+				byName[name] = Theme{Name: name, File: true}
+			}
+		}
+	}
+	return slices.SortedFunc(maps.Values(byName), func(a, b Theme) int { return strings.Compare(a.Name, b.Name) }), nil
+}
+
+// ExportTheme returns a theme file of the built-in theme called name, to
+// start a theme of one's own from.
+func ExportTheme(name string) ([]byte, error) {
+	name = strings.ToLower(name)
+	p, ok := builtin(name)
+	if !ok {
+		return nil, fmt.Errorf("unknown built-in theme %q, use one of: %s", name, strings.Join(builtinNames, ", "))
+	}
+	data, err := json.MarshalIndent(struct {
+		Base string `json:"base"`
+		Palette
+	}{name, p}, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return append(data, '\n'), nil
+}
+
 // parseTheme reads a theme file: the values it gives on top of its base.
 func parseTheme(file string, data []byte) (Palette, []error) {
 	var raw map[string]json.RawMessage

@@ -35,6 +35,21 @@ func InitCommands(ctx context.Context, boxes *box.BoxService) int {
 			&noteRmCmd{boxes: boxes},
 		},
 	}, "")
+	subcommands.Register(&group{
+		name:     "keymap",
+		synopsis: "show the keys of the TUI",
+		cmds: []subcommands.Command{
+			&keymapListCmd{},
+		},
+	}, "")
+	subcommands.Register(&group{
+		name:     "theme",
+		synopsis: "manage the color themes of the TUI",
+		cmds: []subcommands.Command{
+			&themeListCmd{},
+			&themeExportCmd{},
+		},
+	}, "")
 
 	flag.Parse()
 
