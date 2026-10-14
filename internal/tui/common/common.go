@@ -4,6 +4,7 @@ import (
 	"image"
 
 	"notebox/internal/config"
+	"notebox/internal/tui/keymap"
 	"notebox/internal/tui/styles"
 
 	"charm.land/bubbles/v2/textinput"
@@ -13,6 +14,7 @@ import (
 type Common struct {
 	Config *config.Config
 	Styles *styles.Styles
+	Keys   *keymap.KeyMap
 }
 
 // CenterRect returns a width x height rectangle centered within area.

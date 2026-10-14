@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"notebox/internal/tui/common"
+	"notebox/internal/tui/keymap"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
@@ -47,16 +48,16 @@ func NewBoxForm(com *common.Common, mode BoxFormMode) *BoxForm {
 	case BoxFormNew:
 		d.title = common.NewInput("Box name...", 100)
 		d.path = common.NewInput("Base path (optional, e.g. ~/projects)...", 200)
-		d.keys.Submit = enterKey("create")
+		d.keys.Submit = keymap.WithDesc(com.Keys.Dialog.Confirm, "create")
 	case BoxFormOpenFolder:
 		d.title = common.NewInput("Display name...", 100)
 		d.path = common.NewInput("Existing folder path (e.g. ~/projects/work)...", 200)
-		d.keys.Submit = enterKey("open")
+		d.keys.Submit = keymap.WithDesc(com.Keys.Dialog.Confirm, "open")
 	}
 	d.title.Focus()
-	d.keys.Close = CloseKey
-	d.keys.Next = key.NewBinding(key.WithKeys("tab", "down", "ctrl+n"), key.WithHelp("tab", "next field"))
-	d.keys.Prev = key.NewBinding(key.WithKeys("shift+tab", "up", "ctrl+p"), key.WithHelp("shift+tab", "prev field"))
+	d.keys.Close = com.Keys.Dialog.Cancel
+	d.keys.Next = com.Keys.Form.Next
+	d.keys.Prev = com.Keys.Form.Prev
 	return d
 }
 

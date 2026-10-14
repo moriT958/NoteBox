@@ -9,6 +9,7 @@ import (
 	"notebox/internal/core/box"
 	"notebox/internal/core/note"
 	"notebox/internal/tui/common"
+	"notebox/internal/tui/keymap"
 	"notebox/internal/tui/styles"
 
 	tea "charm.land/bubbletea/v2"
@@ -21,7 +22,8 @@ func newCommon(t *testing.T) *common.Common {
 	if err != nil {
 		t.Fatalf("failed to create styles: %v", err)
 	}
-	return &common.Common{Styles: sty}
+	keys := keymap.Default()
+	return &common.Common{Styles: sty, Keys: &keys}
 }
 
 // newNotes creates a note file per title and returns them in list order.

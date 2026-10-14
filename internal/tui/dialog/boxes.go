@@ -8,6 +8,7 @@ import (
 
 	"notebox/internal/core/box"
 	"notebox/internal/tui/common"
+	"notebox/internal/tui/keymap"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
@@ -50,16 +51,17 @@ func NewBoxes(com *common.Common, currentID string) *Boxes {
 		loading:   true,
 		input:     common.NewInput("", 100),
 	}
-	d.keys.Select = enterKey("select")
-	d.keys.Close = CloseKey
-	d.keys.Up = upKey
-	d.keys.Down = downKey
-	d.keys.New = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new"))
-	d.keys.OpenFolder = key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "open folder"))
-	d.keys.Rename = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rename"))
-	d.keys.Delete = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete"))
-	d.keys.ConfirmRename = enterKey("confirm rename")
-	d.keys.CancelRename = CloseKey
+	k := com.Keys
+	d.keys.Select = keymap.WithDesc(k.Dialog.Confirm, "select")
+	d.keys.Close = k.Dialog.Cancel
+	d.keys.Up = k.Dialog.Up
+	d.keys.Down = k.Dialog.Down
+	d.keys.New = k.Boxes.New
+	d.keys.OpenFolder = k.Boxes.OpenFolder
+	d.keys.Rename = k.Boxes.Rename
+	d.keys.Delete = k.Boxes.Delete
+	d.keys.ConfirmRename = keymap.WithDesc(k.Dialog.Confirm, "confirm rename")
+	d.keys.CancelRename = k.Dialog.Cancel
 	return d
 }
 

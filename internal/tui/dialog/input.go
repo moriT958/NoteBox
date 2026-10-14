@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"notebox/internal/tui/common"
+	"notebox/internal/tui/keymap"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
@@ -40,8 +41,8 @@ func newInput(com *common.Common, id, title, placeholder, confirm string, submit
 		submit:  submit,
 	}
 	d.input.Focus()
-	d.keys.Submit = enterKey(strings.ToLower(confirm))
-	d.keys.Close = CloseKey
+	d.keys.Submit = keymap.WithDesc(com.Keys.Dialog.Confirm, strings.ToLower(confirm))
+	d.keys.Close = com.Keys.Dialog.Cancel
 	return d
 }
 

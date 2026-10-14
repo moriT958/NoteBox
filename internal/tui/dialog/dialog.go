@@ -8,7 +8,6 @@ import (
 	"notebox/internal/tui/common"
 
 	"charm.land/bubbles/v2/help"
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -80,17 +79,6 @@ func (o *Overlay) HandleMsg(msg tea.Msg) Action {
 		return d.HandleMsg(msg)
 	}
 	return nil
-}
-
-// Key bindings shared by the dialogs.
-var (
-	CloseKey = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"))
-	upKey    = key.NewBinding(key.WithKeys("up", "ctrl+p"), key.WithHelp("↑", "up"))
-	downKey  = key.NewBinding(key.WithKeys("down", "ctrl+n"), key.WithHelp("↓", "down"))
-)
-
-func enterKey(desc string) key.Binding {
-	return key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", desc))
 }
 
 // frame lays out a dialog: its size, and the frame drawn around its body.

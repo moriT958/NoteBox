@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -24,11 +25,11 @@ func TestLoad(t *testing.T) {
 		if len(problems) != 0 {
 			t.Fatalf("problems = %v, want none", problems)
 		}
-		if *cfg != *defaultConfig() {
+		if !reflect.DeepEqual(cfg, defaultConfig()) {
 			t.Errorf("cfg = %+v, want the defaults", *cfg)
 		}
 		created, problems := Load(path)
-		if len(problems) != 0 || *created != *defaultConfig() {
+		if len(problems) != 0 || !reflect.DeepEqual(created, defaultConfig()) {
 			t.Errorf("created file loads as %+v, %v, want the defaults", *created, problems)
 		}
 	})
@@ -41,9 +42,23 @@ func TestLoad(t *testing.T) {
 		if len(problems) != 0 {
 			t.Fatalf("problems = %v, want none", problems)
 		}
-		want := Config{Editor: DefaultEditor, Theme: "light"}
-		if *cfg != want {
+		want := &Config{Editor: DefaultEditor, Theme: "light"}
+		if !reflect.DeepEqual(cfg, want) {
 			t.Errorf("cfg = %+v, want %+v", *cfg, want)
+		}
+	})
+
+	t.Run("The keymap is read as given.", func(t *testing.T) {
+		path := writeConfig(t, `{"keymap": {"list.new": ["n", "a"]}}`)
+
+		cfg, problems := Load(path)
+
+		if len(problems) != 0 {
+			t.Fatalf("problems = %v, want none", problems)
+		}
+		want := map[string][]string{"list.new": {"n", "a"}}
+		if !reflect.DeepEqual(cfg.Keymap, want) {
+			t.Errorf("keymap = %v, want %v", cfg.Keymap, want)
 		}
 	})
 
@@ -55,7 +70,7 @@ func TestLoad(t *testing.T) {
 		if len(problems) != 1 {
 			t.Fatalf("problems = %v, want one", problems)
 		}
-		if *cfg != *defaultConfig() {
+		if !reflect.DeepEqual(cfg, defaultConfig()) {
 			t.Errorf("cfg = %+v, want the defaults", *cfg)
 		}
 	})

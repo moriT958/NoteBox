@@ -4,6 +4,7 @@ import (
 	"image"
 
 	"notebox/internal/tui/common"
+	"notebox/internal/tui/keymap"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -22,8 +23,8 @@ type Confirm struct {
 
 func NewConfirm(com *common.Common, message string, yes Action) *Confirm {
 	d := &Confirm{com: com, message: message, yes: yes}
-	d.keys.Yes = enterKey("yes")
-	d.keys.No = key.NewBinding(key.WithKeys("esc", "q"), key.WithHelp("esc", "no"))
+	d.keys.Yes = keymap.WithDesc(com.Keys.Dialog.Confirm, "yes")
+	d.keys.No = com.Keys.Confirm.No
 	return d
 }
 

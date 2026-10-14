@@ -45,6 +45,7 @@ type Preview struct {
 func New(com *common.Common) *Preview {
 	vp := viewport.New()
 	vp.SetHorizontalStep(4)
+	vp.KeyMap = com.Keys.Viewport()
 	return &Preview{com: com, vp: vp}
 }
 
@@ -55,11 +56,6 @@ func (p *Preview) SetSize(width, height int) {
 	p.vp.SetWidth(max(0, width-2))
 	p.vp.SetHeight(max(0, height-2))
 	p.adjustOffset()
-}
-
-// ViewportKeyMap returns the scrolling keys, for help text.
-func (p *Preview) ViewportKeyMap() viewport.KeyMap {
-	return p.vp.KeyMap
 }
 
 // Open activates the tab showing n, pinning it if pin is set. It reports

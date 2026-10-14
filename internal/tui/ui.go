@@ -15,6 +15,7 @@ import (
 	"notebox/internal/core/note"
 	"notebox/internal/tui/common"
 	"notebox/internal/tui/dialog"
+	"notebox/internal/tui/keymap"
 	"notebox/internal/tui/notelist"
 	"notebox/internal/tui/preview"
 	"notebox/internal/tui/styles"
@@ -54,7 +55,7 @@ type UI struct {
 	preview *preview.Preview
 	status  *Status
 	dialog  *dialog.Overlay
-	keys    KeyMap
+	keys    *keymap.KeyMap
 }
 
 var _ tea.Model = (*UI)(nil)
@@ -78,7 +79,12 @@ func New(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, er
 		return nil, fmt.Errorf("failed to watch box: %w", err)
 	}
 
-	com := &common.Common{Config: cfg, Styles: sty}
+	keys := keymap.Default()
+	for _, err := range keys.Apply(cfg.Keymap) {
+		slog.Warn("config problem", "error", err)
+	}
+
+	com := &common.Common{Config: cfg, Styles: sty, Keys: &keys}
 	return &UI{
 		com:      com,
 		box:      b,
@@ -91,7 +97,7 @@ func New(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, er
 		preview:  preview.New(com),
 		status:   NewStatus(com),
 		dialog:   dialog.NewOverlay(),
-		keys:     DefaultKeyMap(),
+		keys:     &keys,
 	}, nil
 }
 
@@ -248,12 +254,12 @@ func (m *UI) resize(width, height int) {
 // handleKey routes a key press: quit always works, then an open dialog
 // takes every key, then the inline rename, then the focused pane.
 func (m *UI) handleKey(msg tea.KeyPressMsg) tea.Cmd {
-	if key.Matches(msg, m.keys.Quit) {
+	if key.Matches(msg, m.keys.Global.Quit) {
 		return tea.Quit
 	}
 
 	if front := m.dialog.Front(); front != nil {
-		if key.Matches(msg, m.keys.Boxes) && front.ID() == dialog.BoxesID {
+		if key.Matches(msg, m.keys.Global.Boxes) && front.ID() == dialog.BoxesID {
 			m.dialog.CloseFront()
 			return nil
 		}
@@ -265,10 +271,10 @@ func (m *UI) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 
 	switch {
-	case key.Matches(msg, m.keys.Help):
+	case key.Matches(msg, m.keys.Global.Help):
 		m.fullHelp = !m.fullHelp
 		return nil
-	case key.Matches(msg, m.keys.Boxes):
+	case key.Matches(msg, m.keys.Global.Boxes):
 		m.dialog.Open(dialog.NewBoxes(m.com, m.box.ID))
 		return loadBoxesCmd(m.boxes, m.box.ID)
 	}
@@ -472,11 +478,11 @@ func (m *UI) helpKeys() help.KeyMap {
 	case m.dialog.HasDialogs():
 		return m.dialog.Front()
 	case m.list.Renaming():
-		return m.keys.renameHelp()
+		return renameHelp(m.keys)
 	case m.focus == focusPreview:
-		return m.keys.previewHelp(m.preview.ViewportKeyMap())
+		return previewHelp(m.keys)
 	default:
-		return m.keys.listHelp()
+		return listHelp(m.keys)
 	}
 }
 

@@ -18,6 +18,8 @@ var (
 type Config struct {
 	Editor string `json:"editor"`
 	Theme  string `json:"theme"`
+	// Keymap replaces the default keys of TUI actions, keyed by action ID.
+	Keymap map[string][]string `json:"keymap,omitempty"`
 }
 
 // Load reads the config file at path, creating it with the defaults when

@@ -10,6 +10,7 @@ import (
 	"notebox/internal/core/box"
 	"notebox/internal/core/note"
 	"notebox/internal/tui/common"
+	"notebox/internal/tui/keymap"
 	"notebox/internal/tui/styles"
 
 	"github.com/charmbracelet/x/ansi"
@@ -37,7 +38,8 @@ func newPreview(t *testing.T, width int) *Preview {
 	if err != nil {
 		t.Fatalf("failed to create styles: %v", err)
 	}
-	p := New(&common.Common{Styles: sty})
+	keys := keymap.Default()
+	p := New(&common.Common{Styles: sty, Keys: &keys})
 	p.SetSize(width, 10)
 	return p
 }

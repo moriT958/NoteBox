@@ -5,6 +5,7 @@ import (
 
 	"notebox/internal/core/note"
 	"notebox/internal/tui/common"
+	"notebox/internal/tui/keymap"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
@@ -37,10 +38,10 @@ func NewFinder(com *common.Common, notes []note.Note) *Finder {
 		filtered: notes,
 	}
 	d.input.Focus()
-	d.keys.Select = enterKey("select")
-	d.keys.Close = CloseKey
-	d.keys.Up = upKey
-	d.keys.Down = downKey
+	d.keys.Select = keymap.WithDesc(com.Keys.Dialog.Confirm, "select")
+	d.keys.Close = com.Keys.Dialog.Cancel
+	d.keys.Up = com.Keys.Dialog.Up
+	d.keys.Down = com.Keys.Dialog.Down
 	return d
 }
 
