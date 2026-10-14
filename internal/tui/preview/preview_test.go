@@ -34,10 +34,7 @@ func newNotes(t *testing.T, titles ...string) []note.Note {
 
 func newPreview(t *testing.T, width int) *Preview {
 	t.Helper()
-	sty, err := styles.New("dark")
-	if err != nil {
-		t.Fatalf("failed to create styles: %v", err)
-	}
+	sty := styles.New(styles.DarkPalette())
 	keys := keymap.Default()
 	p := New(&common.Common{Styles: sty, Keys: &keys})
 	p.SetSize(width, 10)
@@ -207,10 +204,7 @@ func TestPreview_Placeholder(t *testing.T) {
 }
 
 func TestPreview_TabBar(t *testing.T) {
-	sty, err := styles.New("dark")
-	if err != nil {
-		t.Fatalf("failed to create styles: %v", err)
-	}
+	sty := styles.New(styles.DarkPalette())
 
 	titles := make([]string, 12)
 	for i := range titles {

@@ -92,6 +92,16 @@ func SaveLastBoxID(id string) error {
 	return os.WriteFile(filepath.Join(home, AppDirName, StateFileName), []byte(id), 0644)
 }
 
+// ThemesDir returns the path of the directory with the theme files. It
+// needn't exist.
+func ThemesDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, AppDirName, ThemesDirName), nil
+}
+
 // DefaultNotesDir returns the default path for the notes directory.
 func DefaultNotesDir() (string, error) {
 	home, err := os.UserHomeDir()

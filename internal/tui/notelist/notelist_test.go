@@ -30,10 +30,7 @@ func newNotes(t *testing.T, titles ...string) []note.Note {
 // newList returns a list tall enough to show visible notes at once.
 func newList(t *testing.T, visible int) *NoteList {
 	t.Helper()
-	sty, err := styles.New("dark")
-	if err != nil {
-		t.Fatalf("failed to create styles: %v", err)
-	}
+	sty := styles.New(styles.DarkPalette())
 	l := New(&common.Common{Styles: sty})
 	l.SetSize(30, visible*itemLines+sty.BorderFocused.GetVerticalFrameSize())
 	return l

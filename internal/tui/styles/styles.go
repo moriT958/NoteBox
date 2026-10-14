@@ -1,8 +1,6 @@
 package styles
 
 import (
-	"fmt"
-
 	"notebox/internal/mermaid"
 
 	"charm.land/lipgloss/v2"
@@ -52,28 +50,17 @@ type Styles struct {
 	Mermaid mermaid.Styles
 }
 
-// New builds the styles for the given theme name ("dark" or "light").
-func New(theme string) (*Styles, error) {
-	var isDark bool
-	switch theme {
-	case "dark":
-		isDark = true
-	case "light":
-		isDark = false
-	default:
-		return nil, fmt.Errorf("unknown color theme: %q", theme)
-	}
-	pick := lipgloss.LightDark(isDark)
-
-	primary := pick(lipgloss.Color("#b89988"), lipgloss.Color("#737994"))
-	active := pick(lipgloss.Color("#fe640b"), lipgloss.Color("#babbf1"))
-	cursor := pick(lipgloss.Color("#dc8a78"), lipgloss.Color("#f2d5cf"))
-	cursorMuted := pick(lipgloss.Color("#b58c7e"), lipgloss.Color("#c7a89e"))
-	muted := pick(lipgloss.Color("#8c8fa1"), lipgloss.Color("#51576d"))
-	tabBarBg := pick(lipgloss.Color("#dce0e8"), lipgloss.Color("#232634"))
-	buttonFg := pick(lipgloss.Color("#eff1f5"), lipgloss.Color("#414559"))
-	confirmBg := pick(lipgloss.Color("#40a02b"), lipgloss.Color("#99d1db"))
-	cancelBg := pick(lipgloss.Color("#d20f39"), lipgloss.Color("#ea999c"))
+// New builds the styles from the colors of a palette.
+func New(p Palette) *Styles {
+	primary := lipgloss.Color(p.Primary)
+	active := lipgloss.Color(p.Accent)
+	cursor := lipgloss.Color(p.Cursor)
+	cursorMuted := lipgloss.Color(p.CursorMuted)
+	muted := lipgloss.Color(p.Muted)
+	tabBarBg := lipgloss.Color(p.TabBarBg)
+	buttonFg := lipgloss.Color(p.ButtonFg)
+	confirmBg := lipgloss.Color(p.Success)
+	cancelBg := lipgloss.Color(p.Danger)
 
 	s := &Styles{}
 
@@ -120,11 +107,11 @@ func New(theme string) (*Styles, error) {
 	s.Dialog.Error = lipgloss.NewStyle().Foreground(cancelBg)
 
 	s.Mermaid = mermaid.Styles{
-		Border:    pick(lipgloss.Color("#1e66f5"), lipgloss.Color("#8caaee")),
-		Text:      pick(lipgloss.Color("#4c4f69"), lipgloss.Color("#c6d0f5")),
-		Edge:      pick(lipgloss.Color("#7c7f93"), lipgloss.Color("#949cbb")),
-		EdgeLabel: pick(lipgloss.Color("#6c6f85"), lipgloss.Color("#a5adce")),
+		Border:    lipgloss.Color(p.MermaidBorder),
+		Text:      lipgloss.Color(p.MermaidText),
+		Edge:      lipgloss.Color(p.MermaidEdge),
+		EdgeLabel: lipgloss.Color(p.MermaidEdgeLabel),
 	}
 
-	return s, nil
+	return s
 }

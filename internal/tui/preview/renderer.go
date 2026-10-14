@@ -19,11 +19,11 @@ type Renderer struct {
 	r  *glamour.TermRenderer
 }
 
-// NewRenderer returns a renderer for the given theme, which draws Mermaid
-// diagrams in the given colors.
-func NewRenderer(theme string, diagrams mermaid.Styles) (*Renderer, error) {
+// NewRenderer returns a renderer for the given base style of markdown
+// ("dark" or "light"), which draws Mermaid diagrams in the given colors.
+func NewRenderer(markdown string, diagrams mermaid.Styles) (*Renderer, error) {
 	style := styles.DarkStyle
-	if theme == "light" {
+	if markdown == "light" {
 		style = styles.LightStyle
 	}
 	r, err := glamour.NewTermRenderer(

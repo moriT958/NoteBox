@@ -18,10 +18,7 @@ import (
 
 func newCommon(t *testing.T) *common.Common {
 	t.Helper()
-	sty, err := styles.New("dark")
-	if err != nil {
-		t.Fatalf("failed to create styles: %v", err)
-	}
+	sty := styles.New(styles.DarkPalette())
 	keys := keymap.Default()
 	return &common.Common{Styles: sty, Keys: &keys}
 }

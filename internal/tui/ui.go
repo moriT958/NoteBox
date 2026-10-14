@@ -62,11 +62,16 @@ var _ tea.Model = (*UI)(nil)
 
 // StartTUI opens the last used box (or a fallback) and starts watching it.
 func StartTUI(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, error) {
-	sty, err := styles.New(cfg.Theme)
+	var problems []error
+	// Without a themes dir, only the built-in themes are available.
+	themesDir, err := config.ThemesDir()
 	if err != nil {
-		return nil, err
+		problems = append(problems, fmt.Errorf("theme files not used: %w", err))
 	}
-	renderer, err := preview.NewRenderer(cfg.Theme, sty.Mermaid)
+	palette, themeProblems := styles.LoadTheme(themesDir, cfg.Theme)
+	problems = append(problems, themeProblems...)
+	sty := styles.New(palette)
+	renderer, err := preview.NewRenderer(palette.Markdown, sty.Mermaid)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +85,8 @@ func StartTUI(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*U
 	}
 
 	keys := keymap.Default()
-	for _, err := range keys.Apply(cfg.Keymap) {
+	problems = append(problems, keys.Apply(cfg.Keymap)...)
+	for _, err := range problems {
 		slog.Warn("config problem", "error", err)
 	}
 
