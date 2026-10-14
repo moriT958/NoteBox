@@ -23,7 +23,7 @@ curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | 
 
 ## Usage
 
-`notebox` to start
+`nbx` to start
 
 ### defalut keybindings
 
@@ -37,7 +37,7 @@ curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | 
 
 ### Subcommands
 
-- `note version`: show version
+- `nbx version`: show version
 
 ## Config
 

@@ -16,8 +16,8 @@ before:
     - go generate ./...
 
 builds:
-  - main: ./cmd/notebox/main.go
-    binary: notebox
+  - main: ./cmd/nbx/main.go
+    binary: nbx
     env:
       - CGO_ENABLED=0
     goos:

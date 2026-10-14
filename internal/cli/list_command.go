@@ -23,7 +23,7 @@ func (*listCmd) Name() string { return "list" }
 func (*listCmd) Synopsis() string { return "list all boxes" }
 
 func (*listCmd) Usage() string {
-	return `notebox list:
+	return `nbx list:
 show all boxes. deleted boxes are shown dimmed.
 `
 }
