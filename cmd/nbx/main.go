@@ -37,10 +37,9 @@ func main() {
 		os.Exit(cli.InitCommands(context.Background(), boxes))
 	}
 
-	cfg, err := config.GetConfig()
-	if err != nil {
-		slog.Error("failed to load config", "error", err)
-		os.Exit(1)
+	cfg, problems := config.Load(filepath.Join(home, config.AppDirName, config.ConfigFileName))
+	for _, err := range problems {
+		slog.Warn("config problem", "error", err)
 	}
 
 	w := watcher.NewWatcher()

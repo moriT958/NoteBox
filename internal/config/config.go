@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 var (
@@ -16,61 +15,46 @@ var (
 	CurrentVersion string = "dev"
 )
 
-var (
-	instance *Config
-	once     sync.Once
-	initErr  error
-)
-
 type Config struct {
 	Editor string `json:"editor"`
 	Theme  string `json:"theme"`
 }
 
-func GetConfig() (*Config, error) {
-	once.Do(func() {
-		instance, initErr = loadConfig()
-	})
-	return instance, initErr
-}
+// Load reads the config file at path, creating it with the defaults when
+// it doesn't exist. It always returns a usable config: when the file can't
+// be read, the defaults are used and the reasons are returned.
+func Load(path string) (*Config, []error) {
+	cfg := defaultConfig()
 
-func loadConfig() (*Config, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-	filename := filepath.Join(home, AppDirName, ConfigFileName)
-
-	// Create default setting file if not exist.
-	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
-		fp, createErr := os.Create(filename)
-		if createErr != nil {
-			return nil, fmt.Errorf("failed to create config file: %v", createErr)
+	data, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		if err := writeDefault(path); err != nil {
+			return cfg, []error{err}
 		}
-		defer fp.Close()
-
-		enc := json.NewEncoder(fp)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(defaultConfig()); err != nil {
-			return nil, fmt.Errorf("failed to encode config file: %v", err)
-		}
+		return cfg, nil
 	}
-
-	// Read setting file
-	file, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open config file: %v", err)
-	}
-	defer file.Close()
-
-	cfg := new(Config)
-	if err := json.NewDecoder(file).Decode(cfg); err != nil {
-		return nil, fmt.Errorf("failed to decode config file: %v", err)
+		return cfg, []error{fmt.Errorf("failed to read config file: %w", err)}
 	}
 
+	// Fields missing from the file keep their defaults.
+	if err := json.Unmarshal(data, cfg); err != nil {
+		return defaultConfig(), []error{fmt.Errorf("%s: invalid JSON, using the default config: %w", path, err)}
+	}
 	cfg.Theme = strings.ToLower(cfg.Theme)
 
 	return cfg, nil
+}
+
+func writeDefault(path string) error {
+	data, err := json.MarshalIndent(defaultConfig(), "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to encode config file: %w", err)
+	}
+	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
+		return fmt.Errorf("failed to create config file: %w", err)
+	}
+	return nil
 }
 
 func defaultConfig() *Config {
