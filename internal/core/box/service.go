@@ -2,11 +2,16 @@ package box
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"notebox/internal/config"
 	"os"
 	"path/filepath"
 	"uuid"
 )
+
+// ErrDefaultBox is returned when an operation is not allowed on the default box.
+var ErrDefaultBox = errors.New("the default box cannot be removed")
 
 type BoxService struct {
 	// TODO:
@@ -21,6 +26,12 @@ func NewBoxService(config string, store BoxStore) *BoxService {
 		config: config,
 		store:  store,
 	}
+}
+
+// isDefaultBox reports whether b is the default box, identified by its path
+// (<config>/notes) because the title can be renamed.
+func (s *BoxService) isDefaultBox(b Box) bool {
+	return b.Path == filepath.Join(s.config, config.NotesDirName)
 }
 
 func (s *BoxService) findByPath(ctx context.Context, path string) (*Box, error) {
@@ -198,6 +209,9 @@ func (s *BoxService) RemoveBox(ctx context.Context, id string) error {
 	}
 	if box == nil {
 		return fmt.Errorf("failed to remove box: box not found")
+	}
+	if s.isDefaultBox(*box) {
+		return fmt.Errorf("failed to remove box: %w", ErrDefaultBox)
 	}
 
 	box.Active = false

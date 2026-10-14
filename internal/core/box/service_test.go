@@ -714,6 +714,22 @@ func TestBoxService_RemoveBox(t *testing.T) {
 		}
 	})
 
+	t.Run("Fail to remove the default box.", func(t *testing.T) {
+		stubGetByID_Default := func(ctx context.Context, id string) (*Box, error) {
+			return &Box{ID: "1", Title: "Renamed", Path: "/config/notes", Active: true}, nil
+		}
+		stubSet_Fail := func(ctx context.Context, b Box) (*Box, error) {
+			t.Errorf("store.Set must not be called for the default box")
+			return &b, nil
+		}
+		s := NewBoxService("/config", &stubBoxStore{stubSet_Fail, stubGetByID_Default, nil, nil})
+
+		err := s.RemoveBox(context.Background(), "1")
+		if !errors.Is(err, ErrDefaultBox) {
+			t.Fatalf("err = %v, want ErrDefaultBox", err)
+		}
+	})
+
 	t.Run("Fail to remove box, when box not found.", func(t *testing.T) {
 		s := NewBoxService("", &stubBoxStore{nil, stubGetByID_NotFound, nil, nil})
 
