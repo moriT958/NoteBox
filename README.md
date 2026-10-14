@@ -6,12 +6,12 @@ A terminal-based note-taking app.
 
 ## Features
 
-- 高速で見やすい TUI
-- ターミナル上でサクッとメモが取れる
-- Markdown の見やすい表示
-- FuzzyFinder で高速検索
-- Box 機能によるノート管理
-  - (Obsidian Vault みたいな感じの機能)
+- Fast and easy-to-read TUI
+- Jot down notes quickly in the terminal
+- Nicely rendered Markdown
+- Fast fuzzy search
+- Note management with boxes
+- A scriptable CLI, handy for AI agents too
 
 ## Installation
 
@@ -25,7 +25,7 @@ curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | 
 
 `nbx` to start
 
-### defalut keybindings
+### Default keybindings
 
 - `j/k` | `↓/↑`: move cursor
 - `ctrl+l` | `ctrl+h`: Toggle focus between the preview pane and the list panel
