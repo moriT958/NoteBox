@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"notebox/internal/core/note"
-	"notebox/internal/tui/common"
+	"notebox/internal/tui/internal/common"
 	"notebox/internal/tui/styles"
 
 	"charm.land/bubbles/v2/viewport"

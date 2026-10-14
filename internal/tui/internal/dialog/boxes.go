@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"notebox/internal/core/box"
-	"notebox/internal/tui/common"
+	"notebox/internal/tui/internal/common"
 	"notebox/internal/tui/keymap"
 
 	"charm.land/bubbles/v2/key"

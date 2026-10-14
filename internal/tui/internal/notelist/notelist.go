@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"notebox/internal/core/note"
-	"notebox/internal/tui/common"
+	"notebox/internal/tui/internal/common"
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"

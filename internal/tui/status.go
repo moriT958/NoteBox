@@ -3,7 +3,7 @@ package tui
 import (
 	"time"
 
-	"notebox/internal/tui/common"
+	"notebox/internal/tui/internal/common"
 
 	"charm.land/bubbles/v2/help"
 	tea "charm.land/bubbletea/v2"

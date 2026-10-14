@@ -8,8 +8,8 @@ import (
 	"notebox/internal/config"
 	"notebox/internal/core/box"
 	"notebox/internal/core/note"
-	"notebox/internal/tui/dialog"
-	"notebox/internal/tui/preview"
+	"notebox/internal/tui/internal/dialog"
+	"notebox/internal/tui/internal/preview"
 
 	tea "charm.land/bubbletea/v2"
 )

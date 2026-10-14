@@ -7,7 +7,7 @@ import (
 
 	"notebox/internal/core/box"
 	"notebox/internal/core/note"
-	"notebox/internal/tui/common"
+	"notebox/internal/tui/internal/common"
 	"notebox/internal/tui/styles"
 )
 
