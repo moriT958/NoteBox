@@ -10,6 +10,9 @@ import (
 	"uuid"
 )
 
+// DefaultTitle is the title of the default box.
+const DefaultTitle = "Default"
+
 // ErrDefaultBox is returned when an operation is not allowed on the default box.
 var ErrDefaultBox = errors.New("the default box cannot be removed")
 
@@ -28,10 +31,15 @@ func NewBoxService(config string, store BoxStore) *BoxService {
 	}
 }
 
-// isDefaultBox reports whether b is the default box, identified by its path
-// (<config>/notes) because the title can be renamed.
+// defaultPath is where the default box lives: <config>/notes.
+func (s *BoxService) defaultPath() string {
+	return filepath.Join(s.config, config.NotesDirName)
+}
+
+// isDefaultBox reports whether b is the default box. It is identified by its
+// path because the title can be renamed.
 func (s *BoxService) isDefaultBox(b Box) bool {
-	return b.Path == filepath.Join(s.config, config.NotesDirName)
+	return b.Path == s.defaultPath()
 }
 
 func (s *BoxService) findByPath(ctx context.Context, path string) (*Box, error) {
@@ -124,6 +132,50 @@ func (s *BoxService) OpenFolderAsBox(ctx context.Context, title, path string) (*
 		return nil, fmt.Errorf("failed to open folder as box: box is nil")
 	}
 
+	return box, nil
+}
+
+// AddBox registers the directory at path as a box, creating the directory
+// first when it doesn't exist. An empty title falls back to the directory name.
+func (s *BoxService) AddBox(ctx context.Context, title, path string) (*Box, error) {
+	path, err := normalizePath(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add box: %w", err)
+	}
+	if title == "" {
+		title = filepath.Base(path)
+	}
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return nil, fmt.Errorf("failed to add box: %w", err)
+	}
+	return s.OpenFolderAsBox(ctx, title, path)
+}
+
+// DefaultBox returns the default box, registering it first when it isn't yet
+// (or was removed before it became protected).
+func (s *BoxService) DefaultBox(ctx context.Context) (*Box, error) {
+	path := s.defaultPath()
+	existing, err := s.findByPath(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get default box: %w", err)
+	}
+	if existing != nil && existing.Active {
+		return existing, nil
+	}
+	return s.AddBox(ctx, DefaultTitle, path)
+}
+
+// GetBoxByPath returns the box registered at path, or nil if there is none.
+// Inactive (removed) boxes are returned too.
+func (s *BoxService) GetBoxByPath(ctx context.Context, path string) (*Box, error) {
+	path, err := normalizePath(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get box: %w", err)
+	}
+	box, err := s.findByPath(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get box: %w", err)
+	}
 	return box, nil
 }
 

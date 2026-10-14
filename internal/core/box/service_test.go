@@ -815,3 +815,149 @@ func TestBoxService_PruneBoxes(t *testing.T) {
 		}
 	})
 }
+
+func TestBoxService_AddBox(t *testing.T) {
+	stubGet_Empty := func(ctx context.Context, opts Filter) ([]Box, error) {
+		return []Box{}, nil
+	}
+	stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
+		return &b, nil
+	}
+
+	t.Run("Successfully create the directory and register it.", func(t *testing.T) {
+		path := filepath.Join(realTempDir(t), "new-box")
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
+
+		got, err := s.AddBox(context.Background(), "Title", path)
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.Path != path || got.Title != "Title" || !got.Active {
+			t.Errorf("got = %+v, want title %q at %q, active", got, "Title", path)
+		}
+		if info, err := os.Stat(path); err != nil || !info.IsDir() {
+			t.Errorf("directory was not created: %v", err)
+		}
+	})
+
+	t.Run("Use the directory name, when title is empty.", func(t *testing.T) {
+		path := filepath.Join(realTempDir(t), "dir-name")
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
+
+		got, err := s.AddBox(context.Background(), "", path)
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.Title != "dir-name" {
+			t.Errorf("title = %q, want %q", got.Title, "dir-name")
+		}
+	})
+
+	t.Run("Register an existing directory as it is.", func(t *testing.T) {
+		path := realTempDir(t)
+		if err := os.WriteFile(filepath.Join(path, "keep.md"), []byte("keep"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
+
+		if _, err := s.AddBox(context.Background(), "Title", path); err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(path, "keep.md")); err != nil {
+			t.Errorf("existing file was lost: %v", err)
+		}
+	})
+
+	t.Run("Fail to add box, when path is a file.", func(t *testing.T) {
+		file := filepath.Join(realTempDir(t), "file")
+		if err := os.WriteFile(file, nil, 0644); err != nil {
+			t.Fatal(err)
+		}
+		s := NewBoxService("", &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
+
+		if _, err := s.AddBox(context.Background(), "Title", file); err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+}
+
+func TestBoxService_DefaultBox(t *testing.T) {
+	t.Run("Create the default box under the config dir, when it is not registered.", func(t *testing.T) {
+		configDir := realTempDir(t)
+		stubGet_Empty := func(ctx context.Context, opts Filter) ([]Box, error) {
+			return []Box{}, nil
+		}
+		stubSet_OK := func(ctx context.Context, b Box) (*Box, error) {
+			return &b, nil
+		}
+		s := NewBoxService(configDir, &stubBoxStore{stubSet_OK, nil, stubGet_Empty, nil})
+
+		got, err := s.DefaultBox(context.Background())
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		wantPath := filepath.Join(configDir, "notes")
+		if got.Path != wantPath || got.Title != DefaultTitle {
+			t.Errorf("got = %+v, want %q at %q", got, DefaultTitle, wantPath)
+		}
+		if info, err := os.Stat(wantPath); err != nil || !info.IsDir() {
+			t.Errorf("directory was not created: %v", err)
+		}
+	})
+
+	t.Run("Return the registered default box as it is.", func(t *testing.T) {
+		stubGet_Found := func(ctx context.Context, opts Filter) ([]Box, error) {
+			return []Box{{ID: "1", Title: "Renamed", Path: "/config/notes", Active: true}}, nil
+		}
+		stubSet_Fail := func(ctx context.Context, b Box) (*Box, error) {
+			t.Errorf("store.Set must not be called")
+			return &b, nil
+		}
+		s := NewBoxService("/config", &stubBoxStore{stubSet_Fail, nil, stubGet_Found, nil})
+
+		got, err := s.DefaultBox(context.Background())
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.ID != "1" || got.Title != "Renamed" {
+			t.Errorf("got = %+v, want the registered box", got)
+		}
+	})
+}
+
+func TestBoxService_GetBoxByPath(t *testing.T) {
+	t.Run("Successfully get the box, including inactive ones.", func(t *testing.T) {
+		var gotFilter Filter
+		stubGet := func(ctx context.Context, opts Filter) ([]Box, error) {
+			gotFilter = opts
+			return []Box{{ID: "1", Title: "Box A", Path: "/a", Active: false}}, nil
+		}
+		s := NewBoxService("", &stubBoxStore{nil, nil, stubGet, nil})
+
+		got, err := s.GetBoxByPath(context.Background(), "/a/")
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got == nil || got.ID != "1" {
+			t.Errorf("got = %+v, want box 1", got)
+		}
+		if gotFilter.Path == nil || *gotFilter.Path != "/a" {
+			t.Errorf("filter path = %v, want normalized %q", gotFilter.Path, "/a")
+		}
+	})
+
+	t.Run("Return nil, when no box is registered at the path.", func(t *testing.T) {
+		stubGet := func(ctx context.Context, opts Filter) ([]Box, error) {
+			return []Box{}, nil
+		}
+		s := NewBoxService("", &stubBoxStore{nil, nil, stubGet, nil})
+
+		got, err := s.GetBoxByPath(context.Background(), "/missing")
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got != nil {
+			t.Errorf("got = %+v, want nil", got)
+		}
+	})
+}

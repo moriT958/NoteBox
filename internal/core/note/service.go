@@ -57,6 +57,29 @@ func (s *NoteService) GetNotes() ([]Note, error) {
 	return notes, nil
 }
 
+// GetNote returns the note at relPath, a path relative to the box as listed by
+// GetNotes. Paths that point outside the box are rejected.
+func (s *NoteService) GetNote(relPath string) (Note, error) {
+	relPath = filepath.Clean(relPath)
+	if !filepath.IsLocal(relPath) || filepath.Ext(relPath) != ".md" {
+		return Note{}, fmt.Errorf("failed to get note: invalid note path: %s", relPath)
+	}
+
+	info, err := os.Stat(filepath.Join(s.box.Path, relPath))
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return Note{}, fmt.Errorf("failed to get note: note not found: %s", relPath)
+		}
+		return Note{}, fmt.Errorf("failed to get note: %w", err)
+	}
+	if info.IsDir() {
+		return Note{}, fmt.Errorf("failed to get note: invalid note path: %s", relPath)
+	}
+
+	title := decodeTitle(strings.TrimSuffix(filepath.Base(relPath), ".md"))
+	return Note{title: title, path: relPath}, nil
+}
+
 func (s *NoteService) GetNoteContent(note Note) (string, error) {
 	notePath := filepath.Join(s.box.Path, note.path)
 	content, err := os.ReadFile(notePath)

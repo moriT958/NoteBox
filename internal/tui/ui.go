@@ -122,7 +122,7 @@ func startupBox(ctx context.Context, svc *box.BoxService) (box.Box, error) {
 			return b, nil
 		}
 	}
-	b, err := svc.OpenFolderAsBox(ctx, "Default", dir)
+	b, err := svc.OpenFolderAsBox(ctx, box.DefaultTitle, dir)
 	if err != nil {
 		return box.Box{}, err
 	}
