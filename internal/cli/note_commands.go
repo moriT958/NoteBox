@@ -39,7 +39,8 @@ func (*noteListCmd) Synopsis() string { return "list notes in a box" }
 
 func (*noteListCmd) Usage() string {
 	return `nbx note list [-box <path>]:
-show the notes in the box, one per line as "<title>	<note-path>".
+show the notes in the box. on a terminal it is a table, otherwise it is one
+note per line as "<title>	<note-path>".
 <note-path> is relative to the box and is what the other note commands take.
 `
 }
@@ -61,9 +62,11 @@ func (c *noteListCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any)
 	if err != nil {
 		return fail(err)
 	}
-	for _, n := range list {
-		printNote(n)
+	rows := make([][]string, len(list))
+	for i, n := range list {
+		rows[i] = []string{n.Title(), n.Path()}
 	}
+	printTable([]string{"Note", "Path"}, rows, nil)
 	return subcommands.ExitSuccess
 }
 

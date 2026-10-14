@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"notebox/internal/core/box"
-	"os"
 
 	"github.com/google/subcommands"
 )
@@ -22,8 +21,8 @@ func (*boxListCmd) Synopsis() string { return "list all boxes" }
 
 func (*boxListCmd) Usage() string {
 	return `nbx box list:
-show all boxes, one per line as "<title>	<path>". removed boxes are
-shown dimmed when the output is a terminal.
+show all boxes. on a terminal it is a table and removed boxes are dimmed.
+otherwise it is one box per line as "<title>	<path>".
 `
 }
 
@@ -39,19 +38,13 @@ func (c *boxListCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) 
 		return fail(fmt.Errorf("failed to list boxes: %w", err))
 	}
 
-	const (
-		dim   = "\x1b[2m"
-		reset = "\x1b[0m"
-	)
-	color := isTerminal(os.Stdout)
-
-	for _, b := range boxes {
-		line := b.Title + "\t" + b.Path
-		if !b.Active && color {
-			line = dim + line + reset
-		}
-		fmt.Println(line)
+	rows := make([][]string, len(boxes))
+	dimmed := make([]bool, len(boxes))
+	for i, b := range boxes {
+		rows[i] = []string{b.Title, b.Path}
+		dimmed[i] = !b.Active
 	}
+	printTable([]string{"Box", "Path"}, rows, dimmed)
 
 	return subcommands.ExitSuccess
 }
