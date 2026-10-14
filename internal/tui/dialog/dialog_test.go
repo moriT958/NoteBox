@@ -1,9 +1,12 @@
 package dialog
 
 import (
+	"errors"
+	"fmt"
 	"image"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"notebox/internal/core/box"
@@ -14,6 +17,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func newCommon(t *testing.T) *common.Common {
@@ -288,6 +292,10 @@ func TestRender_FitsSmallArea(t *testing.T) {
 		NewFinder(com, notes),
 		boxes,
 		NewBoxForm(com, BoxFormNew),
+		NewProblems(com, []error{
+			errors.New("keymap: \"list.nwe\" is an unknown action and a rather long problem, ignored"),
+			errors.New("theme \"x\" not found"),
+		}),
 	}
 	area := image.Rect(0, 0, 40, 16)
 	for _, d := range dialogs {
@@ -299,4 +307,72 @@ func TestRender_FitsSmallArea(t *testing.T) {
 			t.Errorf("%s: height = %d, want <= %d", d.ID(), h, area.Dy())
 		}
 	}
+}
+
+func TestProblems(t *testing.T) {
+	problems := func(n int) []error {
+		errs := make([]error, n)
+		for i := range errs {
+			errs[i] = fmt.Errorf("problem number %d", i+1)
+		}
+		return errs
+	}
+	area := image.Rect(0, 0, 60, 30)
+
+	t.Run("Every problem is listed.", func(t *testing.T) {
+		d := NewProblems(newCommon(t), problems(3))
+
+		view, _ := d.Render(area)
+
+		plain := ansi.Strip(view)
+		for _, want := range []string{"3 problem(s)", "problem number 1", "problem number 2", "problem number 3"} {
+			if !strings.Contains(plain, want) {
+				t.Errorf("%q missing from\n%s", want, plain)
+			}
+		}
+	})
+
+	t.Run("A long problem wraps instead of being cut.", func(t *testing.T) {
+		long := strings.Repeat("word ", 30) + "end"
+		d := NewProblems(newCommon(t), []error{errors.New(long)})
+
+		view, _ := d.Render(image.Rect(0, 0, 40, 30))
+
+		if w := lipgloss.Width(view); w > 40 {
+			t.Errorf("width = %d, want <= 40", w)
+		}
+		if !strings.Contains(ansi.Strip(view), "end") {
+			t.Errorf("the end of the problem is missing from\n%s", ansi.Strip(view))
+		}
+	})
+
+	t.Run("Many problems scroll.", func(t *testing.T) {
+		d := NewProblems(newCommon(t), problems(30))
+
+		first, _ := d.Render(area)
+		if strings.Contains(ansi.Strip(first), "problem number 30") {
+			t.Fatalf("the last problem is shown before scrolling")
+		}
+		for range 40 {
+			d.HandleMsg(press("down"))
+		}
+		last, _ := d.Render(area)
+
+		if !strings.Contains(ansi.Strip(last), "problem number 30") {
+			t.Errorf("the last problem is missing after scrolling\n%s", ansi.Strip(last))
+		}
+		if h := lipgloss.Height(last); h != lipgloss.Height(first) {
+			t.Errorf("height changed from %d to %d", lipgloss.Height(first), h)
+		}
+	})
+
+	t.Run("Enter and esc close it.", func(t *testing.T) {
+		for _, k := range []string{"enter", "esc"} {
+			d := NewProblems(newCommon(t), problems(1))
+
+			if _, ok := d.HandleMsg(press(k)).(ActionClose); !ok {
+				t.Errorf("%s did not close the dialog", k)
+			}
+		}
+	})
 }

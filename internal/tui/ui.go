@@ -91,7 +91,7 @@ func StartTUI(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*U
 	}
 
 	com := &common.Common{Config: cfg, Styles: sty, Keys: &keys}
-	return &UI{
+	m := &UI{
 		com:      com,
 		box:      b,
 		notes:    note.NewNoteService(b),
@@ -104,7 +104,11 @@ func StartTUI(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*U
 		status:   newStatus(com),
 		dialog:   dialog.NewOverlay(),
 		keys:     &keys,
-	}, nil
+	}
+	if len(problems) > 0 {
+		m.dialog.Open(dialog.NewProblems(com, problems))
+	}
+	return m, nil
 }
 
 // startupBox opens the last used box. Only when it's gone does it look
