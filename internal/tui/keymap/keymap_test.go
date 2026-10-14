@@ -1,6 +1,7 @@
 package keymap
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 )
@@ -31,6 +32,31 @@ func TestDefault(t *testing.T) {
 		k := Default()
 		if a, b, s, ok := k.conflict(allOverridden(&k)); ok {
 			t.Errorf("%q and %q both use %q", a, b, s)
+		}
+	})
+}
+
+func TestKeys(t *testing.T) {
+	t.Run("Applying the keys of every action changes nothing.", func(t *testing.T) {
+		k := Default()
+		keys := k.Keys()
+
+		problems := k.Apply(keys)
+
+		if len(problems) != 0 {
+			t.Fatalf("problems = %v, want none", problems)
+		}
+		if got := k.Keys(); !reflect.DeepEqual(got, keys) {
+			t.Errorf("keys changed to %v", got)
+		}
+	})
+
+	t.Run("There is a key list for every action.", func(t *testing.T) {
+		k := Default()
+		for id, keys := range k.Keys() {
+			if len(keys) == 0 {
+				t.Errorf("%s has no keys", id)
+			}
 		}
 	})
 }

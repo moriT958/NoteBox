@@ -61,8 +61,7 @@ type UI struct {
 var _ tea.Model = (*UI)(nil)
 
 // StartTUI opens the last used box (or a fallback) and starts watching it.
-func StartTUI(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, error) {
-	var problems []error
+func StartTUI(cfg *config.Config, problems []error, boxes *box.BoxService, w *watcher.Watcher) (*UI, error) {
 	// Without a themes dir, only the built-in themes are available.
 	themesDir, err := config.ThemesDir()
 	if err != nil {

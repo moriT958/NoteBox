@@ -3,6 +3,8 @@
 package keymap
 
 import (
+	"slices"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 )
@@ -149,6 +151,15 @@ func Default() KeyMap {
 	k.Form.Prev = bind("prev field", "shift+tab", "up", "ctrl+p")
 
 	return k
+}
+
+// Keys returns the keys of every action, by action ID.
+func (k *KeyMap) Keys() map[string][]string {
+	m := map[string][]string{}
+	for _, a := range k.actions() {
+		m[a.id] = slices.Clone(a.b.Keys())
+	}
+	return m
 }
 
 // Viewport returns the preview's scroll keys as a viewport key map.

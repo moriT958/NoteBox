@@ -22,17 +22,14 @@ type Config struct {
 	Keymap map[string][]string `json:"keymap,omitempty"`
 }
 
-// Load reads the config file at path, creating it with the defaults when
-// it doesn't exist. It always returns a usable config: when the file can't
-// be read, the defaults are used and the reasons are returned.
+// Load reads the config file at path. It always returns a usable config:
+// when there is no file, or it can't be read, the defaults are used, and in
+// the second case the reasons are returned.
 func Load(path string) (*Config, []error) {
 	cfg := defaultConfig()
 
 	data, err := os.ReadFile(path)
 	if errors.Is(err, fs.ErrNotExist) {
-		if err := writeDefault(path); err != nil {
-			return cfg, []error{err}
-		}
 		return cfg, nil
 	}
 	if err != nil {
@@ -48,13 +45,26 @@ func Load(path string) (*Config, []error) {
 	return cfg, nil
 }
 
-func writeDefault(path string) error {
+// WriteDefault creates the config file at path with the default values,
+// unless the file exists.
+func WriteDefault(path string) error {
 	data, err := json.MarshalIndent(defaultConfig(), "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to encode config file: %w", err)
 	}
-	if err := os.WriteFile(path, append(data, '\n'), 0644); err != nil {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if errors.Is(err, fs.ErrExist) {
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("failed to create config file: %w", err)
+	}
+	_, err = f.Write(append(data, '\n'))
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
 	}
 	return nil
 }

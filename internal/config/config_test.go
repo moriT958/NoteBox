@@ -17,7 +17,7 @@ func writeConfig(t *testing.T, content string) string {
 }
 
 func TestLoad(t *testing.T) {
-	t.Run("A missing file is created with the defaults.", func(t *testing.T) {
+	t.Run("A missing file gives the defaults and isn't created.", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), ConfigFileName)
 
 		cfg, problems := Load(path)
@@ -28,9 +28,8 @@ func TestLoad(t *testing.T) {
 		if !reflect.DeepEqual(cfg, defaultConfig()) {
 			t.Errorf("cfg = %+v, want the defaults", *cfg)
 		}
-		created, problems := Load(path)
-		if len(problems) != 0 || !reflect.DeepEqual(created, defaultConfig()) {
-			t.Errorf("created file loads as %+v, %v, want the defaults", *created, problems)
+		if _, err := os.Stat(path); err == nil {
+			t.Errorf("Load created the file")
 		}
 	})
 
@@ -72,6 +71,49 @@ func TestLoad(t *testing.T) {
 		}
 		if !reflect.DeepEqual(cfg, defaultConfig()) {
 			t.Errorf("cfg = %+v, want the defaults", *cfg)
+		}
+	})
+}
+
+func TestWriteDefault(t *testing.T) {
+	t.Run("The file has the defaults and loads back.", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), ConfigFileName)
+
+		if err := WriteDefault(path); err != nil {
+			t.Fatalf("WriteDefault() error = %v", err)
+		}
+
+		cfg, problems := Load(path)
+		if len(problems) != 0 {
+			t.Fatalf("problems = %v, want none", problems)
+		}
+		if !reflect.DeepEqual(cfg, defaultConfig()) {
+			t.Errorf("cfg = %+v, want the defaults", *cfg)
+		}
+		data, _ := os.ReadFile(path)
+		if want := "{\n  \"editor\": \"vim\",\n  \"theme\": \"dark\"\n}\n"; string(data) != want {
+			t.Errorf("file =\n%s\nwant\n%s", data, want)
+		}
+	})
+
+	t.Run("An existing file is left alone.", func(t *testing.T) {
+		path := writeConfig(t, `{"editor": "nvim"}`)
+
+		if err := WriteDefault(path); err != nil {
+			t.Fatalf("WriteDefault() error = %v", err)
+		}
+
+		data, _ := os.ReadFile(path)
+		if string(data) != `{"editor": "nvim"}` {
+			t.Errorf("file = %s, want it unchanged", data)
+		}
+	})
+
+	t.Run("A directory that doesn't exist is an error.", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "missing", ConfigFileName)
+
+		if err := WriteDefault(path); err == nil {
+			t.Errorf("WriteDefault() = nil, want an error")
 		}
 	})
 }

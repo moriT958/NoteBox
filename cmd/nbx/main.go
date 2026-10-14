@@ -37,15 +37,18 @@ func main() {
 		os.Exit(cli.InitCommands(context.Background(), boxes))
 	}
 
-	cfg, problems := config.Load(filepath.Join(home, config.AppDirName, config.ConfigFileName))
-	for _, err := range problems {
-		slog.Warn("config problem", "error", err)
+	cfgPath := filepath.Join(home, config.AppDirName, config.ConfigFileName)
+	var problems []error
+	if err := config.WriteDefault(cfgPath); err != nil {
+		problems = append(problems, err)
 	}
+	cfg, loadProblems := config.Load(cfgPath)
+	problems = append(problems, loadProblems...)
 
 	w := watcher.NewWatcher()
 	defer w.Close()
 
-	m, err := tui.StartTUI(cfg, boxes, w)
+	m, err := tui.StartTUI(cfg, problems, boxes, w)
 	if err != nil {
 		slog.Error("failed to initialize tui", "error", err)
 		os.Exit(1)
