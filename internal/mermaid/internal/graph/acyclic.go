@@ -1,13 +1,14 @@
 package graph
 
-// backEdges finds the edges that go back up, so that the rest have no
-// cycles: those that a depth-first walk along the edges, in the order nodes
-// and edges are declared, finds leading back to a node it is still walking
-// from. Edges from a node to itself are left to be drawn beside it.
+// backEdges finds the edges between nodes that go back up, so that the rest
+// have no cycles: those that a depth-first walk along the edges, in the
+// order nodes and edges are declared, finds leading back to a node it is
+// still walking from. Edges from a node to itself are left to be drawn
+// beside it, and edges to groups to rankNodes.
 func backEdges(g *Graph) []bool {
 	out := make([][]int, len(g.Nodes))
 	for i, e := range g.Edges {
-		if e.From != e.To {
+		if !e.FromGroup && !e.ToGroup && e.From != e.To {
 			out[e.From] = append(out[e.From], i)
 		}
 	}
@@ -37,23 +38,4 @@ func backEdges(g *Graph) []bool {
 		}
 	}
 	return back
-}
-
-// A link joins two nodes from the top down, as an edge or an edge going back
-// up turned around.
-type link struct{ from, to, length int }
-
-// links returns the edges of a graph joining two nodes from the top down.
-func links(g *Graph, back []bool) []link {
-	var ls []link
-	for i, e := range g.Edges {
-		switch {
-		case e.From == e.To:
-		case back[i]:
-			ls = append(ls, link{e.To, e.From, e.Length})
-		default:
-			ls = append(ls, link{e.From, e.To, e.Length})
-		}
-	}
-	return ls
 }

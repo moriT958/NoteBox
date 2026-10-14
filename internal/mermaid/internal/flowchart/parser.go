@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"notebox/internal/mermaid/internal/diagram"
 	"notebox/internal/mermaid/internal/graph"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -58,12 +59,75 @@ func parseFlowchart(src string) (*graph.Graph, error) {
 	if len(p.open) > 0 {
 		return nil, fmt.Errorf("%w: subgraph %q without an end", diagram.ErrSyntax, p.open[len(p.open)-1].title)
 	}
-	for id := range p.groups {
-		if _, ok := p.index[id]; ok {
-			return nil, fmt.Errorf("%w: link to subgraph %q", diagram.ErrUnsupported, id)
-		}
+	if err := p.linkSubgraphs(); err != nil {
+		return nil, err
 	}
 	return p.g, nil
+}
+
+// linkSubgraphs turns the nodes named by subgraph IDs into the subgraphs,
+// as in Mermaid, whether the subgraph comes before or after them: edges to
+// them end at the subgraph, and a subgraph that names another one nests it
+// if it isn't nested already. Subgraphs left without nodes in them can't be
+// linked to.
+func (p *parser) linkSubgraphs() error {
+	group := map[int]int{} // the group each node named by an ID is
+	for id, gi := range p.groups {
+		if n, ok := p.index[id]; ok {
+			group[n] = gi
+		}
+	}
+	if len(group) == 0 {
+		return nil
+	}
+
+	renumber := make([]int, len(p.g.Nodes))
+	var nodes []graph.Node
+	for n, node := range p.g.Nodes {
+		renumber[n] = len(nodes)
+		if _, ok := group[n]; !ok {
+			nodes = append(nodes, node)
+		}
+	}
+	p.g.Nodes = nodes
+	for i := range p.g.Edges {
+		e := &p.g.Edges[i]
+		e.From, e.FromGroup = endOf(e.From, group, renumber)
+		e.To, e.ToGroup = endOf(e.To, group, renumber)
+	}
+	for gi := range p.g.Groups {
+		gr := &p.g.Groups[gi]
+		var members []int
+		for _, n := range gr.Nodes {
+			if c, ok := group[n]; ok {
+				_ = p.nest(c, gi)
+			} else {
+				members = append(members, renumber[n])
+			}
+		}
+		gr.Nodes = members
+	}
+
+	var hasNodes func(gi int) bool
+	hasNodes = func(gi int) bool {
+		gr := p.g.Groups[gi]
+		return len(gr.Nodes) > 0 || slices.ContainsFunc(gr.Groups, hasNodes)
+	}
+	for _, e := range p.g.Edges {
+		if e.FromGroup && !hasNodes(e.From) || e.ToGroup && !hasNodes(e.To) {
+			return fmt.Errorf("%w: link to a subgraph without nodes", diagram.ErrUnsupported)
+		}
+	}
+	return nil
+}
+
+// endOf returns the end of an edge at node n: the group the node's ID
+// names, or the node's new index.
+func endOf(n int, group map[int]int, renumber []int) (int, bool) {
+	if gi, ok := group[n]; ok {
+		return gi, true
+	}
+	return renumber[n], false
 }
 
 // parse parses a statement after the declaration.
@@ -100,7 +164,8 @@ func parseSubgraph(rest string) *subgraph {
 // endSubgraph ends the innermost subgraph being read. As in Mermaid, it
 // takes the nodes its statements name that aren't in a subgraph that ended
 // before it, and a subgraph with an ID that ended before takes them
-// instead. A subgraph without nodes in it is drawn as a node.
+// instead. A subgraph without nodes in it is drawn as a node, which its ID
+// names.
 func (p *parser) endSubgraph() error {
 	if len(p.open) == 0 {
 		return fmt.Errorf("%w: end without a subgraph", diagram.ErrSyntax)
@@ -118,7 +183,16 @@ func (p *parser) endSubgraph() error {
 	gi, ok := p.groups[sg.id]
 	if !ok {
 		if len(nodes) == 0 && len(sg.groups) == 0 {
-			p.mention(p.addNode(graph.Node{Label: sg.title}))
+			n, ok := p.index[sg.id]
+			if ok {
+				p.g.Nodes[n].Label = sg.title
+			} else {
+				n = p.addNode(graph.Node{Label: sg.title})
+				if sg.id != "" {
+					p.index[sg.id] = n
+				}
+			}
+			p.mention(n)
 			return nil
 		}
 		gi = len(p.g.Groups)

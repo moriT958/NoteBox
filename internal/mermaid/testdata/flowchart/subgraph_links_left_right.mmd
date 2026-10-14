@@ -1,0 +1,9 @@
+graph LR
+    Client[クライアント] -->|HTTP| api
+    subgraph api [API サーバー]
+        Router --> Handler
+    end
+    api --> db
+    subgraph db [データベース]
+        Primary[(primary)] -.-> Replica[(replica)]
+    end

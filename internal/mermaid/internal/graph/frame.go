@@ -28,13 +28,17 @@ type frame struct {
 	// key orders frames side by side in a rank, the same way in every rank
 	// they share, so that they don't overlap.
 	key float64
+	// above reports whether edges into the frame's top have heads or
+	// labels, which take the row above it.
+	above bool
 	// x, y, w and h are the frame's outline.
 	x, y, w, h int
 }
 
-// checkGroups reports groups that don't nest: indexes out of range, nodes
-// or groups in more than one group, and groups nested in themselves.
-func checkGroups(g *Graph) error {
+// check reports edges that don't join nodes or groups with nodes in them,
+// and groups that don't nest: indexes out of range, nodes or groups in more
+// than one group, and groups nested in themselves.
+func check(g *Graph) error {
 	nodeIn := make([]bool, len(g.Nodes))
 	parent := make([]int, len(g.Groups))
 	for i := range parent {
@@ -63,16 +67,41 @@ func checkGroups(g *Graph) error {
 			}
 		}
 	}
+
+	joins := func(i int, group bool) bool {
+		if group {
+			return i >= 0 && i < len(g.Groups) && hasNodes(g, i)
+		}
+		return i >= 0 && i < len(g.Nodes)
+	}
+	for i, e := range g.Edges {
+		if !joins(e.From, e.FromGroup) || !joins(e.To, e.ToGroup) || e.Length < 1 {
+			return fmt.Errorf("graph: edge %d from %d to %d of length %d doesn't join %d nodes or %d groups with nodes", i, e.From, e.To, e.Length, len(g.Nodes), len(g.Groups))
+		}
+	}
 	return nil
 }
 
+// hasNodes reports whether a group has nodes in it or in the groups nested
+// in it. The groups must nest.
+func hasNodes(g *Graph, gi int) bool {
+	if len(g.Groups[gi].Nodes) > 0 {
+		return true
+	}
+	return slices.ContainsFunc(g.Groups[gi].Groups, func(c int) bool { return hasNodes(g, c) })
+}
+
 // addFrames adds a frame for each group with nodes in it, parents before
-// the frames nested in them, and returns the frame each node is in, or -1.
-// The groups must nest.
-func (l *layout) addFrames(g *Graph, ranks []int) (nodeFrame []int) {
+// the frames nested in them, and returns the frame each node and each group
+// is in, or -1. The groups must nest.
+func (l *layout) addFrames(g *Graph) (nodeFrame, groupFrame []int) {
 	nodeFrame = make([]int, len(g.Nodes))
 	for i := range nodeFrame {
 		nodeFrame[i] = -1
+	}
+	groupFrame = make([]int, len(g.Groups))
+	for i := range groupFrame {
+		groupFrame[i] = -1
 	}
 	nested := make([]bool, len(g.Groups))
 	for _, gr := range g.Groups {
@@ -81,21 +110,13 @@ func (l *layout) addFrames(g *Graph, ranks []int) (nodeFrame []int) {
 		}
 	}
 
-	// hasNodes reports whether a group has nodes in it or in the groups
-	// nested in it.
-	var hasNodes func(gi int) bool
-	hasNodes = func(gi int) bool {
-		if len(g.Groups[gi].Nodes) > 0 {
-			return true
-		}
-		return slices.ContainsFunc(g.Groups[gi].Groups, hasNodes)
-	}
 	var add func(gi, parent int)
 	add = func(gi, parent int) {
-		if !hasNodes(gi) {
+		if !hasNodes(g, gi) {
 			return
 		}
 		f := len(l.frames)
+		groupFrame[gi] = f
 		fr := frame{parent: parent, title: groupTitle(g.Groups[gi].Label), top: -1, bottom: -1}
 		if parent >= 0 {
 			fr.depth = l.frames[parent].depth + 1
@@ -104,7 +125,6 @@ func (l *layout) addFrames(g *Graph, ranks []int) (nodeFrame []int) {
 		l.frames = append(l.frames, fr)
 		for _, n := range g.Groups[gi].Nodes {
 			nodeFrame[n] = f
-			l.frames[f].spanRank(ranks[n])
 		}
 		for _, c := range g.Groups[gi].Groups {
 			add(c, f)
@@ -115,7 +135,17 @@ func (l *layout) addFrames(g *Graph, ranks []int) (nodeFrame []int) {
 			add(gi, -1)
 		}
 	}
+	return nodeFrame, groupFrame
+}
 
+// spanFrames sets the ranks frames take up, from the ranks of the nodes in
+// them.
+func (l *layout) spanFrames(ranks, nodeFrame []int) {
+	for n, f := range nodeFrame {
+		if f >= 0 {
+			l.frames[f].spanRank(ranks[n])
+		}
+	}
 	// Nested frames widen the ranks of the frames around them.
 	for _, fr := range slices.Backward(l.frames) {
 		if p := fr.parent; p >= 0 {
@@ -123,7 +153,6 @@ func (l *layout) addFrames(g *Graph, ranks []int) (nodeFrame []int) {
 			l.frames[p].spanRank(fr.bottom)
 		}
 	}
-	return nodeFrame
 }
 
 func (f *frame) spanRank(r int) {

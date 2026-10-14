@@ -11,10 +11,11 @@ import (
 func drawLoops(p *pen, g *Graph) {
 	l := p.l
 	for i, e := range g.Edges {
-		if e.From != e.To || e.Invisible {
+		n := l.ends[i][0].node
+		if _, _, ok := l.pathEnds(i); ok || e.Invisible {
 			continue
 		}
-		v := l.verts[e.From]
+		v := l.verts[n]
 		right, turn := v.x+v.w-1, v.cx+v.loopDX()
 		out, in := v.y+1, v.y+2
 		p.across(out, right, turn, e.Style, diagram.RoleEdge)
@@ -29,7 +30,7 @@ func drawLoops(p *pen, g *Graph) {
 			p.head(right+1, out, e.FromHead, dirLeft)
 		}
 
-		if v.loopLabel == "" || i != firstLoop(g, e.From) {
+		if v.loopLabel == "" || i != firstLoop(g, l, n) {
 			continue
 		}
 		if !l.orient.labelsAlong() {
@@ -50,9 +51,9 @@ func drawLoops(p *pen, g *Graph) {
 
 // firstLoop returns the index of the first edge from node n to itself, which
 // the labels of all of them are drawn with.
-func firstLoop(g *Graph, n int) int {
+func firstLoop(g *Graph, l *layout, n int) int {
 	for i, e := range g.Edges {
-		if e.From == n && e.To == n && !e.Invisible {
+		if _, _, ok := l.pathEnds(i); !ok && l.ends[i][0].node == n && !e.Invisible {
 			return i
 		}
 	}

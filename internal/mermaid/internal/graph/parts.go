@@ -15,10 +15,10 @@ func (l *layout) addParts() {
 			}
 			switch {
 			case l.back[ei]:
-				if !from.isPoint() {
+				if !from.isPoint() || from.port {
 					p.fromX -= l.orient.backX()
 				}
-				if !to.isPoint() {
+				if !to.isPoint() || to.port {
 					p.toX -= l.orient.backX()
 				}
 			// A part that would only jog by a column leaves its from box

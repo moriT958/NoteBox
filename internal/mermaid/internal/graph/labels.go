@@ -12,7 +12,7 @@ func drawLabels(p *pen) {
 			if l.orient.labelsAlong() {
 				p.textAlong(v.cx, l.alongEnd(&v)-ansi.StringWidth(v.label), v.label)
 			} else {
-				p.text(v.cx+labelGap, v.y-1, v.label)
+				p.text(v.cx+labelGap, l.enterY(&v)-1, v.label)
 			}
 		}
 		if v.backLabel != "" {
@@ -20,7 +20,7 @@ func drawLabels(p *pen) {
 			if l.orient.labelsAlong() {
 				p.textAlong(x, l.alongEnd(&v)-ansi.StringWidth(v.backLabel), v.backLabel)
 			} else {
-				p.text(x-1-ansi.StringWidth(v.backLabel), v.y-1, v.backLabel)
+				p.text(x-1-ansi.StringWidth(v.backLabel), l.enterY(&v)-1, v.backLabel)
 			}
 		}
 	}

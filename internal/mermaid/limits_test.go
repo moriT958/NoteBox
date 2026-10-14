@@ -79,6 +79,7 @@ func FuzzRender(f *testing.F) {
 		"graph TD\nA[\"`**md**`\"] <--> B[ノート<br>作成 &lt;#9829;]",
 		"graph LR\nsubgraph a [A]\nA-->B\nsubgraph b\nC-->A\nend\nend\nB-->C\nD-->C",
 		"graph TD\nsubgraph one\nA\nend\nsubgraph one\nB\nend\nsubgraph two\nsubgraph x\nend\nend",
+		"graph BT\nX --> one\nsubgraph one\nA --> two\nsubgraph two\nB\nend\nend\ntwo -- out --> Y\none <--> one\nY --> two",
 	} {
 		f.Add(src)
 	}

@@ -8,8 +8,8 @@ import (
 )
 
 // addVertices adds a vertex for each node, the points edges pass through,
-// and fillers that keep the places of frames in ranks without other
-// vertices in them.
+// the ports where edges to groups end, and fillers that keep the places of
+// frames in ranks without other vertices in them.
 func (l *layout) addVertices(g *Graph, ranks, nodeFrame []int) {
 	l.ranks = make([][]int, slices.Max(append(ranks, 0))+1)
 	add := func(v vertex) int {
@@ -31,13 +31,15 @@ func (l *layout) addVertices(g *Graph, ranks, nodeFrame []int) {
 		}
 		add(vertex{node: i, edge: -1, frame: nodeFrame[i], rank: ranks[i], lines: lines, w: w, h: h})
 	}
+	ports := map[[2]int]int{} // the ports of each frame, at its top and bottom
 	for ei, e := range g.Edges {
 		label := ""
 		if e.Label != "" && !e.Invisible {
 			label = diagram.FitLabel(e.Label, labelWidth)
 		}
-		if e.From == e.To {
-			v := &l.verts[e.From]
+		top, bottom, ok := l.pathEnds(ei)
+		if !ok {
+			v := &l.verts[top.node]
 			v.loop = v.loop || !e.Invisible
 			v.loopLabel = joinLabel(v.loopLabel, label)
 			v.h = max(v.h, loopHeight)
@@ -45,22 +47,47 @@ func (l *layout) addVertices(g *Graph, ranks, nodeFrame []int) {
 			continue
 		}
 
-		top, bottom := e.From, e.To
-		if l.back[ei] {
-			top, bottom = e.To, e.From
-			for _, v := range []int{top, bottom} {
-				l.verts[v].w = max(l.verts[v].w, l.orient.backWidth())
+		// An end at a frame is the port at its top or its bottom, in the
+		// frame's rank nearest the other end, which the edges stop at the
+		// outline before.
+		vertexOf := func(en end, upper bool) int {
+			if !en.isFrame() {
+				return en.node
 			}
-			l.verts[bottom].backLabel = joinLabel(l.verts[bottom].backLabel, label)
-		} else {
-			l.verts[bottom].label = joinLabel(l.verts[bottom].label, label)
+			key := [2]int{en.frame, 0}
+			if upper {
+				key[1] = 1
+			}
+			v, ok := ports[key]
+			if !ok {
+				v = add(vertex{node: -1, edge: ei, frame: en.frame, port: true, rank: l.endRank(en, upper, ranks), w: 1})
+				ports[key] = v
+			}
+			return v
 		}
-		path := []int{top}
-		for r := ranks[top] + 1; r < ranks[bottom]; r++ {
-			f := l.pointFrame(nodeFrame[top], nodeFrame[bottom], r)
+		tv, bv := vertexOf(top, true), vertexOf(bottom, false)
+		bottomHead := e.ToHead
+		if l.back[ei] {
+			bottomHead = e.FromHead
+			for _, v := range []int{tv, bv} {
+				if vert := &l.verts[v]; !vert.isPoint() || vert.port {
+					vert.w = max(vert.w, l.orient.backWidth())
+				}
+			}
+			l.verts[bv].backLabel = joinLabel(l.verts[bv].backLabel, label)
+		} else {
+			l.verts[bv].label = joinLabel(l.verts[bv].label, label)
+		}
+		if bottom.isFrame() && !e.Invisible && (bottomHead != HeadNone || label != "") {
+			l.frames[bottom.frame].above = true
+		}
+
+		path := []int{tv}
+		for r := l.verts[tv].rank + 1; r < l.verts[bv].rank; r++ {
+			f := l.pointFrame(l.verts[tv].frame, l.verts[bv].frame, r)
 			path = append(path, add(vertex{node: -1, edge: ei, frame: f, rank: r, w: 1}))
 		}
-		l.paths = append(l.paths, append(path, bottom))
+		l.paths = append(l.paths, append(path, bv))
 	}
 
 	filled := make([][]bool, len(l.frames))
@@ -96,4 +123,29 @@ func joinLabel(labels, label string) string {
 		return labels
 	}
 	return labels + ", " + label
+}
+
+// pathEnds returns the ends of an edge from the top down: from its to end
+// for an edge going back up. Edges from a node to itself have no path.
+func (l *layout) pathEnds(ei int) (top, bottom end, ok bool) {
+	top, bottom = l.ends[ei][0], l.ends[ei][1]
+	if top == bottom {
+		return top, bottom, false
+	}
+	if l.back[ei] {
+		top, bottom = bottom, top
+	}
+	return top, bottom, true
+}
+
+// endRank returns the rank of an end at the top or the bottom of a path: a
+// node's rank, or the bottom or the top rank of a frame.
+func (l *layout) endRank(e end, upper bool, ranks []int) int {
+	switch {
+	case !e.isFrame():
+		return ranks[e.node]
+	case upper:
+		return l.frames[e.frame].bottom
+	}
+	return l.frames[e.frame].top
 }

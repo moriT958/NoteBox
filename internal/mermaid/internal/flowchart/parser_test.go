@@ -312,9 +312,11 @@ func TestParseFlowchart(t *testing.T) {
 
 func TestParseSubgraphs(t *testing.T) {
 	tests := []struct {
-		name   string
-		src    string
-		nodes  []string
+		name  string
+		src   string
+		nodes []string
+		// edges are checked when given.
+		edges  []graph.Edge
 		groups []graph.Group
 	}{
 		{
@@ -366,6 +368,32 @@ func TestParseSubgraphs(t *testing.T) {
 			groups: []graph.Group{{Label: "outer", Nodes: []int{0}}},
 		},
 		{
+			name:  "links to subgraphs before and after them",
+			src:   "graph TD\nA --> one\nsubgraph one\nB\nend\none --> C",
+			nodes: []string{"A", "B", "C"},
+			edges: []graph.Edge{
+				{From: 0, To: 0, ToGroup: true, ToHead: graph.HeadArrow, Length: 1},
+				{From: 0, FromGroup: true, To: 2, ToHead: graph.HeadArrow, Length: 1},
+			},
+			groups: []graph.Group{{Label: "one", Nodes: []int{1}}},
+		},
+		{
+			name:  "a subgraph named in another nests in it",
+			src:   "graph TD\nsubgraph inner\nA\nend\nsubgraph outer\ninner\nB\nend",
+			nodes: []string{"A", "B"},
+			groups: []graph.Group{
+				{Label: "inner", Nodes: []int{0}},
+				{Label: "outer", Nodes: []int{1}, Groups: []int{0}},
+			},
+		},
+		{
+			name:   "links to empty subgraphs go to their nodes",
+			src:    "graph TD\nA --> empty\nsubgraph empty [Nothing here]\nend",
+			nodes:  []string{"A", "Nothing here"},
+			edges:  []graph.Edge{{From: 0, To: 1, ToHead: graph.HeadArrow, Length: 1}},
+			groups: nil,
+		},
+		{
 			name:   "statements on the subgraph's lines",
 			src:    "graph TD;subgraph one;A-->B;end;C",
 			nodes:  []string{"A", "B", "C"},
@@ -385,6 +413,9 @@ func TestParseSubgraphs(t *testing.T) {
 			if !reflect.DeepEqual(nodes, tt.nodes) {
 				t.Errorf("nodes = %q, want %q", nodes, tt.nodes)
 			}
+			if tt.edges != nil && !reflect.DeepEqual(fc.Edges, tt.edges) {
+				t.Errorf("edges = %+v, want %+v", fc.Edges, tt.edges)
+			}
 			if !reflect.DeepEqual(fc.Groups, tt.groups) {
 				t.Errorf("groups = %+v, want %+v", fc.Groups, tt.groups)
 			}
@@ -397,7 +428,7 @@ func TestParseFlowchartErrors(t *testing.T) {
 		src  string
 		want error
 	}{
-		{"graph TD\nsubgraph one\nA\nend\nB --> one", diagram.ErrUnsupported},
+		{"graph TD\nsubgraph one\none\nend\nB --> one", diagram.ErrUnsupported},
 		{"graph TD\nsubgraph one\nA", diagram.ErrSyntax},
 		{"graph TD\nA\nend", diagram.ErrSyntax},
 		{"graph TD\nA@{ Shape: rect }", diagram.ErrUnsupported},

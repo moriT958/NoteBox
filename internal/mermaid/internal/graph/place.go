@@ -270,6 +270,12 @@ func (l *layout) relax(rank []int, neigh [][]int, center []float64) {
 	want := make([]float64, n)
 	for i, v := range rank {
 		want[i] = center[v]
+		// A port keeps to the side of what is in its frame before it,
+		// rather than drawing its frame out toward the edges' other ends.
+		if l.verts[v].port && i > 0 {
+			want[i] = want[i-1] + l.apart(rank[i-1], v)
+			continue
+		}
 		if ns := neigh[v]; len(ns) > 0 {
 			sum := 0.0
 			for _, u := range ns {
@@ -349,6 +355,7 @@ func (l *layout) stackRanks(tracks, labels []int, pad [][2]int) {
 	// which take in those of the frames nested in it at the same ranks.
 	// opens and closes hold the most of them at each rank.
 	rise := make([]int, len(l.frames))
+	reach := make([]int, len(l.frames)) // rise and the row above, if taken
 	fall := make([]int, len(l.frames))
 	opens := make([]int, len(l.ranks))
 	closes := make([]int, len(l.ranks))
@@ -357,7 +364,7 @@ func (l *layout) stackRanks(tracks, labels []int, pad [][2]int) {
 		rise[f], fall[f] = l.orient.frameRise(fr.top), l.orient.frameFall()
 		for _, c := range fr.children {
 			if l.frames[c].top == fr.top {
-				rise[f] = max(rise[f], rise[c])
+				rise[f] = max(rise[f], reach[c])
 			}
 			if l.frames[c].bottom == fr.bottom {
 				fall[f] = max(fall[f], fall[c])
@@ -365,7 +372,11 @@ func (l *layout) stackRanks(tracks, labels []int, pad [][2]int) {
 		}
 		rise[f] += 1 + pad[f][0]
 		fall[f] += 1 + pad[f][1]
-		opens[fr.top] = max(opens[fr.top], rise[f])
+		reach[f] = rise[f]
+		if fr.above {
+			reach[f]++
+		}
+		opens[fr.top] = max(opens[fr.top], reach[f])
 		closes[fr.bottom] = max(closes[fr.bottom], fall[f])
 	}
 

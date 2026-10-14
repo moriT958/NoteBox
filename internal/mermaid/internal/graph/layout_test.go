@@ -45,6 +45,14 @@ func testGraph(t *testing.T, specs ...string) (g *Graph, index map[string]int) {
 	return g, index
 }
 
+// rankGraph ranks the nodes of a graph in a layout, which holds the ends of
+// the edges and which of them go back up.
+func rankGraph(g *Graph) (*layout, []int) {
+	l := &layout{}
+	nodeFrame, groupFrame := l.addFrames(g)
+	return l, l.rankNodes(g, nodeFrame, groupFrame)
+}
+
 func TestRankNodes(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -100,7 +108,7 @@ func TestRankNodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g, index := testGraph(t, tt.edges...)
-			ranks := rankNodes(g, backEdges(g))
+			_, ranks := rankGraph(g)
 			got := map[string]int{}
 			for name, i := range index {
 				got[name] = ranks[i]

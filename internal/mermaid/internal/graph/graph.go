@@ -47,11 +47,15 @@ const (
 	ShapeDiamond
 )
 
-// An Edge joins the node From to the node To, which may be the same node.
+// An Edge joins From to To, which may be the same node. An edge to or from a
+// group ends at its frame, and keeps the whole group on its side of the
+// edge.
 type Edge struct {
-	// From and To are indexes into the graph's Nodes.
-	From, To int
-	Label    string
+	// From and To are indexes into the graph's Nodes, or into its Groups
+	// for FromGroup and ToGroup. A group must have nodes in it.
+	From, To           int
+	FromGroup, ToGroup bool
+	Label              string
 	// FromHead and ToHead are the heads at the From and To ends.
 	FromHead, ToHead Head
 	Style            diagram.LineStyle

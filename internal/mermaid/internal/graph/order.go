@@ -1,6 +1,9 @@
 package graph
 
-import "slices"
+import (
+	"math"
+	"slices"
+)
 
 // neighbors returns, for each vertex, the vertices it is joined to in the
 // rank above and in the rank below. The vertices joined by edges going back
@@ -114,7 +117,12 @@ func (l *layout) arrangeIn(f int, verts []int, key []float64) []int {
 	for _, v := range verts {
 		in := l.within(f, l.verts[v].frame)
 		if in < 0 {
-			items = append(items, item{frame: -1, verts: []int{v}, key: key[v]})
+			// Ports come after what else is in their frames.
+			k := key[v]
+			if l.verts[v].port {
+				k = math.Inf(1)
+			}
+			items = append(items, item{frame: -1, verts: []int{v}, key: k})
 			continue
 		}
 		i, ok := at[in]
@@ -141,8 +149,13 @@ func (l *layout) arrangeIn(f int, verts []int, key []float64) []int {
 			frames = append(frames, it)
 		}
 	}
-	slices.SortStableFunc(frames, func(a, b item) int {
-		return compareKeys(l.frames[a.frame].key, l.frames[b.frame].key)
+	// Frames with the same key keep the order they were added in, the same
+	// in every rank.
+	slices.SortFunc(frames, func(a, b item) int {
+		if c := compareKeys(l.frames[a.frame].key, l.frames[b.frame].key); c != 0 {
+			return c
+		}
+		return a.frame - b.frame
 	})
 	for i, slot := range slots {
 		items[slot] = frames[i]
@@ -202,7 +215,15 @@ func (l *layout) reduceCrossings() {
 				pos[v] = float64(i)
 			}
 		}
+		// The rank a sweep starts from keeps its order, which may have its
+		// frames in their old order, so all ranks take the frames' new one.
 		l.orderFrames(pos)
+		for _, rank := range l.ranks {
+			l.arrange(rank, pos)
+			for i, v := range rank {
+				pos[v] = float64(i)
+			}
+		}
 		if c := l.crossings(); c < bestCrossings {
 			best, bestCrossings = cloneRanks(l.ranks), c
 		}

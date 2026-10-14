@@ -61,7 +61,9 @@ type layout struct {
 	// which is from its to end to its from end for an edge going back up.
 	// Edges from a node to itself have no path.
 	paths [][]int
-	// back reports for each edge whether it goes back up.
+	// ends holds the ends of each edge, and back reports for each edge
+	// whether it goes back up.
+	ends [][2]end
 	back []bool
 	// parts holds the parts of the edges, each joining vertices in
 	// adjacent ranks.
@@ -79,7 +81,12 @@ type vertex struct {
 	// edge of -1 is a filler, which only keeps the place of a frame.
 	node, edge int
 	// frame is the index of the innermost frame the vertex is in, or -1.
+	// port reports whether a point is where the edges to that frame end at
+	// its outline, above or below the frame's rank the point is in. A port
+	// comes after what else is in its frame in the rank, and is as wide as
+	// a node for the edges going back up from it.
 	frame int
+	port  bool
 	rank  int
 	// lines is the wrapped label of a node.
 	lines []string
@@ -101,6 +108,25 @@ func (v *vertex) isPoint() bool { return v.node < 0 }
 
 func (v *vertex) isFiller() bool { return v.node < 0 && v.edge < 0 }
 
+// enterY returns the row where the edges coming down into vertex v end: the
+// top of a node's box or of a port's frame, or a point's top row.
+func (l *layout) enterY(v *vertex) int {
+	if v.port {
+		return l.frames[v.frame].y
+	}
+	return v.y
+}
+
+// leaveY returns the row that edges going down from vertex v leave: the
+// bottom of a node's box or of a port's frame, or a point's bottom row.
+func (l *layout) leaveY(v *vertex) int {
+	if v.port {
+		f := l.frames[v.frame]
+		return f.y + f.h - 1
+	}
+	return v.y + v.h - 1
+}
+
 // loopDX is how many columns right of its middle the edges from a node to
 // itself turn, a column out from its right side.
 func (v *vertex) loopDX() int { return v.w - v.w/2 + 1 }
@@ -117,18 +143,19 @@ type part struct {
 
 // layOut places a graph's nodes, unless the layout would be too large.
 func layOut(g *Graph) (*layout, error) {
-	back := backEdges(g)
-	ranks := rankNodes(g, back)
+	l := &layout{orient: orientation{sideways: g.Dir == LeftRight || g.Dir == RightLeft}}
+	nodeFrame, groupFrame := l.addFrames(g)
+	ranks := l.rankNodes(g, nodeFrame, groupFrame)
+	l.spanFrames(ranks, nodeFrame)
 	points := 0
-	for _, lk := range links(g, back) {
-		points += ranks[lk.to] - ranks[lk.from] - 1
+	for ei := range g.Edges {
+		if top, bottom, ok := l.pathEnds(ei); ok {
+			points += l.endRank(bottom, false, ranks) - l.endRank(top, true, ranks) - 1
+		}
 	}
 	if points > maxPoints {
 		return nil, fmt.Errorf("%w: edges span %d ranks between their ends", diagram.ErrTooLarge, points)
 	}
-
-	l := &layout{back: back, orient: orientation{sideways: g.Dir == LeftRight || g.Dir == RightLeft}}
-	nodeFrame := l.addFrames(g, ranks)
 	if spans := l.frameSpans(); points+spans > maxPoints {
 		return nil, fmt.Errorf("%w: edges and groups span %d ranks", diagram.ErrTooLarge, points+spans)
 	}
