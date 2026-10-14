@@ -45,7 +45,7 @@ func main() {
 	w := watcher.NewWatcher()
 	defer w.Close()
 
-	m, err := tui.New(cfg, boxes, w)
+	m, err := tui.StartTUI(cfg, boxes, w)
 	if err != nil {
 		slog.Error("failed to initialize tui", "error", err)
 		os.Exit(1)

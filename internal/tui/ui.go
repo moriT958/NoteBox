@@ -53,15 +53,15 @@ type UI struct {
 
 	list    *notelist.NoteList
 	preview *preview.Preview
-	status  *Status
+	status  *status
 	dialog  *dialog.Overlay
 	keys    *keymap.KeyMap
 }
 
 var _ tea.Model = (*UI)(nil)
 
-// New opens the last used box (or a fallback) and starts watching it.
-func New(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, error) {
+// StartTUI opens the last used box (or a fallback) and starts watching it.
+func StartTUI(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, error) {
 	sty, err := styles.New(cfg.Theme)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func New(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, er
 		renderer: renderer,
 		list:     notelist.New(com),
 		preview:  preview.New(com),
-		status:   NewStatus(com),
+		status:   newStatus(com),
 		dialog:   dialog.NewOverlay(),
 		keys:     &keys,
 	}, nil

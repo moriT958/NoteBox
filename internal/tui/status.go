@@ -15,8 +15,8 @@ const statusTTL = 5 * time.Second
 
 type clearStatusMsg struct{ seq int }
 
-// Status is the bottom line: key help, or the latest error for a while.
-type Status struct {
+// status is the bottom line: key help, or the latest error for a while.
+type status struct {
 	com  *common.Common
 	help help.Model
 	err  string
@@ -25,35 +25,35 @@ type Status struct {
 	seq int
 }
 
-func NewStatus(com *common.Common) *Status {
-	return &Status{com: com, help: help.New()}
+func newStatus(com *common.Common) *status {
+	return &status{com: com, help: help.New()}
 }
 
-func (s *Status) SetWidth(width int) {
+func (s *status) SetWidth(width int) {
 	s.help.SetWidth(max(0, width-s.com.Styles.Help.GetHorizontalFrameSize()))
 }
 
 // SetError shows err and returns the command that clears it later.
-func (s *Status) SetError(err error) tea.Cmd {
+func (s *status) SetError(err error) tea.Cmd {
 	s.seq++
 	s.err = err.Error()
 	seq := s.seq
 	return tea.Tick(statusTTL, func(time.Time) tea.Msg { return clearStatusMsg{seq: seq} })
 }
 
-func (s *Status) Clear(seq int) {
+func (s *status) Clear(seq int) {
 	if seq == s.seq {
 		s.err = ""
 	}
 }
 
-func (s *Status) Render(width int, keys help.KeyMap) string {
+func (s *status) Render(width int, keys help.KeyMap) string {
 	if s.err != "" {
 		return s.com.Styles.Error.Width(width).Render(ansi.Truncate(s.err, width-1, "…"))
 	}
 	return s.com.Styles.Help.Width(width).Render(s.help.ShortHelpView(keys.ShortHelp()))
 }
 
-func (s *Status) RenderFullHelp(width int, keys help.KeyMap) string {
+func (s *status) RenderFullHelp(width int, keys help.KeyMap) string {
 	return s.com.Styles.Help.Padding(1, 2).Width(width).Render(s.help.FullHelpView(keys.FullHelp()))
 }
