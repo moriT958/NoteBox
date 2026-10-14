@@ -13,10 +13,11 @@ import (
 	"notebox/internal/config"
 	"notebox/internal/core/box"
 	"notebox/internal/core/note"
-	"notebox/internal/tui/common"
-	"notebox/internal/tui/dialog"
-	"notebox/internal/tui/notelist"
-	"notebox/internal/tui/preview"
+	"notebox/internal/tui/internal/common"
+	"notebox/internal/tui/internal/dialog"
+	"notebox/internal/tui/internal/notelist"
+	"notebox/internal/tui/internal/preview"
+	"notebox/internal/tui/keymap"
 	"notebox/internal/tui/styles"
 	"notebox/internal/watcher"
 
@@ -52,20 +53,24 @@ type UI struct {
 
 	list    *notelist.NoteList
 	preview *preview.Preview
-	status  *Status
+	status  *status
 	dialog  *dialog.Overlay
-	keys    KeyMap
+	keys    *keymap.KeyMap
 }
 
 var _ tea.Model = (*UI)(nil)
 
-// New opens the last used box (or a fallback) and starts watching it.
-func New(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, error) {
-	sty, err := styles.New(cfg.Theme)
+// StartTUI opens the last used box (or a fallback) and starts watching it.
+func StartTUI(cfg *config.Config, problems []error, boxes *box.BoxService, w *watcher.Watcher) (*UI, error) {
+	// Without a themes dir, only the built-in themes are available.
+	themesDir, err := config.ThemesDir()
 	if err != nil {
-		return nil, err
+		problems = append(problems, fmt.Errorf("theme files not used: %w", err))
 	}
-	renderer, err := preview.NewRenderer(cfg.Theme)
+	palette, themeProblems := styles.LoadTheme(themesDir, cfg.Theme)
+	problems = append(problems, themeProblems...)
+	sty := styles.New(palette)
+	renderer, err := preview.NewRenderer(palette.Markdown, sty.Mermaid)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +83,14 @@ func New(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, er
 		return nil, fmt.Errorf("failed to watch box: %w", err)
 	}
 
-	com := &common.Common{Config: cfg, Styles: sty}
-	return &UI{
+	keys := keymap.Default()
+	problems = append(problems, keys.Apply(cfg.Keymap)...)
+	for _, err := range problems {
+		slog.Warn("config problem", "error", err)
+	}
+
+	com := &common.Common{Config: cfg, Styles: sty, Keys: &keys}
+	m := &UI{
 		com:      com,
 		box:      b,
 		notes:    note.NewNoteService(b),
@@ -89,10 +100,14 @@ func New(cfg *config.Config, boxes *box.BoxService, w *watcher.Watcher) (*UI, er
 		renderer: renderer,
 		list:     notelist.New(com),
 		preview:  preview.New(com),
-		status:   NewStatus(com),
+		status:   newStatus(com),
 		dialog:   dialog.NewOverlay(),
-		keys:     DefaultKeyMap(),
-	}, nil
+		keys:     &keys,
+	}
+	if len(problems) > 0 {
+		m.dialog.Open(dialog.NewProblems(com, problems))
+	}
+	return m, nil
 }
 
 // startupBox opens the last used box. Only when it's gone does it look
@@ -122,7 +137,7 @@ func startupBox(ctx context.Context, svc *box.BoxService) (box.Box, error) {
 			return b, nil
 		}
 	}
-	b, err := svc.OpenFolderAsBox(ctx, "Default", dir)
+	b, err := svc.OpenFolderAsBox(ctx, box.DefaultTitle, dir)
 	if err != nil {
 		return box.Box{}, err
 	}
@@ -248,12 +263,12 @@ func (m *UI) resize(width, height int) {
 // handleKey routes a key press: quit always works, then an open dialog
 // takes every key, then the inline rename, then the focused pane.
 func (m *UI) handleKey(msg tea.KeyPressMsg) tea.Cmd {
-	if key.Matches(msg, m.keys.Quit) {
+	if key.Matches(msg, m.keys.Global.Quit) {
 		return tea.Quit
 	}
 
 	if front := m.dialog.Front(); front != nil {
-		if key.Matches(msg, m.keys.Boxes) && front.ID() == dialog.BoxesID {
+		if key.Matches(msg, m.keys.Global.Boxes) && front.ID() == dialog.BoxesID {
 			m.dialog.CloseFront()
 			return nil
 		}
@@ -265,10 +280,10 @@ func (m *UI) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	}
 
 	switch {
-	case key.Matches(msg, m.keys.Help):
+	case key.Matches(msg, m.keys.Global.Help):
 		m.fullHelp = !m.fullHelp
 		return nil
-	case key.Matches(msg, m.keys.Boxes):
+	case key.Matches(msg, m.keys.Global.Boxes):
 		m.dialog.Open(dialog.NewBoxes(m.com, m.box.ID))
 		return loadBoxesCmd(m.boxes, m.box.ID)
 	}
@@ -472,11 +487,11 @@ func (m *UI) helpKeys() help.KeyMap {
 	case m.dialog.HasDialogs():
 		return m.dialog.Front()
 	case m.list.Renaming():
-		return m.keys.renameHelp()
+		return renameHelp(m.keys)
 	case m.focus == focusPreview:
-		return m.keys.previewHelp(m.preview.ViewportKeyMap())
+		return previewHelp(m.keys)
 	default:
-		return m.keys.listHelp()
+		return listHelp(m.keys)
 	}
 }
 

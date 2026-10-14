@@ -10,9 +10,46 @@ import (
 
 func InitCommands(ctx context.Context, boxes *box.BoxService) int {
 
+	subcommands.Register(subcommands.HelpCommand(), "")
 	subcommands.Register(&versionCmd{}, "")
-	subcommands.Register(&listCmd{boxes: boxes}, "")
-	subcommands.Register(&pruneCmd{boxes: boxes}, "")
+	subcommands.Register(&group{
+		name:     "box",
+		synopsis: "manage boxes",
+		cmds: []subcommands.Command{
+			&boxListCmd{boxes: boxes},
+			&boxAddCmd{boxes: boxes},
+			&boxRenameCmd{boxes: boxes},
+			&boxRelinkCmd{boxes: boxes},
+			&boxRmCmd{boxes: boxes},
+			&boxPruneCmd{boxes: boxes},
+		},
+	}, "")
+	subcommands.Register(&group{
+		name:     "note",
+		synopsis: "manage notes in a box",
+		cmds: []subcommands.Command{
+			&noteListCmd{boxes: boxes},
+			&noteNewCmd{boxes: boxes},
+			&noteRenameCmd{boxes: boxes},
+			&noteViewCmd{boxes: boxes},
+			&noteRmCmd{boxes: boxes},
+		},
+	}, "")
+	subcommands.Register(&group{
+		name:     "keymap",
+		synopsis: "show the keys of the TUI",
+		cmds: []subcommands.Command{
+			&keymapListCmd{},
+		},
+	}, "")
+	subcommands.Register(&group{
+		name:     "theme",
+		synopsis: "manage the color themes of the TUI",
+		cmds: []subcommands.Command{
+			&themeListCmd{},
+			&themeExportCmd{},
+		},
+	}, "")
 
 	flag.Parse()
 

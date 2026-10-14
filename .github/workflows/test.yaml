@@ -33,7 +33,7 @@ jobs:
         run: go vet ./...
 
       - name: Build
-        run: go build -o notebox ./cmd/notebox
+        run: go build -o nbx ./cmd/nbx
 
       - name: Run tests
         run: go test -race ./...

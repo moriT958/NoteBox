@@ -5,17 +5,17 @@ version: "3"
 tasks:
   dev:
     desc: Run the TUI app in development mode
-    cmd: APP_ENV=development go run ./cmd/notebox/
+    cmd: APP_ENV=development go run ./cmd/nbx/
 
   build:
     desc: Build the TUI
     cmds:
-      - go build -o notebox cmd/notebox/main.go
+      - go build -o nbx cmd/nbx/main.go
 
   clean:
     desc: Clean the Binary
     cmds:
-      - rm ./notebox
+      - rm ./nbx
 
   release:
     desc: Release the CLI binary in local

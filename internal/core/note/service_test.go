@@ -285,3 +285,57 @@ func TestNoteService_RenameNote(t *testing.T) {
 		}
 	})
 }
+
+func TestNoteService_GetNote(t *testing.T) {
+	t.Run("Successfully get a note by its relative path.", func(t *testing.T) {
+		box := newTestBox(t)
+		if err := os.MkdirAll(filepath.Join(box.Path, "sub"), 0755); err != nil {
+			t.Fatal(err)
+		}
+		os.WriteFile(filepath.Join(box.Path, "sub", "a%2Fb.md"), []byte("# a/b"), 0644)
+		s := NewNoteService(box)
+
+		got, err := s.GetNote(filepath.Join("sub", "a%2Fb.md"))
+		if err != nil {
+			t.Fatalf("unexpected err occurred: %v", err)
+		}
+		if got.Title() != "a/b" || got.Path() != filepath.Join("sub", "a%2Fb.md") {
+			t.Errorf("got = %q at %q, want title %q", got.Title(), got.Path(), "a/b")
+		}
+	})
+
+	t.Run("Fail to get a note, when it does not exist.", func(t *testing.T) {
+		s := NewNoteService(newTestBox(t))
+
+		if _, err := s.GetNote("missing.md"); err == nil {
+			t.Fatalf("error was expected, but not occured.")
+		}
+	})
+
+	t.Run("Fail to get a note, when the path leaves the box.", func(t *testing.T) {
+		box := newTestBox(t)
+		outside := filepath.Join(filepath.Dir(box.Path), "outside.md")
+		os.WriteFile(outside, []byte("# outside"), 0644)
+		t.Cleanup(func() { os.Remove(outside) })
+		s := NewNoteService(box)
+
+		for _, p := range []string{"../outside.md", outside, "sub/../../outside.md"} {
+			if _, err := s.GetNote(p); err == nil {
+				t.Errorf("GetNote(%q): error was expected, but not occured.", p)
+			}
+		}
+	})
+
+	t.Run("Fail to get a note, when it is not a markdown file or is a directory.", func(t *testing.T) {
+		box := newTestBox(t)
+		os.WriteFile(filepath.Join(box.Path, "a.txt"), nil, 0644)
+		os.Mkdir(filepath.Join(box.Path, "dir.md"), 0755)
+		s := NewNoteService(box)
+
+		for _, p := range []string{"a.txt", "dir.md"} {
+			if _, err := s.GetNote(p); err == nil {
+				t.Errorf("GetNote(%q): error was expected, but not occured.", p)
+			}
+		}
+	})
+}

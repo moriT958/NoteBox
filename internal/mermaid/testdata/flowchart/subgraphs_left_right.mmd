@@ -1,0 +1,9 @@
+graph LR
+    subgraph input [入力を受け取る]
+        A[フォーム] --> B{検証}
+    end
+    B -->|ok| C[保存]
+    B -->|ng| A
+    subgraph store [保存先]
+        C --> D[(DB)]
+    end

@@ -2,7 +2,8 @@
 set -e
 
 REPO="moriT958/NoteBox"
-BINARY="notebox"
+BINARY="nbx"
+ARCHIVE="NoteBox"
 INSTALL_DIR="${HOME}/.local/bin"
 
 OS=$(uname -s)
@@ -19,7 +20,7 @@ esac
 VERSION=$(curl -sSf "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')
 
 # Create download url for latest version
-URL="https://github.com/${REPO}/releases/download/${VERSION}/${BINARY}_${OS}_${ARCH}.tar.gz"
+URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARCHIVE}_${OS}_${ARCH}.tar.gz"
 
 # Make install dir
 echo "Make install dir: ${INSTALL_DIR}"
@@ -52,7 +53,7 @@ add_to_path() {
   if [ -n "$RC_FILE" ] && [ -f "$RC_FILE" ]; then
     if ! grep -q "${INSTALL_DIR}" "$RC_FILE" 2>/dev/null; then
       echo "" >> "$RC_FILE"
-      echo "# notebox" >> "$RC_FILE"
+      echo "# nbx" >> "$RC_FILE"
       echo "export PATH=\"\$PATH:${INSTALL_DIR}\"" >> "$RC_FILE"
       echo "Added ${INSTALL_DIR} to PATH in ${RC_FILE}"
       echo "Run 'source ${RC_FILE}' or restart your terminal"
@@ -69,4 +70,4 @@ case ":$PATH:" in
     ;;
 esac
 
-echo "Install completed! Run 'notebox' to get started."
+echo "Install completed! Run 'nbx' to get started."

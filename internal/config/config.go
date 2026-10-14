@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 var (
@@ -16,61 +15,58 @@ var (
 	CurrentVersion string = "dev"
 )
 
-var (
-	instance *Config
-	once     sync.Once
-	initErr  error
-)
-
 type Config struct {
 	Editor string `json:"editor"`
 	Theme  string `json:"theme"`
+	// Keymap replaces the default keys of TUI actions, keyed by action ID.
+	Keymap map[string][]string `json:"keymap,omitempty"`
 }
 
-func GetConfig() (*Config, error) {
-	once.Do(func() {
-		instance, initErr = loadConfig()
-	})
-	return instance, initErr
-}
+// Load reads the config file at path. It always returns a usable config:
+// when there is no file, or it can't be read, the defaults are used, and in
+// the second case the reasons are returned.
+func Load(path string) (*Config, []error) {
+	cfg := defaultConfig()
 
-func loadConfig() (*Config, error) {
-	home, err := os.UserHomeDir()
+	data, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return cfg, nil
+	}
 	if err != nil {
-		return nil, err
-	}
-	filename := filepath.Join(home, AppDirName, ConfigFileName)
-
-	// Create default setting file if not exist.
-	if _, err := os.Stat(filename); errors.Is(err, fs.ErrNotExist) {
-		fp, createErr := os.Create(filename)
-		if createErr != nil {
-			return nil, fmt.Errorf("failed to create config file: %v", createErr)
-		}
-		defer fp.Close()
-
-		enc := json.NewEncoder(fp)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(defaultConfig()); err != nil {
-			return nil, fmt.Errorf("failed to encode config file: %v", err)
-		}
+		return cfg, []error{fmt.Errorf("failed to read config file: %w", err)}
 	}
 
-	// Read setting file
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open config file: %v", err)
+	// Fields missing from the file keep their defaults.
+	if err := json.Unmarshal(data, cfg); err != nil {
+		return defaultConfig(), []error{fmt.Errorf("%s: invalid JSON, using the default config: %w", path, err)}
 	}
-	defer file.Close()
-
-	cfg := new(Config)
-	if err := json.NewDecoder(file).Decode(cfg); err != nil {
-		return nil, fmt.Errorf("failed to decode config file: %v", err)
-	}
-
 	cfg.Theme = strings.ToLower(cfg.Theme)
 
 	return cfg, nil
+}
+
+// WriteDefault creates the config file at path with the default values,
+// unless the file exists.
+func WriteDefault(path string) error {
+	data, err := json.MarshalIndent(defaultConfig(), "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to encode config file: %w", err)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
+	if errors.Is(err, fs.ErrExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to create config file: %w", err)
+	}
+	_, err = f.Write(append(data, '\n'))
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+	return nil
 }
 
 func defaultConfig() *Config {
@@ -104,6 +100,16 @@ func SaveLastBoxID(id string) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(home, AppDirName, StateFileName), []byte(id), 0644)
+}
+
+// ThemesDir returns the path of the directory with the theme files. It
+// needn't exist.
+func ThemesDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, AppDirName, ThemesDirName), nil
 }
 
 // DefaultNotesDir returns the default path for the notes directory.

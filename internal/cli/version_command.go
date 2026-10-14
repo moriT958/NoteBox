@@ -15,11 +15,11 @@ var _ subcommands.Command = (*versionCmd)(nil)
 
 func (*versionCmd) Name() string { return "version" }
 
-func (*versionCmd) Synopsis() string { return "notebox version" }
+func (*versionCmd) Synopsis() string { return "nbx version" }
 
 func (*versionCmd) Usage() string {
-	return `note version:
-show notebox version.
+	return `nbx version:
+show nbx version.
 `
 }
 
@@ -27,7 +27,7 @@ func (*versionCmd) SetFlags(f *flag.FlagSet) {}
 
 func (c *versionCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
 
-	fmt.Println("notebox", config.CurrentVersion)
+	fmt.Println("nbx", config.CurrentVersion)
 
 	return subcommands.ExitSuccess
 }

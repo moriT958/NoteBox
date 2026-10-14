@@ -1,0 +1,10 @@
+graph TD
+    Start --> outer
+    subgraph outer [外側]
+        A --> inner
+        subgraph inner [内側]
+            B --> C
+        end
+    end
+    inner -- 結果 --> End
+    outer <--> Log
