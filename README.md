@@ -11,7 +11,6 @@ A terminal-based note-taking app.
 - Nicely rendered Markdown
 - Fast fuzzy search
 - Note management with boxes
-- A scriptable CLI, handy for AI agents too
 
 ## Installation
 
