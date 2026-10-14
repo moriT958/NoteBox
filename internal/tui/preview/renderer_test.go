@@ -36,7 +36,7 @@ func TestRendererDiagrams(t *testing.T) {
 		{name: "tilde fence", md: "~~~mermaid\ngraph TD\nA --> B\n~~~\n", want: drawn},
 		{name: "language in any case", md: "```Mermaid\ngraph TD\nA --> B\n```\n", want: drawn},
 		{name: "unsupported diagram", md: "```mermaid\npie\n  \"a\": 1\n```\n", source: `"a": 1`},
-		{name: "unsupported syntax", md: "```mermaid\ngraph TD\nsubgraph one\nA --> B\nend\n```\n", source: "subgraph one"},
+		{name: "unsupported syntax", md: "```mermaid\ngraph TD\nA@{ shape: rect } --> B\n```\n", source: "A@{ shape: rect }"},
 		{name: "other languages", md: "```go\nA --> B\n```\n", source: "A --> B"},
 	}
 	for _, tt := range tests {

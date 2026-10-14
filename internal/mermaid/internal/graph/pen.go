@@ -101,11 +101,57 @@ func (p *pen) head(x, y int, h Head, d dir) {
 
 // box draws the box of a node with its label.
 func (p *pen) box(v vertex, sh Shape) {
-	x0, y0 := p.at(v.x, v.y)
-	x1, y1 := p.at(v.x+v.w-1, v.y+v.h-1)
-	x0, x1 = min(x0, x1), max(x0, x1)
-	y0, y1 = min(y0, y1), max(y0, y1)
+	x0, y0, x1, y1 := p.canvasBox(v.x, v.y, v.w, v.h)
 	drawBox(p.c, x0, y0, x1-x0+1, y1-y0+1, sh, v.lines)
+}
+
+// canvasBox returns the columns and rows on the canvas of the box at (x, y)
+// of the layout, w by h.
+func (p *pen) canvasBox(x, y, w, h int) (x0, y0, x1, y1 int) {
+	x0, y0 = p.at(x, y)
+	x1, y1 = p.at(x+w-1, y+h-1)
+	return min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1)
+}
+
+// frame draws the outline of a frame.
+func (p *pen) frame(f frame) {
+	x0, y0, x1, y1 := p.canvasBox(f.x, f.y, f.w, f.h)
+	for _, y := range []int{y0, y1} {
+		p.c.HLine(x0, x1, y, diagram.LineSolid, diagram.RoleBorder)
+	}
+	for _, x := range []int{x0, x1} {
+		p.c.VLine(x, y0, y1, diagram.LineSolid, diagram.RoleBorder)
+	}
+}
+
+// title writes the title of a frame in its top on the canvas, after a
+// corner and a line, as "┌─ title ─┐". It moves right past the edges that
+// cross the top where it can, so that it doesn't hide them.
+func (p *pen) title(f frame) {
+	if f.title == "" {
+		return
+	}
+	x0, y0, x1, _ := p.canvasBox(f.x, f.y, f.w, f.h)
+	text := " " + diagram.FitLabel(f.title, x1-x0+1-6) + " "
+	w := ansi.StringWidth(text)
+	start := x0 + 2
+	for x := start; x+w <= x1-1; x++ {
+		if p.clear(x, y0, w) {
+			start = x
+			break
+		}
+	}
+	p.c.Text(start, y0, text, diagram.RoleText)
+}
+
+// clear reports whether no lines cross row y from column x for w columns.
+func (p *pen) clear(x, y, w int) bool {
+	for i := range w {
+		if p.c.Crossed(x+i, y) {
+			return false
+		}
+	}
+	return true
 }
 
 // text writes s from (x, y) of the layout to the right, for graphs that

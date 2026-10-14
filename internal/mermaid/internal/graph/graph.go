@@ -4,11 +4,21 @@ package graph
 
 import "notebox/internal/mermaid/internal/diagram"
 
-// A Graph is a diagram of nodes joined by edges.
+// A Graph is a diagram of nodes joined by edges, which groups may frame.
 type Graph struct {
-	Dir   Direction
-	Nodes []Node
-	Edges []Edge
+	Dir    Direction
+	Nodes  []Node
+	Edges  []Edge
+	Groups []Group
+}
+
+// A Group is drawn as a frame around its nodes and the groups nested in it,
+// with its label in the top of the frame. A node or a group is in one group
+// at most. Groups without nodes in them aren't drawn.
+type Group struct {
+	Label string
+	// Nodes and Groups are indexes into the graph's Nodes and Groups.
+	Nodes, Groups []int
 }
 
 // A Direction is the way a graph flows, from the nodes edges leave to the

@@ -5,6 +5,7 @@ import (
 	"notebox/internal/mermaid/internal/diagram"
 	"notebox/internal/mermaid/internal/graph"
 	"strings"
+	"unicode"
 )
 
 // ignoredStatements only style or link a flowchart, which is drawn
@@ -19,6 +20,22 @@ type parser struct {
 	g *graph.Graph
 	// index maps the IDs of the nodes read so far to indexes into g.Nodes.
 	index map[string]int
+	// open holds the subgraphs being read, the innermost last.
+	open []*subgraph
+	// groups maps the IDs of the subgraphs read so far to indexes into
+	// g.Groups, and parents holds the group each group is in, or -1.
+	groups  map[string]int
+	parents []int
+	// grouped reports for each node whether it is in a group.
+	grouped []bool
+}
+
+// A subgraph being read, from its "subgraph" statement to its "end".
+type subgraph struct {
+	id, title string
+	// nodes holds the nodes its statements name, and groups the groups that
+	// ended in it.
+	nodes, groups []int
 }
 
 // parseFlowchart parses the source of a flowchart, which starts with a
@@ -29,7 +46,7 @@ func parseFlowchart(src string) (*graph.Graph, error) {
 	if len(stmts) == 0 {
 		return nil, fmt.Errorf("%w: no declaration", diagram.ErrSyntax)
 	}
-	p := &parser{g: &graph.Graph{}, index: map[string]int{}}
+	p := &parser{g: &graph.Graph{}, index: map[string]int{}, groups: map[string]int{}}
 	if err := p.parseDeclaration(stmts[0].text); err != nil {
 		return nil, fmt.Errorf("line %d: %w", stmts[0].line, err)
 	}
@@ -38,19 +55,119 @@ func parseFlowchart(src string) (*graph.Graph, error) {
 			return nil, fmt.Errorf("line %d: %w", st.line, err)
 		}
 	}
+	if len(p.open) > 0 {
+		return nil, fmt.Errorf("%w: subgraph %q without an end", diagram.ErrSyntax, p.open[len(p.open)-1].title)
+	}
+	for id := range p.groups {
+		if _, ok := p.index[id]; ok {
+			return nil, fmt.Errorf("%w: link to subgraph %q", diagram.ErrUnsupported, id)
+		}
+	}
 	return p.g, nil
 }
 
 // parse parses a statement after the declaration.
 func (p *parser) parse(st string) error {
-	keyword := strings.Fields(st)[0]
-	switch {
-	case keyword == "subgraph" || keyword == "end":
-		return fmt.Errorf("%w: subgraph", diagram.ErrUnsupported)
+	fields := strings.Fields(st)
+	switch keyword := fields[0]; {
+	case keyword == "subgraph":
+		p.open = append(p.open, parseSubgraph(strings.TrimSpace(strings.TrimPrefix(st, keyword))))
+		return nil
+	case keyword == "end" && len(fields) == 1:
+		return p.endSubgraph()
 	case ignoredStatements[keyword]:
 		return nil
 	}
 	return p.parseStatement(st)
+}
+
+// parseSubgraph parses what follows "subgraph": nothing, an ID, an ID and
+// a title in brackets, or a title. A title with spaces in it names no
+// subgraph that other statements can refer to.
+func parseSubgraph(rest string) *subgraph {
+	if open := strings.IndexByte(rest, '['); open > 0 && strings.HasSuffix(rest, "]") {
+		if id := strings.TrimSpace(rest[:open]); !strings.ContainsFunc(id, unicode.IsSpace) {
+			return &subgraph{id: id, title: diagram.CleanLabel(rest[open+1 : len(rest)-1])}
+		}
+	}
+	title := diagram.CleanLabel(rest)
+	if strings.ContainsFunc(title, unicode.IsSpace) {
+		return &subgraph{title: title}
+	}
+	return &subgraph{id: title, title: title}
+}
+
+// endSubgraph ends the innermost subgraph being read. As in Mermaid, it
+// takes the nodes its statements name that aren't in a subgraph that ended
+// before it, and a subgraph with an ID that ended before takes them
+// instead. A subgraph without nodes in it is drawn as a node.
+func (p *parser) endSubgraph() error {
+	if len(p.open) == 0 {
+		return fmt.Errorf("%w: end without a subgraph", diagram.ErrSyntax)
+	}
+	sg := p.open[len(p.open)-1]
+	p.open = p.open[:len(p.open)-1]
+
+	var nodes []int
+	for _, n := range sg.nodes {
+		if !p.grouped[n] {
+			p.grouped[n] = true
+			nodes = append(nodes, n)
+		}
+	}
+	gi, ok := p.groups[sg.id]
+	if !ok {
+		if len(nodes) == 0 && len(sg.groups) == 0 {
+			p.mention(p.addNode(graph.Node{Label: sg.title}))
+			return nil
+		}
+		gi = len(p.g.Groups)
+		p.g.Groups = append(p.g.Groups, graph.Group{Label: sg.title})
+		p.parents = append(p.parents, -1)
+		if sg.id != "" {
+			p.groups[sg.id] = gi
+		}
+	}
+	p.g.Groups[gi].Nodes = append(p.g.Groups[gi].Nodes, nodes...)
+	for _, c := range sg.groups {
+		if err := p.nest(c, gi); err != nil {
+			return err
+		}
+	}
+	if len(p.open) > 0 {
+		outer := p.open[len(p.open)-1]
+		outer.groups = append(outer.groups, gi)
+	}
+	return nil
+}
+
+// nest puts group c in group gi, unless c is in a group already.
+func (p *parser) nest(c, gi int) error {
+	if p.parents[c] >= 0 {
+		return nil
+	}
+	for a := gi; a >= 0; a = p.parents[a] {
+		if a == c {
+			return fmt.Errorf("%w: subgraph %q in itself", diagram.ErrSyntax, p.g.Groups[c].Label)
+		}
+	}
+	p.parents[c] = gi
+	p.g.Groups[gi].Groups = append(p.g.Groups[gi].Groups, c)
+	return nil
+}
+
+// mention adds node n to the innermost subgraph being read, if any.
+func (p *parser) mention(n int) {
+	if len(p.open) > 0 {
+		sg := p.open[len(p.open)-1]
+		sg.nodes = append(sg.nodes, n)
+	}
+}
+
+func (p *parser) addNode(n graph.Node) int {
+	p.g.Nodes = append(p.g.Nodes, n)
+	p.grouped = append(p.grouped, false)
+	return len(p.g.Nodes) - 1
 }
 
 func (p *parser) parseDeclaration(st string) error {
@@ -195,11 +312,11 @@ func (p *parser) parseNode(s *scanner) (int, error) {
 
 	i, ok := p.index[id]
 	if !ok {
-		i = len(p.g.Nodes)
+		i = p.addNode(graph.Node{Label: label, Shape: sh})
 		p.index[id] = i
-		p.g.Nodes = append(p.g.Nodes, graph.Node{Label: label, Shape: sh})
 	} else if hasLabel {
 		p.g.Nodes[i].Label, p.g.Nodes[i].Shape = label, sh
 	}
+	p.mention(i)
 	return i, nil
 }

@@ -1,0 +1,12 @@
+graph TD
+    subgraph app [アプリ]
+        subgraph tui [TUI]
+            List --> Preview
+        end
+        subgraph core [Core]
+            Note --> Box
+        end
+        List --> Note
+    end
+    Preview --> Mermaid[mermaid 描画]
+    Box --> DB[(SQLite)]

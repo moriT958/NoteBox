@@ -35,3 +35,32 @@ func (o orientation) backX() int {
 }
 
 func (o orientation) backWidth() int { return 2*o.backX() + 3 }
+
+// frameInset is the least number of columns from the side of a frame to
+// what is in it: a column between them, or none when a graph flows
+// sideways, whose frames' sides are rows.
+func (o orientation) frameInset() int {
+	if o.sideways {
+		return 1
+	}
+	return 2
+}
+
+// frameRise is the least number of rows between the top of a frame and the
+// rank r it starts at: the row of heads above the rank, which edges into
+// the top rank don't need, though a graph that flows sideways keeps the
+// row there to keep its boxes off the frame's side. frameFall is the
+// least number of rows between the rank a frame ends at and its bottom.
+func (o orientation) frameRise(r int) int {
+	if r > 0 || o.sideways {
+		return 1
+	}
+	return 0
+}
+
+func (o orientation) frameFall() int {
+	if o.sideways {
+		return 1
+	}
+	return 0
+}

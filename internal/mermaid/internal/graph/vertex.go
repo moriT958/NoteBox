@@ -7,9 +7,10 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
-// addVertices adds a vertex for each node and the points edges pass
-// through.
-func (l *layout) addVertices(g *Graph, ranks []int) {
+// addVertices adds a vertex for each node, the points edges pass through,
+// and fillers that keep the places of frames in ranks without other
+// vertices in them.
+func (l *layout) addVertices(g *Graph, ranks, nodeFrame []int) {
 	l.ranks = make([][]int, slices.Max(append(ranks, 0))+1)
 	add := func(v vertex) int {
 		l.verts = append(l.verts, v)
@@ -28,7 +29,7 @@ func (l *layout) addVertices(g *Graph, ranks []int) {
 		if l.orient.sideways {
 			w, h = h, w
 		}
-		add(vertex{node: i, edge: -1, rank: ranks[i], lines: lines, w: w, h: h})
+		add(vertex{node: i, edge: -1, frame: nodeFrame[i], rank: ranks[i], lines: lines, w: w, h: h})
 	}
 	for ei, e := range g.Edges {
 		label := ""
@@ -56,9 +57,33 @@ func (l *layout) addVertices(g *Graph, ranks []int) {
 		}
 		path := []int{top}
 		for r := ranks[top] + 1; r < ranks[bottom]; r++ {
-			path = append(path, add(vertex{node: -1, edge: ei, rank: r, w: 1}))
+			f := l.pointFrame(nodeFrame[top], nodeFrame[bottom], r)
+			path = append(path, add(vertex{node: -1, edge: ei, frame: f, rank: r, w: 1}))
 		}
 		l.paths = append(l.paths, append(path, bottom))
+	}
+
+	filled := make([][]bool, len(l.frames))
+	for f, fr := range l.frames {
+		filled[f] = make([]bool, fr.bottom-fr.top+1)
+	}
+	for _, v := range l.verts {
+		for f := v.frame; f >= 0; f = l.frames[f].parent {
+			filled[f][v.rank-l.frames[f].top] = true
+		}
+	}
+	// Frames nested in a frame fill its ranks too, so fill the innermost
+	// first.
+	for f, fr := range slices.Backward(l.frames) {
+		for r := fr.top; r <= fr.bottom; r++ {
+			if filled[f][r-fr.top] {
+				continue
+			}
+			add(vertex{node: -1, edge: -1, frame: f, rank: r, w: 1})
+			for p := f; p >= 0; p = l.frames[p].parent {
+				filled[p][r-l.frames[p].top] = true
+			}
+		}
 	}
 }
 

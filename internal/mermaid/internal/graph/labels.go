@@ -10,7 +10,7 @@ func drawLabels(p *pen) {
 	for _, v := range l.verts {
 		if v.label != "" {
 			if l.orient.labelsAlong() {
-				p.textAlong(v.cx, v.y-2-ansi.StringWidth(v.label), v.label)
+				p.textAlong(v.cx, l.alongEnd(&v)-ansi.StringWidth(v.label), v.label)
 			} else {
 				p.text(v.cx+labelGap, v.y-1, v.label)
 			}
@@ -18,7 +18,7 @@ func drawLabels(p *pen) {
 		if v.backLabel != "" {
 			x := v.cx - l.orient.backX()
 			if l.orient.labelsAlong() {
-				p.textAlong(x, v.y-2-ansi.StringWidth(v.backLabel), v.backLabel)
+				p.textAlong(x, l.alongEnd(&v)-ansi.StringWidth(v.backLabel), v.backLabel)
 			} else {
 				p.text(x-1-ansi.StringWidth(v.backLabel), v.y-1, v.backLabel)
 			}

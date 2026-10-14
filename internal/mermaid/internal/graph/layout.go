@@ -52,6 +52,9 @@ const (
 type layout struct {
 	orient orientation
 	verts  []vertex
+	// frames holds the frames around groups, each after the frame it is
+	// nested in.
+	frames []frame
 	// ranks holds the vertices of each rank from left to right.
 	ranks [][]int
 	// paths holds the vertices each edge passes through from the top down,
@@ -72,9 +75,12 @@ type layout struct {
 
 type vertex struct {
 	// node is the index of the vertex's node, or -1 for a point an edge
-	// passes through, edge being the index of that edge.
+	// passes through, edge being the index of that edge. A point with an
+	// edge of -1 is a filler, which only keeps the place of a frame.
 	node, edge int
-	rank       int
+	// frame is the index of the innermost frame the vertex is in, or -1.
+	frame int
+	rank  int
 	// lines is the wrapped label of a node.
 	lines []string
 	// x, y, w and h are the box of a node, or the column and the rows a
@@ -92,6 +98,8 @@ type vertex struct {
 }
 
 func (v *vertex) isPoint() bool { return v.node < 0 }
+
+func (v *vertex) isFiller() bool { return v.node < 0 && v.edge < 0 }
 
 // loopDX is how many columns right of its middle the edges from a node to
 // itself turn, a column out from its right side.
@@ -120,7 +128,11 @@ func layOut(g *Graph) (*layout, error) {
 	}
 
 	l := &layout{back: back, orient: orientation{sideways: g.Dir == LeftRight || g.Dir == RightLeft}}
-	l.addVertices(g, ranks)
+	nodeFrame := l.addFrames(g, ranks)
+	if spans := l.frameSpans(); points+spans > maxPoints {
+		return nil, fmt.Errorf("%w: edges and groups span %d ranks", diagram.ErrTooLarge, points+spans)
+	}
+	l.addVertices(g, ranks, nodeFrame)
 	l.initOrder()
 	l.reduceCrossings()
 	l.placeX()

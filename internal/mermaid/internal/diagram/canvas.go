@@ -175,3 +175,10 @@ func (c *Canvas) VLine(x, y0, y1 int, style LineStyle, r Role) {
 		c.line(x, y, d, style, r)
 	}
 }
+
+// Crossed reports whether a line runs up or down from (x, y), as one that
+// crosses a horizontal line there does.
+func (c *Canvas) Crossed(x, y int) bool {
+	cl := c.at(x, y)
+	return cl != nil && cl.dirs&(dirUp|dirDown) != 0
+}

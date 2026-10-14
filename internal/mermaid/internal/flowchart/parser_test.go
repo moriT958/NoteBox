@@ -310,12 +310,96 @@ func TestParseFlowchart(t *testing.T) {
 	}
 }
 
+func TestParseSubgraphs(t *testing.T) {
+	tests := []struct {
+		name   string
+		src    string
+		nodes  []string
+		groups []graph.Group
+	}{
+		{
+			name:   "ID",
+			src:    "graph TD\nsubgraph one\nA --> B\nend\nB --> C",
+			nodes:  []string{"A", "B", "C"},
+			groups: []graph.Group{{Label: "one", Nodes: []int{0, 1}}},
+		},
+		{
+			name:  "titles",
+			src:   "graph TD\nsubgraph a [Title A]\nA\nend\nsubgraph b[\"`**B**`\"]\nB\nend\nsubgraph Title with spaces\nC\nend\nsubgraph\nD\nend",
+			nodes: []string{"A", "B", "C", "D"},
+			groups: []graph.Group{
+				{Label: "Title A", Nodes: []int{0}},
+				{Label: "B", Nodes: []int{1}},
+				{Label: "Title with spaces", Nodes: []int{2}},
+				{Label: "", Nodes: []int{3}},
+			},
+		},
+		{
+			name:  "nested",
+			src:   "graph TD\nsubgraph outer\nA\nsubgraph inner\nB\nend\nC\nend",
+			nodes: []string{"A", "B", "C"},
+			groups: []graph.Group{
+				{Label: "inner", Nodes: []int{1}},
+				{Label: "outer", Nodes: []int{0, 2}, Groups: []int{0}},
+			},
+		},
+		{
+			name:  "the first subgraph to end takes a node",
+			src:   "graph TD\nA --> B\nsubgraph outer\nA --> B\nsubgraph inner\nB\nend\nend\nsubgraph other\nA & B --> C\nend",
+			nodes: []string{"A", "B", "C"},
+			groups: []graph.Group{
+				{Label: "inner", Nodes: []int{1}},
+				{Label: "outer", Nodes: []int{0}, Groups: []int{0}},
+				{Label: "other", Nodes: []int{2}},
+			},
+		},
+		{
+			name:   "an ID used again adds to the subgraph",
+			src:    "graph TD\nsubgraph one\nA\nend\nsubgraph two\nB\nend\nsubgraph one\nC\nend",
+			nodes:  []string{"A", "B", "C"},
+			groups: []graph.Group{{Label: "one", Nodes: []int{0, 2}}, {Label: "two", Nodes: []int{1}}},
+		},
+		{
+			name:   "empty subgraphs are nodes",
+			src:    "graph TD\nsubgraph outer\nsubgraph empty [Nothing here]\nend\nend",
+			nodes:  []string{"Nothing here"},
+			groups: []graph.Group{{Label: "outer", Nodes: []int{0}}},
+		},
+		{
+			name:   "statements on the subgraph's lines",
+			src:    "graph TD;subgraph one;A-->B;end;C",
+			nodes:  []string{"A", "B", "C"},
+			groups: []graph.Group{{Label: "one", Nodes: []int{0, 1}}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fc, err := parseFlowchart(tt.src)
+			if err != nil {
+				t.Fatalf("parseFlowchart() error = %v", err)
+			}
+			var nodes []string
+			for _, n := range fc.Nodes {
+				nodes = append(nodes, n.Label)
+			}
+			if !reflect.DeepEqual(nodes, tt.nodes) {
+				t.Errorf("nodes = %q, want %q", nodes, tt.nodes)
+			}
+			if !reflect.DeepEqual(fc.Groups, tt.groups) {
+				t.Errorf("groups = %+v, want %+v", fc.Groups, tt.groups)
+			}
+		})
+	}
+}
+
 func TestParseFlowchartErrors(t *testing.T) {
 	tests := []struct {
 		src  string
 		want error
 	}{
-		{"graph TD\nsubgraph one\nA\nend", diagram.ErrUnsupported},
+		{"graph TD\nsubgraph one\nA\nend\nB --> one", diagram.ErrUnsupported},
+		{"graph TD\nsubgraph one\nA", diagram.ErrSyntax},
+		{"graph TD\nA\nend", diagram.ErrSyntax},
 		{"graph TD\nA@{ Shape: rect }", diagram.ErrUnsupported},
 		{"graph TD\nA e1@--> B", diagram.ErrUnsupported},
 		{"graph XY", diagram.ErrSyntax},

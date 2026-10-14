@@ -77,6 +77,8 @@ func FuzzRender(f *testing.F) {
 		"flowchart RL\nA[\"a ] b\"] --o B((c)) --x C{d}\nC --> A\nB --> B",
 		"graph BT;A & B --> C & D;C -->|x| A",
 		"graph TD\nA[\"`**md**`\"] <--> B[ノート<br>作成 &lt;#9829;]",
+		"graph LR\nsubgraph a [A]\nA-->B\nsubgraph b\nC-->A\nend\nend\nB-->C\nD-->C",
+		"graph TD\nsubgraph one\nA\nend\nsubgraph one\nB\nend\nsubgraph two\nsubgraph x\nend\nend",
 	} {
 		f.Add(src)
 	}

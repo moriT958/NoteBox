@@ -9,7 +9,7 @@ func drawEdges(p *pen, g *Graph) {
 	l := p.l
 	// An edge passes straight down through the ranks between its ends.
 	for _, v := range l.verts {
-		if v.isPoint() && !g.Edges[v.edge].Invisible {
+		if v.isPoint() && !v.isFiller() && !g.Edges[v.edge].Invisible {
 			p.down(v.cx, v.y, v.y+v.h-1, g.Edges[v.edge].Style, diagram.RoleEdge)
 		}
 	}

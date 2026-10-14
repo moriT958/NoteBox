@@ -53,23 +53,130 @@ func (l *layout) initOrder() {
 	for _, v := range starts {
 		visit(v)
 	}
+
+	// Gather the vertices of each frame where the walk first put them.
+	pos := l.positions()
+	l.orderFrames(pos)
+	for _, rank := range l.ranks {
+		l.arrange(rank, pos)
+	}
+}
+
+// positions returns the position of each vertex in its rank.
+func (l *layout) positions() []float64 {
+	pos := make([]float64, len(l.verts))
+	for _, rank := range l.ranks {
+		for i, v := range rank {
+			pos[v] = float64(i)
+		}
+	}
+	return pos
+}
+
+// orderFrames sets the keys that order frames side by side to the mean
+// position of the vertices in them.
+func (l *layout) orderFrames(pos []float64) {
+	sum := make([]float64, len(l.frames))
+	n := make([]int, len(l.frames))
+	for v, vert := range l.verts {
+		for f := vert.frame; f >= 0; f = l.frames[f].parent {
+			sum[f] += pos[v]
+			n[f]++
+		}
+	}
+	for f := range l.frames {
+		l.frames[f].key = sum[f] / float64(n[f])
+	}
+}
+
+// arrange sorts a rank by the keys of its vertices, keeping the vertices of
+// each frame together. Frames are sorted among the vertices beside them by
+// the mean key of their vertices, and among each other by their own keys.
+func (l *layout) arrange(rank []int, key []float64) {
+	if len(l.frames) == 0 {
+		slices.SortStableFunc(rank, func(a, b int) int { return compareKeys(key[a], key[b]) })
+		return
+	}
+	copy(rank, l.arrangeIn(-1, rank, key))
+}
+
+// arrangeIn arranges vertices in frame f, or the whole graph for -1.
+func (l *layout) arrangeIn(f int, verts []int, key []float64) []int {
+	// An item is a vertex directly in f, or a frame nested directly in f
+	// with its vertices.
+	type item struct {
+		frame int
+		verts []int
+		key   float64
+	}
+	var items []item
+	at := map[int]int{} // the item of each nested frame
+	for _, v := range verts {
+		in := l.within(f, l.verts[v].frame)
+		if in < 0 {
+			items = append(items, item{frame: -1, verts: []int{v}, key: key[v]})
+			continue
+		}
+		i, ok := at[in]
+		if !ok {
+			i = len(items)
+			at[in] = i
+			items = append(items, item{frame: in})
+		}
+		items[i].verts = append(items[i].verts, v)
+		items[i].key += key[v]
+	}
+	for i := range items {
+		items[i].key /= float64(len(items[i].verts))
+	}
+	slices.SortStableFunc(items, func(a, b item) int { return compareKeys(a.key, b.key) })
+
+	// Frames keep their order among each other in the places they sorted
+	// into.
+	var slots []int
+	var frames []item
+	for i, it := range items {
+		if it.frame >= 0 {
+			slots = append(slots, i)
+			frames = append(frames, it)
+		}
+	}
+	slices.SortStableFunc(frames, func(a, b item) int {
+		return compareKeys(l.frames[a.frame].key, l.frames[b.frame].key)
+	})
+	for i, slot := range slots {
+		items[slot] = frames[i]
+	}
+
+	out := make([]int, 0, len(verts))
+	for _, it := range items {
+		if it.frame < 0 {
+			out = append(out, it.verts...)
+		} else {
+			out = append(out, l.arrangeIn(it.frame, it.verts, key)...)
+		}
+	}
+	return out
+}
+
+func compareKeys(a, b float64) int {
+	switch {
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	}
+	return 0
 }
 
 // reduceCrossings reorders each rank to reduce the crossings of edges
 // between ranks, sorting vertices by the mean position of their neighbors in
 // the rank above and then in the rank below, and keeping the best order
-// found.
+// found. After each sweep, frames are ordered by where their vertices went.
 func (l *layout) reduceCrossings() {
 	up, down := l.neighbors()
-	pos := make([]float64, len(l.verts))
-	setPos := func(rank []int) {
-		for i, v := range rank {
-			pos[v] = float64(i)
-		}
-	}
-	for _, rank := range l.ranks {
-		setPos(rank)
-	}
+	pos := l.positions()
+	bary := make([]float64, len(l.verts))
 
 	best := cloneRanks(l.ranks)
 	bestCrossings := l.crossings()
@@ -80,7 +187,6 @@ func (l *layout) reduceCrossings() {
 			slices.Reverse(ranks)
 		}
 		for _, rank := range ranks {
-			bary := make(map[int]float64, len(rank))
 			for _, v := range rank {
 				bary[v] = pos[v]
 				if ns := neigh[v]; len(ns) > 0 {
@@ -91,17 +197,12 @@ func (l *layout) reduceCrossings() {
 					bary[v] = sum / float64(len(ns))
 				}
 			}
-			slices.SortStableFunc(rank, func(a, b int) int {
-				switch {
-				case bary[a] < bary[b]:
-					return -1
-				case bary[a] > bary[b]:
-					return 1
-				}
-				return 0
-			})
-			setPos(rank)
+			l.arrange(rank, bary)
+			for i, v := range rank {
+				pos[v] = float64(i)
+			}
 		}
+		l.orderFrames(pos)
 		if c := l.crossings(); c < bestCrossings {
 			best, bestCrossings = cloneRanks(l.ranks), c
 		}
