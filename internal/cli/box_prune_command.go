@@ -12,28 +12,32 @@ import (
 	"github.com/google/subcommands"
 )
 
-type pruneCmd struct {
+type boxPruneCmd struct {
 	boxes *box.BoxService
 	force bool
 }
 
-var _ subcommands.Command = (*pruneCmd)(nil)
+var _ subcommands.Command = (*boxPruneCmd)(nil)
 
-func (*pruneCmd) Name() string { return "prune" }
+func (*boxPruneCmd) Name() string { return "prune" }
 
-func (*pruneCmd) Synopsis() string { return "remove deleted boxes and their directories" }
+func (*boxPruneCmd) Synopsis() string { return "remove deleted boxes and their directories" }
 
-func (*pruneCmd) Usage() string {
-	return `nbx prune [-force]:
+func (*boxPruneCmd) Usage() string {
+	return `nbx box prune [-force]:
 cleanup directories of inactive boxes.
 `
 }
 
-func (c *pruneCmd) SetFlags(f *flag.FlagSet) {
+func (c *boxPruneCmd) SetFlags(f *flag.FlagSet) {
 	f.BoolVar(&c.force, "force", false, "skip confirmation prompt")
 }
 
-func (c *pruneCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
+func (c *boxPruneCmd) Execute(ctx context.Context, f *flag.FlagSet, args ...any) subcommands.ExitStatus {
+	if _, ok := wantArgs(f, 0); !ok {
+		return subcommands.ExitUsageError
+	}
+
 	boxes, err := c.boxes.GetInactiveBoxes(ctx)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "failed to find deleted boxes:", err)

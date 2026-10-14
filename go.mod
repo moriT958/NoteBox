@@ -10,7 +10,6 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/gofsnotify/fsnotify v0.0.3
 	github.com/google/subcommands v1.2.0
-	github.com/mattn/go-runewidth v0.0.23
 	github.com/pressly/goose/v3 v3.27.1
 	github.com/sahilm/fuzzy v0.1.1
 	modernc.org/sqlite v1.50.1
@@ -35,6 +34,7 @@ require (
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.21 // indirect
+	github.com/mattn/go-runewidth v0.0.23 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
