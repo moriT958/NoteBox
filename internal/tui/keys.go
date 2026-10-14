@@ -29,7 +29,7 @@ func DefaultKeyMap() KeyMap {
 	k.List.Down = key.NewBinding(key.WithKeys("down", "j", "ctrl+n"), key.WithHelp("↓/j", "down"))
 	k.List.New = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "new"))
 	k.List.Open = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "open tab"))
-	k.List.FocusPreview = key.NewBinding(key.WithKeys("right", "l", "ctrl+l"), key.WithHelp("→/l", "preview"))
+	k.List.FocusPreview = key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "preview"))
 	k.List.Rename = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "rename"))
 	k.List.Delete = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "delete"))
 	k.List.Edit = key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit"))
@@ -38,7 +38,7 @@ func DefaultKeyMap() KeyMap {
 	k.Rename.Confirm = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm rename"))
 	k.Rename.Cancel = key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel"))
 
-	k.Preview.FocusList = key.NewBinding(key.WithKeys("left", "h", "ctrl+h"), key.WithHelp("←/h", "list"))
+	k.Preview.FocusList = key.NewBinding(key.WithKeys("ctrl+h"), key.WithHelp("ctrl+h", "list"))
 	k.Preview.Edit = key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "edit"))
 	k.Preview.Pin = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "pin tab"))
 	k.Preview.CloseTab = key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "close tab"))
@@ -83,7 +83,7 @@ func (k KeyMap) previewHelp(vp viewport.KeyMap) help.KeyMap {
 	return helpKeys{
 		short: []key.Binding{vp.Up, vp.Down, vp.HalfPageUp, vp.HalfPageDown, p.FocusList, p.Edit, k.Help, k.Quit},
 		full: [][]key.Binding{
-			{vp.Up, vp.Down, vp.HalfPageUp, vp.HalfPageDown},
+			{vp.Up, vp.Down, vp.Left, vp.Right, vp.HalfPageUp, vp.HalfPageDown},
 			{p.Pin, p.CloseTab, p.NextTab, p.PrevTab},
 			{p.FocusList, p.Edit},
 			{k.Boxes, k.Help, k.Quit},
