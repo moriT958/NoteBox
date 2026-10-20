@@ -39,6 +39,7 @@ func previewHelp(k *keymap.KeyMap) help.KeyMap {
 		short: []key.Binding{p.ScrollUp, p.ScrollDown, p.HalfPageUp, p.HalfPageDown, p.FocusList, p.Edit, g.Help, g.Quit},
 		full: [][]key.Binding{
 			{p.ScrollUp, p.ScrollDown, p.ScrollLeft, p.ScrollRight, p.HalfPageUp, p.HalfPageDown},
+			{p.PageUp, p.PageDown, p.Top, p.Bottom},
 			{p.Pin, p.CloseTab, p.NextTab, p.PrevTab},
 			{p.FocusList, p.Edit},
 			{g.Boxes, g.Help, g.Quit},

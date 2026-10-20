@@ -371,6 +371,10 @@ func (m *UI) handlePreviewKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.preview.NextTab()
 	case key.Matches(msg, k.PrevTab):
 		m.preview.PrevTab()
+	case key.Matches(msg, k.Top):
+		m.preview.GotoTop()
+	case key.Matches(msg, k.Bottom):
+		m.preview.GotoBottom()
 	default:
 		return m.preview.Scroll(msg)
 	}

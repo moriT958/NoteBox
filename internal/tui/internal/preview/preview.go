@@ -172,6 +172,14 @@ func (p *Preview) Scroll(msg tea.KeyPressMsg) tea.Cmd {
 	return cmd
 }
 
+func (p *Preview) GotoTop() {
+	p.vp.GotoTop()
+}
+
+func (p *Preview) GotoBottom() {
+	p.vp.GotoBottom()
+}
+
 func (p *Preview) index(n note.Note) int {
 	return slices.IndexFunc(p.tabs, func(t *tab) bool { return t.note == n })
 }

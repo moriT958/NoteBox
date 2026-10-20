@@ -29,7 +29,7 @@ curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | 
 - `j/k` | `↓/↑`: move cursor
 - `ctrl+l` | `ctrl+h`: Toggle focus between the preview pane and the list panel
 - `n`: New note
-- `e`: Edit note
+- `v`: Edit note
 - `d`: Delete note
 - `/`: Find note by title
 - `ctrl+b`: Open Box
