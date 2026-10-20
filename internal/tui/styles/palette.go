@@ -22,6 +22,10 @@ type Palette struct {
 	Success  string `json:"success"`
 	// Danger colors the cancel button and errors.
 	Danger string `json:"danger"`
+	// SelectionFg and SelectionBg mark the text selected with the mouse in
+	// the preview.
+	SelectionFg string `json:"selection_fg"`
+	SelectionBg string `json:"selection_bg"`
 
 	MermaidBorder    string `json:"mermaid_border"`
 	MermaidText      string `json:"mermaid_text"`
@@ -52,6 +56,8 @@ func (p *Palette) tokens() []token {
 		{"button_fg", &p.ButtonFg, checkColor},
 		{"success", &p.Success, checkColor},
 		{"danger", &p.Danger, checkColor},
+		{"selection_fg", &p.SelectionFg, checkColor},
+		{"selection_bg", &p.SelectionBg, checkColor},
 		{"mermaid_border", &p.MermaidBorder, checkColor},
 		{"mermaid_text", &p.MermaidText, checkColor},
 		{"mermaid_edge", &p.MermaidEdge, checkColor},
@@ -88,6 +94,8 @@ func DarkPalette() Palette {
 		ButtonFg:         "#414559",
 		Success:          "#99d1db",
 		Danger:           "#ea999c",
+		SelectionFg:      "#303446",
+		SelectionBg:      "#8caaee",
 		MermaidBorder:    "#8caaee",
 		MermaidText:      "#c6d0f5",
 		MermaidEdge:      "#949cbb",
@@ -108,6 +116,8 @@ func LightPalette() Palette {
 		ButtonFg:         "#eff1f5",
 		Success:          "#40a02b",
 		Danger:           "#d20f39",
+		SelectionFg:      "#4c4f69",
+		SelectionBg:      "#bcd0f7",
 		MermaidBorder:    "#1e66f5",
 		MermaidText:      "#4c4f69",
 		MermaidEdge:      "#7c7f93",

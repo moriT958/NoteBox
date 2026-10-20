@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"notebox/internal/config"
 	"notebox/internal/core/box"
@@ -180,6 +181,8 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resize(msg.Width, msg.Height)
 	case tea.KeyPressMsg:
 		return m, m.handleKey(msg)
+	case tea.MouseMsg:
+		return m, m.handleMouse(msg)
 	case tea.PasteMsg:
 		if m.dialog.HasDialogs() {
 			return m, m.handleAction(m.dialog.HandleMsg(msg))
@@ -266,6 +269,7 @@ func (m *UI) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	if key.Matches(msg, m.keys.Global.Quit) {
 		return tea.Quit
 	}
+	m.preview.ClearSelection()
 
 	if front := m.dialog.Front(); front != nil {
 		if key.Matches(msg, m.keys.Global.Boxes) && front.ID() == dialog.BoxesID {
@@ -379,6 +383,47 @@ func (m *UI) handlePreviewKey(msg tea.KeyPressMsg) tea.Cmd {
 		return m.preview.Scroll(msg)
 	}
 	return nil
+}
+
+// handleMouse selects text in the preview's body with the left button and
+// copies it on release, and scrolls the preview with the wheel. The mouse
+// does nothing while a dialog is open or a note is being renamed.
+func (m *UI) handleMouse(msg tea.MouseMsg) tea.Cmd {
+	if m.dialog.HasDialogs() || m.list.Renaming() {
+		return nil
+	}
+	mouse := msg.Mouse()
+	at := image.Pt(mouse.X, mouse.Y)
+	body := m.preview.Body().Add(m.layout.preview.Min)
+	in := at.Sub(body.Min)
+
+	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		if mouse.Button != tea.MouseLeft || !at.In(body) {
+			return nil
+		}
+		m.focus = focusPreview
+		m.preview.StartSelection(in.X, in.Y)
+	case tea.MouseMotionMsg:
+		m.preview.ExtendSelection(in.X, in.Y)
+	case tea.MouseReleaseMsg:
+		m.preview.ExtendSelection(in.X, in.Y)
+		if text, ok := m.preview.EndSelection(); ok {
+			return tea.Batch(tea.SetClipboard(text), m.status.SetInfo(copiedMessage(text)))
+		}
+	case tea.MouseWheelMsg:
+		if at.In(m.layout.preview) {
+			m.preview.Wheel(msg)
+		}
+	}
+	return nil
+}
+
+func copiedMessage(text string) string {
+	if n := strings.Count(text, "\n") + 1; n > 1 {
+		return fmt.Sprintf("copied %d lines to clipboard", n)
+	}
+	return "copied 1 line to clipboard"
 }
 
 // handleAction carries out what a dialog asked for.
@@ -502,6 +547,8 @@ func (m *UI) helpKeys() help.KeyMap {
 func (m *UI) View() tea.View {
 	var v tea.View
 	v.AltScreen = true
+	// The app takes the mouse to select and copy the preview's text.
+	v.MouseMode = tea.MouseModeCellMotion
 	v.WindowTitle = "Note Box"
 	if m.width == 0 || m.height == 0 {
 		return v

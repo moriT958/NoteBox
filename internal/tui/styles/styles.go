@@ -17,6 +17,7 @@ type Styles struct {
 	Header lipgloss.Style
 	Help   lipgloss.Style
 	Error  lipgloss.Style
+	Info   lipgloss.Style
 
 	// Panel borders and the frame color used when drawing borders by hand
 	// (the preview's tab bar doubles as its top border).
@@ -46,6 +47,9 @@ type Styles struct {
 		Error   lipgloss.Style
 	}
 
+	// Selection marks the text selected with the mouse in the preview.
+	Selection lipgloss.Style
+
 	// Mermaid colors the diagrams drawn in the preview.
 	Mermaid mermaid.Styles
 }
@@ -72,6 +76,7 @@ func New(p Palette) *Styles {
 		Align(lipgloss.Center)
 	s.Help = lipgloss.NewStyle().PaddingLeft(1)
 	s.Error = lipgloss.NewStyle().PaddingLeft(1).Foreground(cancelBg)
+	s.Info = lipgloss.NewStyle().PaddingLeft(1).Foreground(confirmBg)
 
 	s.BorderFocused = lipgloss.NewStyle().Border(lipgloss.ThickBorder()).BorderForeground(active)
 	s.BorderBlurred = lipgloss.NewStyle().Border(lipgloss.ThickBorder()).BorderForeground(primary)
@@ -105,6 +110,10 @@ func New(p Palette) *Styles {
 	s.Dialog.Confirm = lipgloss.NewStyle().Foreground(buttonFg).Background(confirmBg)
 	s.Dialog.Cancel = lipgloss.NewStyle().Foreground(buttonFg).Background(cancelBg)
 	s.Dialog.Error = lipgloss.NewStyle().Foreground(cancelBg)
+
+	s.Selection = lipgloss.NewStyle().
+		Foreground(lipgloss.Color(p.SelectionFg)).
+		Background(lipgloss.Color(p.SelectionBg))
 
 	s.Mermaid = mermaid.Styles{
 		Border:    lipgloss.Color(p.MermaidBorder),
