@@ -34,6 +34,8 @@ curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | 
 - `/`: Find note by title
 - `ctrl+b`: Open Box
 
+Drag over the preview to select text; it's copied to the clipboard when you release the button (OSC 52; in tmux, `set-clipboard on` is needed). To select with the terminal instead, hold Shift (or Option, depending on the terminal) while dragging.
+
 ### Subcommands
 
 Every command is `nbx <target> <action>`. Output is plain text, one item per line, with tab-separated columns, so it works well in pipes and from scripts and AI agents. Commands never ask questions, except `box prune` without `-force`.
