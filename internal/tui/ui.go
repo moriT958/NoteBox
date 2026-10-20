@@ -408,10 +408,16 @@ func (m *UI) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		}
 		switch {
 		case at.In(listBody):
-			if m.list.SelectAt(at.Y - listBody.Min.Y) {
-				m.focus = focusList
-				return m.showSelected()
+			prev, _ := m.list.Selected()
+			if !m.list.SelectAt(at.Y - listBody.Min.Y) {
+				return nil
 			}
+			m.focus = focusList
+			// Clicking the note under the cursor again pins its tab.
+			if n, _ := m.list.Selected(); n == prev {
+				return m.open(n, true)
+			}
+			return m.showSelected()
 		case at.In(body):
 			m.focus = focusPreview
 			m.preview.StartSelection(in.X, in.Y)
