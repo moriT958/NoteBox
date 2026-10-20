@@ -16,6 +16,8 @@ type Palette struct {
 	Cursor      string `json:"cursor"`
 	CursorMuted string `json:"cursor_muted"`
 	Muted       string `json:"muted"`
+	// ListHoverBg marks the note under the mouse pointer in the list.
+	ListHoverBg string `json:"list_hover_bg"`
 	TabBarBg    string `json:"tab_bar_bg"`
 	// ButtonFg is the text of the dialog buttons.
 	ButtonFg string `json:"button_fg"`
@@ -52,6 +54,7 @@ func (p *Palette) tokens() []token {
 		{"cursor", &p.Cursor, checkColor},
 		{"cursor_muted", &p.CursorMuted, checkColor},
 		{"muted", &p.Muted, checkColor},
+		{"list_hover_bg", &p.ListHoverBg, checkColor},
 		{"tab_bar_bg", &p.TabBarBg, checkColor},
 		{"button_fg", &p.ButtonFg, checkColor},
 		{"success", &p.Success, checkColor},
@@ -90,6 +93,7 @@ func DarkPalette() Palette {
 		Cursor:           "#f2d5cf",
 		CursorMuted:      "#c7a89e",
 		Muted:            "#51576d",
+		ListHoverBg:      "#414559",
 		TabBarBg:         "#232634",
 		ButtonFg:         "#414559",
 		Success:          "#99d1db",
@@ -112,6 +116,7 @@ func LightPalette() Palette {
 		Cursor:           "#dc8a78",
 		CursorMuted:      "#b58c7e",
 		Muted:            "#8c8fa1",
+		ListHoverBg:      "#ccd0da",
 		TabBarBg:         "#dce0e8",
 		ButtonFg:         "#eff1f5",
 		Success:          "#40a02b",

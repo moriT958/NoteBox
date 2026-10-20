@@ -174,3 +174,62 @@ func TestNoteList_Rename(t *testing.T) {
 		}
 	})
 }
+
+func TestNoteList_SelectAt(t *testing.T) {
+	t.Run("Selects the note whose title or path is at the row, below the scrolled-off notes.", func(t *testing.T) {
+		notes := newNotes(t, "a", "b", "c", "d", "e")
+		l := newList(t, 2)
+		l.SetNotes(notes)
+		for range 3 {
+			l.CursorDown() // d, scrolled to show c and d
+		}
+
+		for row, want := range map[int]string{0: "c", 1: "c", 3: "d", 4: "d"} {
+			if !l.SelectAt(row) {
+				t.Fatalf("SelectAt(%d) = false, want true", row)
+			}
+			if got := selectedTitle(t, l); got != want {
+				t.Errorf("SelectAt(%d) selected %q, want %q", row, got, want)
+			}
+		}
+	})
+
+	t.Run("Selects nothing at a spacer, below the last note, or out of the body.", func(t *testing.T) {
+		notes := newNotes(t, "a", "b")
+		l := newList(t, 5)
+		l.SetNotes(notes)
+
+		for _, row := range []int{2, 5, 6, -1, 100} {
+			if l.SelectAt(row) {
+				t.Errorf("SelectAt(%d) = true, want false", row)
+			}
+			if got := selectedTitle(t, l); got != "a" {
+				t.Errorf("SelectAt(%d) moved the cursor to %q", row, got)
+			}
+		}
+	})
+}
+
+func TestNoteList_Hover(t *testing.T) {
+	t.Run("Marks the note under the pointer, but not the one under the cursor.", func(t *testing.T) {
+		notes := newNotes(t, "a", "b")
+		l := newList(t, 5)
+		l.SetNotes(notes)
+		plain := l.Render(true)
+
+		l.SetHover(0) // a, under the cursor
+		if l.Render(true) != plain {
+			t.Errorf("expected no mark on the note under the cursor")
+		}
+
+		l.SetHover(4) // b's path
+		if l.Render(true) == plain {
+			t.Errorf("expected the note under the pointer to be marked")
+		}
+
+		l.ClearHover()
+		if l.Render(true) != plain {
+			t.Errorf("expected no mark after the pointer left")
+		}
+	})
+}

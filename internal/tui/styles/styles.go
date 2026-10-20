@@ -30,6 +30,10 @@ type Styles struct {
 		Cursor       lipgloss.Style
 		Path         lipgloss.Style
 		SelectedPath lipgloss.Style
+		// Hover and HoverPath draw the title and the path of the note under
+		// the mouse pointer.
+		Hover     lipgloss.Style
+		HoverPath lipgloss.Style
 	}
 
 	Tab struct {
@@ -61,6 +65,7 @@ func New(p Palette) *Styles {
 	cursor := lipgloss.Color(p.Cursor)
 	cursorMuted := lipgloss.Color(p.CursorMuted)
 	muted := lipgloss.Color(p.Muted)
+	hoverBg := lipgloss.Color(p.ListHoverBg)
 	tabBarBg := lipgloss.Color(p.TabBarBg)
 	buttonFg := lipgloss.Color(p.ButtonFg)
 	confirmBg := lipgloss.Color(p.Success)
@@ -86,6 +91,8 @@ func New(p Palette) *Styles {
 	s.List.Cursor = lipgloss.NewStyle().Foreground(cursor)
 	s.List.Path = lipgloss.NewStyle().Foreground(muted)
 	s.List.SelectedPath = lipgloss.NewStyle().Foreground(cursorMuted)
+	s.List.Hover = lipgloss.NewStyle().Background(hoverBg)
+	s.List.HoverPath = lipgloss.NewStyle().Foreground(muted).Background(hoverBg)
 
 	s.Tab.Focused = TabStyles{
 		Active:          lipgloss.NewStyle().Foreground(active).Background(tabBarBg).Bold(true),

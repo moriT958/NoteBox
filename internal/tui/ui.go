@@ -385,26 +385,45 @@ func (m *UI) handlePreviewKey(msg tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-// handleMouse selects text in the preview's body with the left button and
-// copies it on release, and scrolls the preview with the wheel. The mouse
-// does nothing while a dialog is open or a note is being renamed.
+// handleMouse handles the mouse over the list and the preview: in the
+// list, the note under the pointer is marked and a click selects it; in the
+// preview's body, the left button selects text and copies it on release,
+// and the wheel scrolls the preview. The mouse does nothing while a dialog
+// is open or a note is being renamed.
 func (m *UI) handleMouse(msg tea.MouseMsg) tea.Cmd {
 	if m.dialog.HasDialogs() || m.list.Renaming() {
+		m.list.ClearHover()
 		return nil
 	}
 	mouse := msg.Mouse()
 	at := image.Pt(mouse.X, mouse.Y)
+	listBody := m.list.Body().Add(m.layout.list.Min)
 	body := m.preview.Body().Add(m.layout.preview.Min)
 	in := at.Sub(body.Min)
 
 	switch msg := msg.(type) {
 	case tea.MouseClickMsg:
-		if mouse.Button != tea.MouseLeft || !at.In(body) {
+		if mouse.Button != tea.MouseLeft {
 			return nil
 		}
-		m.focus = focusPreview
-		m.preview.StartSelection(in.X, in.Y)
+		switch {
+		case at.In(listBody):
+			if m.list.SelectAt(at.Y - listBody.Min.Y) {
+				m.focus = focusList
+				return m.showSelected()
+			}
+		case at.In(body):
+			m.focus = focusPreview
+			m.preview.StartSelection(in.X, in.Y)
+		}
 	case tea.MouseMotionMsg:
+		// The pointer marks a note only while no button is held, so a drag
+		// selecting the preview's text doesn't.
+		if mouse.Button == tea.MouseNone && at.In(listBody) {
+			m.list.SetHover(at.Y - listBody.Min.Y)
+		} else {
+			m.list.ClearHover()
+		}
 		m.preview.ExtendSelection(in.X, in.Y)
 	case tea.MouseReleaseMsg:
 		m.preview.ExtendSelection(in.X, in.Y)
@@ -547,8 +566,9 @@ func (m *UI) helpKeys() help.KeyMap {
 func (m *UI) View() tea.View {
 	var v tea.View
 	v.AltScreen = true
-	// The app takes the mouse to select and copy the preview's text.
-	v.MouseMode = tea.MouseModeCellMotion
+	// The app takes the mouse to mark and select notes, and to select and
+	// copy the preview's text; marking needs the pointer's every move.
+	v.MouseMode = tea.MouseModeAllMotion
 	v.WindowTitle = "Note Box"
 	if m.width == 0 || m.height == 0 {
 		return v
