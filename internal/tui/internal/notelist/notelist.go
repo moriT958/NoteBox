@@ -1,6 +1,7 @@
 package notelist
 
 import (
+	"image"
 	"slices"
 	"strings"
 
@@ -34,12 +35,17 @@ type NoteList struct {
 
 	renaming bool
 	input    textinput.Model
+
+	// hover is the body row under the mouse pointer, or -1. The note there
+	// is found when drawing, so it stays right while the list scrolls.
+	hover int
 }
 
 func New(com *common.Common) *NoteList {
 	return &NoteList{
 		com:   com,
 		input: common.NewInput("", 100),
+		hover: -1,
 	}
 }
 
@@ -55,6 +61,50 @@ func (l *NoteList) contentWidth() int {
 
 func (l *NoteList) contentHeight() int {
 	return max(0, l.height-l.com.Styles.BorderFocused.GetVerticalFrameSize())
+}
+
+// Body returns where the notes are drawn, relative to the list: inside the
+// border.
+func (l *NoteList) Body() image.Rectangle {
+	border := l.com.Styles.BorderFocused
+	x, y := border.GetBorderLeftSize(), border.GetBorderTopSize()
+	return image.Rect(x, y, x+l.contentWidth(), y+l.contentHeight())
+}
+
+// noteAt returns the index of the note whose title or path is drawn at row
+// of the body.
+func (l *NoteList) noteAt(row int) (int, bool) {
+	if row < 0 || row >= l.contentHeight() || row%itemLines == itemLines-1 {
+		return 0, false
+	}
+	item := row / itemLines
+	i := l.offset + item
+	if item >= l.visibleItems() || i >= len(l.notes) {
+		return 0, false
+	}
+	return i, true
+}
+
+// SelectAt moves the cursor to the note drawn at row of the body and
+// reports whether there is one.
+func (l *NoteList) SelectAt(row int) bool {
+	i, ok := l.noteAt(row)
+	if !ok {
+		return false
+	}
+	l.cursor = i
+	l.clamp()
+	return true
+}
+
+// SetHover marks the note drawn at row of the body as under the mouse
+// pointer.
+func (l *NoteList) SetHover(row int) {
+	l.hover = row
+}
+
+func (l *NoteList) ClearHover() {
+	l.hover = -1
 }
 
 func (l *NoteList) visibleItems() int {
@@ -190,11 +240,21 @@ func (l *NoteList) Render(focused bool) string {
 	if len(l.notes) == 0 {
 		b.WriteString("no items.")
 	}
+	hovered, hovering := l.noteAt(l.hover)
 	end := min(l.offset+l.visibleItems(), len(l.notes))
 	for i := l.offset; i < end; i++ {
 		n := l.notes[i]
 		if i != l.offset {
 			b.WriteString("\n")
+		}
+		if hovering && i == hovered && i != l.cursor {
+			// The path's color is part of the band's style: a nested style
+			// would reset the background and cut the band short.
+			b.WriteString(sty.List.Hover.Width(w).Render(ansi.Truncate(plainGutter+n.Title(), w, "…")))
+			b.WriteString("\n")
+			b.WriteString(sty.List.HoverPath.Width(w).Render(ansi.Truncate(plainGutter+n.Path(), w, "…")))
+			b.WriteString("\n")
+			continue
 		}
 		if i != l.cursor {
 			b.WriteString(ansi.Truncate(plainGutter+n.Title(), w, "…"))

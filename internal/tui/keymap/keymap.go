@@ -23,6 +23,7 @@ type KeyMap struct {
 	Preview struct {
 		ScrollUp, ScrollDown, ScrollLeft, ScrollRight    key.Binding
 		HalfPageUp, HalfPageDown, PageUp, PageDown       key.Binding
+		Top, Bottom                                      key.Binding
 		FocusList, Edit, Pin, CloseTab, NextTab, PrevTab key.Binding
 	}
 	// Dialog is shared by every dialog; a dialog may rename what Confirm
@@ -76,6 +77,8 @@ func (k *KeyMap) actions() []action {
 		{"preview.half_page_down", &k.Preview.HalfPageDown},
 		{"preview.page_up", &k.Preview.PageUp},
 		{"preview.page_down", &k.Preview.PageDown},
+		{"preview.top", &k.Preview.Top},
+		{"preview.bottom", &k.Preview.Bottom},
 		{"preview.focus_list", &k.Preview.FocusList},
 		{"preview.edit", &k.Preview.Edit},
 		{"preview.pin", &k.Preview.Pin},
@@ -114,22 +117,25 @@ func Default() KeyMap {
 	k.List.FocusPreview = bind("preview", "ctrl+l")
 	k.List.Rename = bind("rename", "r")
 	k.List.Delete = bind("delete", "d")
-	k.List.Edit = bind("edit", "e")
+	k.List.Edit = bind("edit", "v")
 	k.List.Search = bind("search", "/")
 
 	k.Rename.Confirm = bind("confirm rename", "enter")
 	k.Rename.Cancel = bind("cancel", "esc")
 
-	k.Preview.ScrollUp = bind("up", "up", "k")
-	k.Preview.ScrollDown = bind("down", "down", "j")
+	// The preview's defaults follow less.
+	k.Preview.ScrollUp = bind("up", "up", "k", "y", "ctrl+y", "ctrl+p")
+	k.Preview.ScrollDown = bind("down", "down", "j", "e", "ctrl+e", "ctrl+n")
 	k.Preview.ScrollLeft = bind("left", "left", "h")
 	k.Preview.ScrollRight = bind("right", "right", "l")
 	k.Preview.HalfPageUp = bind("½ page up", "u", "ctrl+u")
 	k.Preview.HalfPageDown = bind("½ page down", "d", "ctrl+d")
 	k.Preview.PageUp = bind("page up", "pgup", "b")
-	k.Preview.PageDown = bind("page down", "pgdown", "space", "f")
+	k.Preview.PageDown = bind("page down", "pgdown", "space", "f", "ctrl+f")
+	k.Preview.Top = bind("top", "g", "<", "home")
+	k.Preview.Bottom = bind("bottom", "G", ">", "end")
 	k.Preview.FocusList = bind("list", "ctrl+h")
-	k.Preview.Edit = bind("edit", "e")
+	k.Preview.Edit = bind("edit", "v")
 	k.Preview.Pin = bind("pin tab", "enter")
 	k.Preview.CloseTab = bind("close tab", "w")
 	k.Preview.NextTab = bind("next tab", "tab")

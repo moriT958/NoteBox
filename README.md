@@ -29,10 +29,12 @@ curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | 
 - `j/k` | `↓/↑`: move cursor
 - `ctrl+l` | `ctrl+h`: Toggle focus between the preview pane and the list panel
 - `n`: New note
-- `e`: Edit note
+- `v`: Edit note
 - `d`: Delete note
 - `/`: Find note by title
 - `ctrl+b`: Open Box
+
+Drag over the preview to select text; it's copied to the clipboard when you release the button (OSC 52; in tmux, `set-clipboard on` is needed). To select with the terminal instead, hold Shift (or Option, depending on the terminal) while dragging.
 
 ### Subcommands
 

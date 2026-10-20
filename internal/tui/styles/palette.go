@@ -16,12 +16,18 @@ type Palette struct {
 	Cursor      string `json:"cursor"`
 	CursorMuted string `json:"cursor_muted"`
 	Muted       string `json:"muted"`
+	// ListHoverBg marks the note under the mouse pointer in the list.
+	ListHoverBg string `json:"list_hover_bg"`
 	TabBarBg    string `json:"tab_bar_bg"`
 	// ButtonFg is the text of the dialog buttons.
 	ButtonFg string `json:"button_fg"`
 	Success  string `json:"success"`
 	// Danger colors the cancel button and errors.
 	Danger string `json:"danger"`
+	// SelectionFg and SelectionBg mark the text selected with the mouse in
+	// the preview.
+	SelectionFg string `json:"selection_fg"`
+	SelectionBg string `json:"selection_bg"`
 
 	MermaidBorder    string `json:"mermaid_border"`
 	MermaidText      string `json:"mermaid_text"`
@@ -48,10 +54,13 @@ func (p *Palette) tokens() []token {
 		{"cursor", &p.Cursor, checkColor},
 		{"cursor_muted", &p.CursorMuted, checkColor},
 		{"muted", &p.Muted, checkColor},
+		{"list_hover_bg", &p.ListHoverBg, checkColor},
 		{"tab_bar_bg", &p.TabBarBg, checkColor},
 		{"button_fg", &p.ButtonFg, checkColor},
 		{"success", &p.Success, checkColor},
 		{"danger", &p.Danger, checkColor},
+		{"selection_fg", &p.SelectionFg, checkColor},
+		{"selection_bg", &p.SelectionBg, checkColor},
 		{"mermaid_border", &p.MermaidBorder, checkColor},
 		{"mermaid_text", &p.MermaidText, checkColor},
 		{"mermaid_edge", &p.MermaidEdge, checkColor},
@@ -84,10 +93,13 @@ func DarkPalette() Palette {
 		Cursor:           "#f2d5cf",
 		CursorMuted:      "#c7a89e",
 		Muted:            "#51576d",
+		ListHoverBg:      "#414559",
 		TabBarBg:         "#232634",
 		ButtonFg:         "#414559",
 		Success:          "#99d1db",
 		Danger:           "#ea999c",
+		SelectionFg:      "#303446",
+		SelectionBg:      "#8caaee",
 		MermaidBorder:    "#8caaee",
 		MermaidText:      "#c6d0f5",
 		MermaidEdge:      "#949cbb",
@@ -104,10 +116,13 @@ func LightPalette() Palette {
 		Cursor:           "#dc8a78",
 		CursorMuted:      "#b58c7e",
 		Muted:            "#8c8fa1",
+		ListHoverBg:      "#ccd0da",
 		TabBarBg:         "#dce0e8",
 		ButtonFg:         "#eff1f5",
 		Success:          "#40a02b",
 		Danger:           "#d20f39",
+		SelectionFg:      "#4c4f69",
+		SelectionBg:      "#bcd0f7",
 		MermaidBorder:    "#1e66f5",
 		MermaidText:      "#4c4f69",
 		MermaidEdge:      "#7c7f93",

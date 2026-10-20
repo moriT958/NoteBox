@@ -1,6 +1,7 @@
 package preview
 
 import (
+	"image"
 	"slices"
 	"strings"
 
@@ -40,6 +41,8 @@ type Preview struct {
 	offset int
 
 	vp viewport.Model
+	// sel is the text selected with the mouse in the active tab, if any.
+	sel *selection
 }
 
 func New(com *common.Common) *Preview {
@@ -150,6 +153,7 @@ func (p *Preview) Clear() {
 	p.tabs = nil
 	p.active = 0
 	p.offset = 0
+	p.sel = nil
 	p.vp.SetContent("")
 }
 
@@ -170,6 +174,71 @@ func (p *Preview) Scroll(msg tea.KeyPressMsg) tea.Cmd {
 	var cmd tea.Cmd
 	p.vp, cmd = p.vp.Update(msg)
 	return cmd
+}
+
+// Wheel scrolls the note by a turn of the mouse wheel.
+func (p *Preview) Wheel(msg tea.MouseWheelMsg) {
+	p.vp, _ = p.vp.Update(msg)
+}
+
+// Body returns where the note is drawn, relative to the pane: inside the
+// borders and below the tab bar.
+func (p *Preview) Body() image.Rectangle {
+	return image.Rect(1, 1, 1+p.vp.Width(), 1+p.vp.Height())
+}
+
+// StartSelection starts selecting text at x, y in the body.
+func (p *Preview) StartSelection(x, y int) {
+	if len(p.tabs) == 0 {
+		return
+	}
+	at := p.cellAt(x, y)
+	p.sel = &selection{anchor: at, head: at, dragging: true}
+}
+
+// ExtendSelection moves the end of the selection being made to x, y in the
+// body, held to the body's edges.
+func (p *Preview) ExtendSelection(x, y int) {
+	if p.sel != nil && p.sel.dragging {
+		p.sel.head = p.cellAt(x, y)
+	}
+}
+
+// EndSelection finishes the selection being made and returns its text to
+// copy. A click that selected nothing clears the selection and reports
+// false.
+func (p *Preview) EndSelection() (string, bool) {
+	if p.sel == nil || !p.sel.dragging {
+		return "", false
+	}
+	p.sel.dragging = false
+	if p.sel.empty() {
+		p.sel = nil
+		return "", false
+	}
+	start, end := p.sel.bounds()
+	text := selectedText(strings.Split(p.tabs[p.active].rendered, "\n"), start, end)
+	return text, text != ""
+}
+
+func (p *Preview) ClearSelection() {
+	p.sel = nil
+}
+
+// cellAt returns the cell of the note shown at x, y in the body, held to
+// the body's edges.
+func (p *Preview) cellAt(x, y int) pos {
+	x = max(0, min(x, p.vp.Width()-1))
+	y = max(0, min(y, p.vp.Height()-1))
+	return pos{line: p.vp.YOffset() + y, col: p.vp.XOffset() + x}
+}
+
+func (p *Preview) GotoTop() {
+	p.vp.GotoTop()
+}
+
+func (p *Preview) GotoBottom() {
+	p.vp.GotoBottom()
 }
 
 func (p *Preview) index(n note.Note) int {
@@ -196,6 +265,7 @@ func (p *Preview) removeAt(i int) {
 }
 
 func (p *Preview) showActive(top bool) {
+	p.sel = nil
 	p.vp.SetContent(p.tabs[p.active].rendered)
 	if top {
 		p.vp.GotoTop()
@@ -245,7 +315,7 @@ func (p *Preview) Render(focused bool) string {
 		frame, tabStyles, border = sty.FrameFocused, sty.Tab.Focused, sty.BorderFocused
 	}
 
-	content := p.vp.View()
+	content := p.highlightSelection(p.vp.View())
 	if len(p.tabs) == 0 {
 		content = ansi.Truncate(placeholder, max(0, p.width-2), "")
 	}
@@ -254,6 +324,35 @@ func (p *Preview) Render(focused bool) string {
 		Height(p.height - 1).
 		Render(content)
 	return lipgloss.JoinVertical(lipgloss.Left, p.renderTabBar(frame, tabStyles), body)
+}
+
+// highlightSelection draws the selection over view, the visible part of
+// the note.
+func (p *Preview) highlightSelection(view string) string {
+	if p.sel == nil || p.sel.empty() {
+		return view
+	}
+	start, end := p.sel.bounds()
+	lines := strings.Split(view, "\n")
+	for i, line := range lines {
+		l := p.vp.YOffset() + i
+		if l < start.line || l > end.line {
+			continue
+		}
+		from, to := 0, p.vp.Width()
+		if l == start.line {
+			from = start.col - p.vp.XOffset()
+		}
+		if l == end.line {
+			to = end.col + 1 - p.vp.XOffset()
+		}
+		from, to = max(0, from), cellEnd(ansi.Strip(line), min(to, p.vp.Width()))
+		if from >= to {
+			continue
+		}
+		lines[i] = lipgloss.StyleRanges(line, lipgloss.NewRange(from, to, p.com.Styles.Selection))
+	}
+	return strings.Join(lines, "\n")
 }
 
 // renderTabBar draws the tabs as the pane's top border, e.g.

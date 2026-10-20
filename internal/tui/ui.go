@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"notebox/internal/config"
 	"notebox/internal/core/box"
@@ -180,6 +181,8 @@ func (m *UI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.resize(msg.Width, msg.Height)
 	case tea.KeyPressMsg:
 		return m, m.handleKey(msg)
+	case tea.MouseMsg:
+		return m, m.handleMouse(msg)
 	case tea.PasteMsg:
 		if m.dialog.HasDialogs() {
 			return m, m.handleAction(m.dialog.HandleMsg(msg))
@@ -266,6 +269,7 @@ func (m *UI) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	if key.Matches(msg, m.keys.Global.Quit) {
 		return tea.Quit
 	}
+	m.preview.ClearSelection()
 
 	if front := m.dialog.Front(); front != nil {
 		if key.Matches(msg, m.keys.Global.Boxes) && front.ID() == dialog.BoxesID {
@@ -371,10 +375,80 @@ func (m *UI) handlePreviewKey(msg tea.KeyPressMsg) tea.Cmd {
 		m.preview.NextTab()
 	case key.Matches(msg, k.PrevTab):
 		m.preview.PrevTab()
+	case key.Matches(msg, k.Top):
+		m.preview.GotoTop()
+	case key.Matches(msg, k.Bottom):
+		m.preview.GotoBottom()
 	default:
 		return m.preview.Scroll(msg)
 	}
 	return nil
+}
+
+// handleMouse handles the mouse over the list and the preview: in the
+// list, the note under the pointer is marked and a click selects it; in the
+// preview's body, the left button selects text and copies it on release,
+// and the wheel scrolls the preview. The mouse does nothing while a dialog
+// is open or a note is being renamed.
+func (m *UI) handleMouse(msg tea.MouseMsg) tea.Cmd {
+	if m.dialog.HasDialogs() || m.list.Renaming() {
+		m.list.ClearHover()
+		return nil
+	}
+	mouse := msg.Mouse()
+	at := image.Pt(mouse.X, mouse.Y)
+	listBody := m.list.Body().Add(m.layout.list.Min)
+	body := m.preview.Body().Add(m.layout.preview.Min)
+	in := at.Sub(body.Min)
+
+	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		if mouse.Button != tea.MouseLeft {
+			return nil
+		}
+		switch {
+		case at.In(listBody):
+			prev, _ := m.list.Selected()
+			if !m.list.SelectAt(at.Y - listBody.Min.Y) {
+				return nil
+			}
+			m.focus = focusList
+			// Clicking the note under the cursor again pins its tab.
+			if n, _ := m.list.Selected(); n == prev {
+				return m.open(n, true)
+			}
+			return m.showSelected()
+		case at.In(body):
+			m.focus = focusPreview
+			m.preview.StartSelection(in.X, in.Y)
+		}
+	case tea.MouseMotionMsg:
+		// The pointer marks a note only while no button is held, so a drag
+		// selecting the preview's text doesn't.
+		if mouse.Button == tea.MouseNone && at.In(listBody) {
+			m.list.SetHover(at.Y - listBody.Min.Y)
+		} else {
+			m.list.ClearHover()
+		}
+		m.preview.ExtendSelection(in.X, in.Y)
+	case tea.MouseReleaseMsg:
+		m.preview.ExtendSelection(in.X, in.Y)
+		if text, ok := m.preview.EndSelection(); ok {
+			return tea.Batch(tea.SetClipboard(text), m.status.SetInfo(copiedMessage(text)))
+		}
+	case tea.MouseWheelMsg:
+		if at.In(m.layout.preview) {
+			m.preview.Wheel(msg)
+		}
+	}
+	return nil
+}
+
+func copiedMessage(text string) string {
+	if n := strings.Count(text, "\n") + 1; n > 1 {
+		return fmt.Sprintf("copied %d lines to clipboard", n)
+	}
+	return "copied 1 line to clipboard"
 }
 
 // handleAction carries out what a dialog asked for.
@@ -498,6 +572,9 @@ func (m *UI) helpKeys() help.KeyMap {
 func (m *UI) View() tea.View {
 	var v tea.View
 	v.AltScreen = true
+	// The app takes the mouse to mark and select notes, and to select and
+	// copy the preview's text; marking needs the pointer's every move.
+	v.MouseMode = tea.MouseModeAllMotion
 	v.WindowTitle = "Note Box"
 	if m.width == 0 || m.height == 0 {
 		return v
