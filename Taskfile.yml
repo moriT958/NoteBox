@@ -8,9 +8,28 @@ tasks:
     cmd: APP_ENV=development go run ./cmd/nbx/
 
   build:
-    desc: Build the TUI
+    desc: Build nbx with the web UI embedded
     cmds:
+      - task: web:build
       - go build -o nbx cmd/nbx/main.go
+
+  web:install:
+    desc: Install the web UI dependencies
+    dir: web
+    cmd: pnpm install --frozen-lockfile
+    sources: [package.json, pnpm-lock.yaml]
+
+  web:build:
+    desc: Build the web UI into internal/web/dist (embedded by go build)
+    dir: web
+    deps: [web:install]
+    cmd: pnpm build
+
+  web:dev:
+    desc: Run the web UI dev server against a running daemon (nbx daemon start)
+    dir: web
+    deps: [web:install]
+    cmd: pnpm dev
 
   clean:
     desc: Clean the Binary

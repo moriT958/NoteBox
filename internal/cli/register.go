@@ -35,6 +35,17 @@ func InitCommands(ctx context.Context, boxes *box.BoxService) int {
 			&noteRmCmd{boxes: boxes},
 		},
 	}, "")
+	subcommands.Register(&openCmd{boxes: boxes}, "")
+	subcommands.Register(&group{
+		name:     "daemon",
+		synopsis: "manage the background server used by the web UI",
+		cmds: []subcommands.Command{
+			&daemonRunCmd{boxes: boxes},
+			&daemonStartCmd{},
+			&daemonStopCmd{},
+			&daemonStatusCmd{},
+		},
+	}, "")
 	subcommands.Register(&group{
 		name:     "keymap",
 		synopsis: "show the keys of the TUI",

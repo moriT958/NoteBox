@@ -36,6 +36,28 @@ curl -sSfL https://raw.githubusercontent.com/moriT958/NoteBox/main/install.sh | 
 
 Drag over the preview to select text; it's copied to the clipboard when you release the button (OSC 52; in tmux, `set-clipboard on` is needed). To select with the terminal instead, hold Shift (or Option, depending on the terminal) while dragging.
 
+### Web UI
+
+```bash
+nbx open [-box <path>] [<note-path>]   # open the box / note in the browser
+```
+
+`nbx open` starts the daemon in the background when it isn't running and opens the web UI. Notes are edited in place with a live preview: Markdown is rendered, and the syntax under the cursor comes back so it can be edited. Edits are saved as you type. The file stays exactly as typed, so editing the same note from the TUI, `$EDITOR` or an AI agent at the same time is fine: changes show up live, and when both sides changed the note you choose which version to keep.
+
+The web UI only listens on `127.0.0.1:8765`. To use it on a remote machine, forward the port and open the printed URL locally:
+
+```bash
+ssh -L 8765:localhost:8765 <host>
+nbx open -print-url
+```
+
+```
+nbx daemon start [-addr <host:port>]  # <pid>\t<web-address>
+nbx daemon status
+nbx daemon stop
+nbx daemon run                        # in the foreground
+```
+
 ### Subcommands
 
 Every command is `nbx <target> <action>`. Output is plain text, one item per line, with tab-separated columns, so it works well in pipes and from scripts and AI agents. Commands never ask questions, except `box prune` without `-force`.

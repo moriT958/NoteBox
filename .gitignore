@@ -4,6 +4,10 @@
 *.tmp
 
 # Added by goreleaser init:
-dist/
+/dist/
 
 notebox.sqlite
+
+# web UI build output (embedded into the binary by `task web:build`)
+internal/web/dist/*
+!internal/web/dist/.gitkeep
